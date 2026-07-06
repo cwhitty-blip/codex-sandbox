@@ -680,10 +680,19 @@ function bindEvents() {
   });
 
   els.jobForm.addEventListener("submit", (event) => {
-    if (event.submitter?.value === "cancel") return;
+    if (event.submitter?.value === "cancel") {
+      els.jobDialog.close();
+      return;
+    }
     event.preventDefault();
     saveJobFromForm();
     els.jobDialog.close();
+  });
+
+  els.jobForm.addEventListener("click", (event) => {
+    if (event.target.closest('[value="cancel"]')) {
+      els.jobDialog.close();
+    }
   });
 
   els.deleteJob.addEventListener("click", () => {
