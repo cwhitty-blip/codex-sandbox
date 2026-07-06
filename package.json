@@ -1,0 +1,9 @@
+{
+  "name": "service-job-portal",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Standalone service-business customer job portal prototype.",
+  "scripts": {
+    "check": "node --check assets/app.js"
+  }
+}
