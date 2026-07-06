@@ -1,0 +1,249 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Service Job Portal</title>
+    <link rel="stylesheet" href="assets/styles.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <aside class="sidebar">
+        <div class="brand">
+          <div class="brand-mark" aria-hidden="true">SP</div>
+          <div>
+            <strong>Service Portal</strong>
+            <span>Customer job access</span>
+          </div>
+        </div>
+
+        <nav class="nav-tabs" aria-label="Primary">
+          <button class="nav-tab active" data-view="dashboard" type="button">
+            <span class="tab-icon" aria-hidden="true">+</span>
+            Jobs
+          </button>
+          <button class="nav-tab" data-view="customer" type="button">
+            <span class="tab-icon" aria-hidden="true">@</span>
+            Customer View
+          </button>
+          <button class="nav-tab" data-view="settings" type="button">
+            <span class="tab-icon" aria-hidden="true">*</span>
+            Setup
+          </button>
+        </nav>
+
+        <div class="sidebar-metric">
+          <span class="eyebrow">Today</span>
+          <strong id="activeJobCount">0 active jobs</strong>
+          <p id="billingProviderSummary">No billing provider connected</p>
+        </div>
+      </aside>
+
+      <main>
+        <header class="topbar">
+          <div>
+            <p class="eyebrow">Operations</p>
+            <h1 id="viewTitle">Jobs</h1>
+          </div>
+          <div class="topbar-actions">
+            <button id="resetDemo" class="ghost-button" type="button">Reset Demo</button>
+            <button id="exportData" class="ghost-button" type="button">Export</button>
+            <button id="startJob" class="primary-button" type="button">Start a job</button>
+          </div>
+        </header>
+
+        <section id="dashboardView" class="view active">
+          <section class="action-band">
+            <button id="quickStartJob" class="choice-button" type="button">
+              <span>Start a job</span>
+              <strong>Create customer, job details, and access in one flow.</strong>
+            </button>
+            <button id="quickUpdateJob" class="choice-button" type="button">
+              <span>Update a job</span>
+              <strong>Change status, install date, fields, notes, or documents.</strong>
+            </button>
+          </section>
+
+          <section class="work-grid">
+            <div class="panel">
+              <div class="panel-header">
+                <div>
+                  <p class="eyebrow">Pipeline</p>
+                  <h2>Active jobs</h2>
+                </div>
+                <select id="industryFilter" aria-label="Filter by industry"></select>
+              </div>
+              <div id="jobList" class="job-list"></div>
+            </div>
+
+            <div class="panel detail-panel">
+              <div class="panel-header">
+                <div>
+                  <p class="eyebrow" id="detailIndustry">Job</p>
+                  <h2 id="detailTitle">Select a job</h2>
+                </div>
+                <span id="detailStatus" class="status-pill">Ready</span>
+              </div>
+              <div id="jobDetail" class="job-detail empty-state"></div>
+            </div>
+          </section>
+        </section>
+
+        <section id="customerView" class="view">
+          <section class="customer-layout">
+            <div class="customer-selector">
+              <label for="customerJobSelect">Preview customer portal for</label>
+              <select id="customerJobSelect"></select>
+            </div>
+            <div id="customerPortal" class="customer-portal"></div>
+          </section>
+        </section>
+
+        <section id="settingsView" class="view">
+          <section class="settings-grid">
+            <div class="panel">
+              <div class="panel-header">
+                <div>
+                  <p class="eyebrow">Billing</p>
+                  <h2>Provider connection</h2>
+                </div>
+                <span id="billingStatus" class="status-pill">Not connected</span>
+              </div>
+              <form id="billingForm" class="stacked-form">
+                <label>
+                  Who is your billing provider?
+                  <select id="billingProvider"></select>
+                </label>
+                <label>
+                  Account or company ID
+                  <input id="billingAccount" type="text" placeholder="Optional for demo" />
+                </label>
+                <label>
+                  Sync preference
+                  <select id="billingSync">
+                    <option>Invoice links only</option>
+                    <option>Invoices and payment status</option>
+                    <option>Customers, invoices, and payments</option>
+                  </select>
+                </label>
+                <button class="primary-button" type="submit">Save billing setup</button>
+              </form>
+              <p class="fine-print">
+                This prototype stores provider preferences locally. A production build should use
+                provider-specific OAuth or API-key adapters with encrypted tenant credentials.
+              </p>
+            </div>
+
+            <div class="panel">
+              <div class="panel-header">
+                <div>
+                  <p class="eyebrow">Customization</p>
+                  <h2>Custom job fields</h2>
+                </div>
+                <span id="fieldCount" class="count-chip">0</span>
+              </div>
+              <form id="fieldForm" class="field-form">
+                <input id="fieldLabel" type="text" placeholder="Field label, e.g. Gate code" />
+                <select id="fieldType" aria-label="Field type">
+                  <option value="text">Text</option>
+                  <option value="date">Date</option>
+                  <option value="select">Dropdown</option>
+                </select>
+                <input id="fieldOptions" type="text" placeholder="Dropdown options, comma separated" />
+                <button class="primary-button" type="submit">Add field</button>
+              </form>
+              <div id="customFieldList" class="custom-field-list"></div>
+            </div>
+
+            <div class="panel">
+              <div class="panel-header">
+                <div>
+                  <p class="eyebrow">Industry Presets</p>
+                  <h2>Reusable language</h2>
+                </div>
+              </div>
+              <div id="presetList" class="preset-list"></div>
+            </div>
+          </section>
+        </section>
+      </main>
+    </div>
+
+    <dialog id="jobDialog">
+      <form id="jobForm" method="dialog" class="dialog-form">
+        <div class="dialog-header">
+          <div>
+            <p class="eyebrow" id="jobDialogMode">Start</p>
+            <h2 id="jobDialogTitle">Start a job</h2>
+          </div>
+          <button class="icon-button" value="cancel" type="submit" aria-label="Close">X</button>
+        </div>
+
+        <input id="jobId" type="hidden" />
+        <div class="form-grid">
+          <label>
+            Industry
+            <select id="jobIndustry"></select>
+          </label>
+          <label>
+            Job name
+            <input id="jobName" required type="text" />
+          </label>
+          <label>
+            Customer name
+            <input id="customerName" required type="text" />
+          </label>
+          <label>
+            Customer email
+            <input id="customerEmail" required type="email" />
+          </label>
+          <label>
+            Customer phone
+            <input id="customerPhone" type="tel" />
+          </label>
+          <label>
+            Service address
+            <input id="serviceAddress" required type="text" />
+          </label>
+          <label>
+            Job status
+            <select id="jobStatus"></select>
+          </label>
+          <label>
+            Material or parts status
+            <select id="materialStatus"></select>
+          </label>
+          <label>
+            Projected service date
+            <input id="projectedDate" type="date" />
+          </label>
+          <label>
+            Billing invoice URL
+            <input id="invoiceUrl" type="url" placeholder="https://..." />
+          </label>
+        </div>
+
+        <div id="customFieldInputs" class="custom-field-inputs"></div>
+
+        <label>
+          Next action
+          <input id="nextAction" type="text" placeholder="Waiting on signed estimate" />
+        </label>
+        <label>
+          Internal notes
+          <textarea id="internalNotes" rows="4" placeholder="Staff-only notes"></textarea>
+        </label>
+
+        <div class="dialog-actions">
+          <button id="deleteJob" class="danger-button" type="button">Delete</button>
+          <span></span>
+          <button class="ghost-button" value="cancel" type="submit">Cancel</button>
+          <button id="saveJob" class="primary-button" value="default" type="submit">Save job</button>
+        </div>
+      </form>
+    </dialog>
+
+    <input id="documentPicker" class="hidden-file" multiple type="file" />
+    <script src="assets/app.js"></script>
+  </body>
+</html>
