@@ -191,6 +191,8 @@ const els = {
   nextAction: document.getElementById("nextAction"),
   internalNotes: document.getElementById("internalNotes"),
   deleteJob: document.getElementById("deleteJob"),
+  closeJobDialog: document.getElementById("closeJobDialog"),
+  cancelJobDialog: document.getElementById("cancelJobDialog"),
   documentPicker: document.getElementById("documentPicker"),
 };
 
@@ -680,20 +682,13 @@ function bindEvents() {
   });
 
   els.jobForm.addEventListener("submit", (event) => {
-    if (event.submitter?.value === "cancel") {
-      els.jobDialog.close();
-      return;
-    }
     event.preventDefault();
     saveJobFromForm();
     els.jobDialog.close();
   });
 
-  els.jobForm.addEventListener("click", (event) => {
-    if (event.target.closest('[value="cancel"]')) {
-      els.jobDialog.close();
-    }
-  });
+  els.closeJobDialog.addEventListener("click", () => els.jobDialog.close());
+  els.cancelJobDialog.addEventListener("click", () => els.jobDialog.close());
 
   els.deleteJob.addEventListener("click", () => {
     const id = els.jobId.value;
