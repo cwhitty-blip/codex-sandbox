@@ -8,6 +8,10 @@
   </head>
   <body>
     <div class="app-shell">
+      <div class="app-statusbar" aria-hidden="true">
+        <span>9:41</span>
+        <span>LTE 100%</span>
+      </div>
       <aside class="sidebar">
         <div class="brand">
           <div class="brand-mark" aria-hidden="true">SP</div>
@@ -95,19 +99,7 @@
               <label for="customerJobSelect">Preview customer portal for</label>
               <select id="customerJobSelect"></select>
             </div>
-            <div class="phone-preview" aria-label="Mobile customer portal preview">
-              <div class="phone-shell">
-                <div class="phone-speaker" aria-hidden="true"></div>
-                <div class="phone-screen">
-                  <div class="phone-statusbar" aria-hidden="true">
-                    <span>9:41</span>
-                    <span>LTE 100%</span>
-                  </div>
-                  <div id="customerPortal" class="customer-portal"></div>
-                  <div class="phone-homebar" aria-hidden="true"></div>
-                </div>
-              </div>
-            </div>
+            <div id="customerPortal" class="customer-portal"></div>
           </section>
         </section>
 
@@ -180,6 +172,7 @@
         </section>
       </main>
     </div>
+    <div class="app-homebar" aria-hidden="true"></div>
 
     <dialog id="jobDialog">
       <form id="jobForm" method="dialog" class="dialog-form">
