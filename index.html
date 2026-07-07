@@ -4,7 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Service Job Portal</title>
-    <link rel="stylesheet" href="assets/styles.css" />
+    <link rel="stylesheet" href="assets/styles.css?v=estimate-accept" />
   </head>
   <body>
     <div class="app-shell">
@@ -19,6 +19,7 @@
             <strong>Service Portal</strong>
             <span>Customer job access</span>
           </div>
+          <button class="settings-gear" data-view="settings" type="button" aria-label="Settings">⚙</button>
         </div>
 
         <nav class="nav-tabs" aria-label="Primary">
@@ -29,10 +30,6 @@
           <button class="nav-tab" data-view="customer" type="button">
             <span class="tab-icon" aria-hidden="true">@</span>
             Customer View
-          </button>
-          <button class="nav-tab" data-view="settings" type="button">
-            <span class="tab-icon" aria-hidden="true">*</span>
-            Setup
           </button>
         </nav>
 
@@ -249,6 +246,6 @@
     </dialog>
 
     <input id="documentPicker" class="hidden-file" multiple type="file" />
-    <script src="assets/app.js?v=direct-close"></script>
+    <script src="assets/app.js?v=estimate-accept"></script>
   </body>
 </html>
