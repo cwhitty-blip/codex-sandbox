@@ -58,7 +58,6 @@ const billingProviders = [
 
 const jobStatuses = ["Active", "Waiting on Customer", "Scheduled", "In Progress", "Complete", "On Hold"];
 const materialStatuses = ["Not Ordered", "Ordered", "In Transit", "Arrived", "Not Required"];
-const documentTypes = ["Insurance Claim", "Photo", "Signed Document", "Estimate", "Permit", "Other"];
 
 function createId() {
   if (window.crypto?.randomUUID) return window.crypto.randomUUID();
@@ -201,12 +200,26 @@ const els = {
 
 function loadState() {
   const stored = localStorage.getItem(STORAGE_KEY);
-  if (!stored) return structuredClone(demoState);
+  if (!stored) return normalizeState(structuredClone(demoState));
   try {
-    return JSON.parse(stored);
+    return normalizeState(JSON.parse(stored));
   } catch {
-    return structuredClone(demoState);
+    return normalizeState(structuredClone(demoState));
   }
+}
+
+function normalizeState(nextState) {
+  nextState.settings = { ...structuredClone(demoState.settings), ...(nextState.settings || {}) };
+  nextState.settings.customFields = Array.isArray(nextState.settings.customFields) ? nextState.settings.customFields : [];
+  nextState.jobs = Array.isArray(nextState.jobs) ? nextState.jobs : [];
+  nextState.jobs.forEach((job) => {
+    job.documents = Array.isArray(job.documents) ? job.documents : [];
+    job.timeline = Array.isArray(job.timeline) ? job.timeline : ["Job started"];
+    job.customValues = job.customValues || {};
+    job.estimateAcceptedAt = job.estimateAcceptedAt || null;
+    job.magicLinkLastSent = job.magicLinkLastSent || null;
+  });
+  return nextState;
 }
 
 function saveState() {
@@ -223,6 +236,15 @@ function selectedJob() {
 
 function customerJob() {
   return state.jobs.find((job) => job.id === selectedCustomerJobId) || state.jobs[0] || null;
+}
+
+function estimateFor(job) {
+  return job?.documents.find((doc) => doc.type === "Estimate" && doc.visibility === "Customer Visible") || null;
+}
+
+function estimateStatus(job) {
+  if (!estimateFor(job)) return "No estimate";
+  return job.estimateAcceptedAt ? "Accepted" : "Needs acceptance";
 }
 
 function escapeHtml(value) {
@@ -315,6 +337,7 @@ function renderJobDetail() {
   }
 
   const industry = industryFor(job.industry);
+  const estimate = estimateFor(job);
   const visibleDocs = job.documents.filter((doc) => doc.visibility === "Customer Visible").length;
   const customerDocs = job.documents.filter((doc) => doc.uploadedBy === "Customer").length;
   els.detailTitle.textContent = job.name;
@@ -333,8 +356,12 @@ function renderJobDetail() {
       <div><span>Customer</span><strong>${escapeHtml(job.customerName)}</strong></div>
       <div><span>${escapeHtml(industry.dateLabel)}</span><strong>${formatDate(job.projectedDate)}</strong></div>
       <div><span>${escapeHtml(industry.materialLabel)}</span><strong>${escapeHtml(job.materialStatus)}</strong></div>
-      <div><span>Customer uploads</span><strong>${customerDocs}</strong></div>
+      <div><span>Estimate</span><strong>${escapeHtml(estimateStatus(job))}</strong></div>
     </div>
+    <section class="plain-section estimate-summary">
+      <h3>Estimate</h3>
+      ${renderContractorEstimateStatus(job, estimate)}
+    </section>
     <section class="plain-section">
       <h3>Next action</h3>
       <p>${escapeHtml(job.nextAction || "No next action set.")}</p>
@@ -350,7 +377,7 @@ function renderJobDetail() {
     <section class="plain-section">
       <h3>Documents</h3>
       <div class="document-list">${renderDocumentList(job.documents)}</div>
-      <p class="fine-print">${visibleDocs} customer-visible document${visibleDocs === 1 ? "" : "s"}. Customer uploads are marked new until reviewed.</p>
+      <p class="fine-print">${visibleDocs} customer-visible document${visibleDocs === 1 ? "" : "s"}. ${customerDocs} customer upload${customerDocs === 1 ? "" : "s"} marked new until reviewed.</p>
     </section>
     <section class="plain-section internal-note">
       <h3>Internal notes</h3>
@@ -361,6 +388,24 @@ function renderJobDetail() {
       <ol class="timeline">${job.timeline.map((event) => `<li>${escapeHtml(event)}</li>`).join("")}</ol>
       <p class="fine-print">Last magic link: ${formatDateTime(job.magicLinkLastSent)}</p>
     </section>
+  `;
+}
+
+function renderContractorEstimateStatus(job, estimate) {
+  if (!estimate) {
+    return `
+      <p>No estimate has been uploaded for this customer yet.</p>
+      <button class="ghost-button" data-action="upload-estimate" type="button">Upload estimate</button>
+    `;
+  }
+  return `
+    <div class="estimate-status-card">
+      <span>
+        <strong>${escapeHtml(estimate.name)}</strong>
+        <small>${job.estimateAcceptedAt ? `Accepted ${formatDateTime(job.estimateAcceptedAt)}` : "Waiting on customer acceptance"}</small>
+      </span>
+      <em>${escapeHtml(estimateStatus(job))}</em>
+    </div>
   `;
 }
 
@@ -406,7 +451,7 @@ function renderCustomerPortal() {
   }
   const industry = industryFor(job.industry);
   const customerVisibleDocs = job.documents.filter((doc) => doc.visibility === "Customer Visible");
-  const estimate = customerVisibleDocs.find((doc) => doc.type === "Estimate");
+  const estimate = estimateFor(job);
   const receivedUploads = job.documents.filter((doc) => doc.uploadedBy === "Customer").length;
   els.customerPortal.innerHTML = `
     <div class="customer-hero">
@@ -423,12 +468,10 @@ function renderCustomerPortal() {
       <div><span>Uploads received</span><strong>${receivedUploads}</strong></div>
     </div>
     <section class="plain-section">
-      <h3>Requested documents</h3>
-      <p>Upload insurance claims, photos, signed documents, or any file requested by your service provider.</p>
+      <h3>Insurance claim</h3>
+      <p>Upload the insurance claim packet or letter for this job.</p>
       <div class="customer-upload-actions">
-        ${documentTypes
-          .map((type) => `<button class="ghost-button" data-action="customer-upload" data-doc-type="${type}" type="button">Upload ${type}</button>`)
-          .join("")}
+        <button class="ghost-button" data-action="customer-upload" data-doc-type="Insurance Claim" type="button">Upload insurance claim</button>
       </div>
     </section>
     <section class="plain-section estimate-acceptance">
@@ -570,6 +613,7 @@ function saveJobFromForm() {
     customValues,
     documents: existing?.documents || [],
     timeline: existing?.timeline || ["Job started"],
+    estimateAcceptedAt: existing?.estimateAcceptedAt || null,
     magicLinkLastSent: existing?.magicLinkLastSent || null,
   };
 
@@ -595,6 +639,9 @@ function sendMagicLink(channel) {
 function addDocuments(files, uploadedBy, docType = "Other") {
   const job = uploadedBy === "Customer" ? customerJob() : selectedJob();
   if (!job || !files.length) return;
+  if (docType === "Estimate") {
+    job.estimateAcceptedAt = null;
+  }
   Array.from(files).forEach((file) => {
     job.documents.unshift({
       id: createId(),
@@ -606,7 +653,13 @@ function addDocuments(files, uploadedBy, docType = "Other") {
       createdAt: new Date().toISOString(),
     });
   });
-  job.timeline.push(`${uploadedBy} uploaded ${files.length} document${files.length === 1 ? "" : "s"}`);
+  if (docType === "Estimate") {
+    job.timeline.push("Estimate shared with customer");
+  } else if (docType === "Insurance Claim" && uploadedBy === "Customer") {
+    job.timeline.push("Customer uploaded insurance claim");
+  } else {
+    job.timeline.push(`${uploadedBy} uploaded ${files.length} document${files.length === 1 ? "" : "s"}`);
+  }
   render();
 }
 
@@ -649,7 +702,7 @@ function bindEvents() {
   els.quickUpdateJob.addEventListener("click", () => openJobDialog(selectedJob()));
   els.industryFilter.addEventListener("change", renderJobs);
   els.resetDemo.addEventListener("click", () => {
-    state = structuredClone(demoState);
+    state = normalizeState(structuredClone(demoState));
     selectedJobId = state.jobs[0]?.id || null;
     selectedCustomerJobId = selectedJobId;
     render();
