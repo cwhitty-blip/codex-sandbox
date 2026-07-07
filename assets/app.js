@@ -109,6 +109,7 @@ const demoState = {
         "Magic link sent to customer",
         "Estimate shared with customer",
       ],
+      estimateAcceptedAt: null,
       magicLinkLastSent: "2026-07-03T17:20:00.000Z",
     },
     {
@@ -128,6 +129,7 @@ const demoState = {
       customValues: { "Claim number": "", "Gate code": "", "Permit required": "No" },
       documents: [],
       timeline: ["Job started", "Equipment arrived", "Service date scheduled"],
+      estimateAcceptedAt: null,
       magicLinkLastSent: null,
     },
   ],
@@ -139,6 +141,7 @@ let selectedCustomerJobId = selectedJobId;
 
 const els = {
   tabs: document.querySelectorAll(".nav-tab"),
+  settingsGear: document.querySelector(".settings-gear"),
   views: {
     dashboard: document.getElementById("dashboardView"),
     customer: document.getElementById("customerView"),
@@ -323,6 +326,7 @@ function renderJobDetail() {
       <button class="primary-button" data-action="edit-job" type="button">Update a job</button>
       <button class="ghost-button" data-action="send-email" type="button">Send magic email</button>
       <button class="ghost-button" data-action="send-sms" type="button">Send magic text</button>
+      <button class="ghost-button" data-action="upload-estimate" type="button">Upload estimate</button>
       <button class="ghost-button" data-action="upload-staff-doc" type="button">Add shared file</button>
     </div>
     <div class="stat-grid">
@@ -402,6 +406,7 @@ function renderCustomerPortal() {
   }
   const industry = industryFor(job.industry);
   const customerVisibleDocs = job.documents.filter((doc) => doc.visibility === "Customer Visible");
+  const estimate = customerVisibleDocs.find((doc) => doc.type === "Estimate");
   const receivedUploads = job.documents.filter((doc) => doc.uploadedBy === "Customer").length;
   els.customerPortal.innerHTML = `
     <div class="customer-hero">
@@ -426,6 +431,10 @@ function renderCustomerPortal() {
           .join("")}
       </div>
     </section>
+    <section class="plain-section estimate-acceptance">
+      <h3>Estimate</h3>
+      ${renderEstimateAcceptance(job, estimate)}
+    </section>
     <section class="plain-section">
       <h3>Shared documents</h3>
       <div class="document-list">${renderDocumentList(customerVisibleDocs)}</div>
@@ -434,6 +443,24 @@ function renderCustomerPortal() {
       <h3>Timeline</h3>
       <ol class="timeline">${job.timeline.slice(-4).map((event) => `<li>${escapeHtml(event)}</li>`).join("")}</ol>
     </section>
+  `;
+}
+
+function renderEstimateAcceptance(job, estimate) {
+  if (!estimate) {
+    return `<p>No estimate has been shared yet.</p>`;
+  }
+  if (job.estimateAcceptedAt) {
+    return `
+      <div class="acceptance-confirmed">
+        <strong>Accepted</strong>
+        <span>${formatDateTime(job.estimateAcceptedAt)}</span>
+      </div>
+    `;
+  }
+  return `
+    <p>${escapeHtml(estimate.name)} is ready for review.</p>
+    <button class="accept-button" data-action="accept-estimate" type="button">✓ I accept</button>
   `;
 }
 
@@ -583,6 +610,15 @@ function addDocuments(files, uploadedBy, docType = "Other") {
   render();
 }
 
+function acceptEstimate() {
+  const job = customerJob();
+  if (!job || job.estimateAcceptedAt) return;
+  job.estimateAcceptedAt = new Date().toISOString();
+  job.jobStatus = "Scheduled";
+  job.timeline.push("Customer accepted the estimate");
+  render();
+}
+
 function exportState() {
   const blob = new Blob([JSON.stringify(state, null, 2)], { type: "application/json" });
   const url = URL.createObjectURL(blob);
@@ -594,13 +630,19 @@ function exportState() {
 }
 
 function bindEvents() {
+  function setView(viewName) {
+    els.tabs.forEach((item) => item.classList.toggle("active", item.dataset.view === viewName));
+    els.settingsGear.classList.toggle("active", viewName === "settings");
+    Object.entries(els.views).forEach(([view, node]) => node.classList.toggle("active", view === viewName));
+    els.viewTitle.textContent = viewName === "dashboard" ? "Jobs" : viewName === "customer" ? "Customer View" : "Setup";
+  }
+
   els.tabs.forEach((tab) => {
     tab.addEventListener("click", () => {
-      els.tabs.forEach((item) => item.classList.toggle("active", item === tab));
-      Object.entries(els.views).forEach(([view, node]) => node.classList.toggle("active", view === tab.dataset.view));
-      els.viewTitle.textContent = tab.dataset.view === "dashboard" ? "Jobs" : tab.dataset.view === "customer" ? "Customer View" : "Setup";
+      setView(tab.dataset.view);
     });
   });
+  els.settingsGear.addEventListener("click", () => setView("settings"));
 
   els.startJob.addEventListener("click", () => openJobDialog());
   els.quickStartJob.addEventListener("click", () => openJobDialog());
@@ -627,6 +669,11 @@ function bindEvents() {
     if (action === "edit-job") openJobDialog(selectedJob());
     if (action === "send-email") sendMagicLink("email");
     if (action === "send-sms") sendMagicLink("text");
+    if (action === "upload-estimate") {
+      els.documentPicker.dataset.uploadedBy = "Contractor";
+      els.documentPicker.dataset.docType = "Estimate";
+      els.documentPicker.click();
+    }
     if (action === "upload-staff-doc") {
       els.documentPicker.dataset.uploadedBy = "Contractor";
       els.documentPicker.dataset.docType = "Other";
@@ -640,6 +687,10 @@ function bindEvents() {
   });
 
   els.customerPortal.addEventListener("click", (event) => {
+    if (event.target.dataset.action === "accept-estimate") {
+      acceptEstimate();
+      return;
+    }
     if (event.target.dataset.action !== "customer-upload") return;
     els.documentPicker.dataset.uploadedBy = "Customer";
     els.documentPicker.dataset.docType = event.target.dataset.docType;
