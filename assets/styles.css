@@ -542,6 +542,41 @@ main {
   padding-left: 12px;
 }
 
+.estimate-summary {
+  border: 1px solid rgba(23, 106, 122, 0.18);
+  border-radius: 8px;
+  padding: 12px;
+  background: #f4fbfb;
+}
+
+.estimate-status-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  border: 1px solid rgba(23, 106, 122, 0.18);
+  border-radius: 8px;
+  padding: 12px;
+  background: #ffffff;
+}
+
+.estimate-status-card strong,
+.estimate-status-card small {
+  display: block;
+}
+
+.estimate-status-card small {
+  margin-top: 4px;
+}
+
+.estimate-status-card em {
+  color: var(--accent-3);
+  font-size: 0.82rem;
+  font-style: normal;
+  font-weight: 900;
+  white-space: nowrap;
+}
+
 .customer-layout {
   display: grid;
   gap: 14px;
