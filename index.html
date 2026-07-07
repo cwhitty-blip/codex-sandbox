@@ -4,7 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Service Job Portal</title>
-    <link rel="stylesheet" href="assets/styles.css?v=estimate-accept" />
+    <link rel="stylesheet" href="assets/styles.css?v=estimate-polish" />
     <style>
       .brand {
         position: relative;
@@ -37,6 +37,41 @@
 
       .estimate-acceptance {
         border-color: rgba(23, 106, 122, 0.28);
+      }
+
+      .estimate-summary {
+        border: 1px solid rgba(23, 106, 122, 0.18);
+        border-radius: 8px;
+        padding: 12px;
+        background: #f4fbfb;
+      }
+
+      .estimate-status-card {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        border: 1px solid rgba(23, 106, 122, 0.18);
+        border-radius: 8px;
+        padding: 12px;
+        background: #ffffff;
+      }
+
+      .estimate-status-card strong,
+      .estimate-status-card small {
+        display: block;
+      }
+
+      .estimate-status-card small {
+        margin-top: 4px;
+      }
+
+      .estimate-status-card em {
+        color: var(--accent-3);
+        font-size: 0.82rem;
+        font-style: normal;
+        font-weight: 900;
+        white-space: nowrap;
       }
 
       .accept-button {
@@ -308,6 +343,6 @@
     </dialog>
 
     <input id="documentPicker" class="hidden-file" multiple type="file" />
-    <script src="assets/app.js?v=estimate-accept"></script>
+    <script src="assets/app.js?v=estimate-polish"></script>
   </body>
 </html>
