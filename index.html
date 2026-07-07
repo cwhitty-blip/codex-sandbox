@@ -4,7 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Service Job Portal</title>
-    <link rel="stylesheet" href="assets/styles.css?v=estimate-polish" />
+    <link rel="stylesheet" href="assets/styles.css?v=portal-hardening" />
     <style>
       .brand {
         position: relative;
@@ -85,6 +85,12 @@
         box-shadow: 0 10px 22px rgba(23, 106, 122, 0.18);
       }
 
+      .accept-button:disabled {
+        background: #9aadb2;
+        box-shadow: none;
+        cursor: not-allowed;
+      }
+
       .acceptance-confirmed {
         display: flex;
         align-items: center;
@@ -100,6 +106,27 @@
       .acceptance-confirmed span {
         color: var(--muted);
         font-size: 0.82rem;
+      }
+
+      .access-summary,
+      .estimate-preview {
+        border: 1px solid rgba(23, 106, 122, 0.18);
+        border-radius: 16px;
+        padding: 14px;
+        background: #ffffff;
+        box-shadow: 0 8px 20px rgba(29, 46, 52, 0.06);
+      }
+
+      .access-summary strong,
+      .access-summary small,
+      .estimate-preview strong,
+      .estimate-preview small {
+        display: block;
+      }
+
+      .accept-row {
+        display: grid;
+        gap: 8px;
       }
     </style>
   </head>
@@ -189,10 +216,7 @@
 
         <section id="customerView" class="view">
           <section class="customer-layout">
-            <div class="customer-selector">
-              <label for="customerJobSelect">Preview customer portal for</label>
-              <select id="customerJobSelect"></select>
-            </div>
+            <div id="customerAccessSummary" class="access-summary"></div>
             <div id="customerPortal" class="customer-portal"></div>
           </section>
         </section>
@@ -343,6 +367,6 @@
     </dialog>
 
     <input id="documentPicker" class="hidden-file" multiple type="file" />
-    <script src="assets/app.js?v=estimate-polish"></script>
+    <script src="assets/app.js?v=portal-hardening"></script>
   </body>
 </html>

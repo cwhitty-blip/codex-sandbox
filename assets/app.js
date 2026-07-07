@@ -56,7 +56,7 @@ const billingProviders = [
   "Other",
 ];
 
-const jobStatuses = ["Active", "Waiting on Customer", "Scheduled", "In Progress", "Complete", "On Hold"];
+const jobStatuses = ["Active", "Waiting on Customer", "Ready to Schedule", "Scheduled", "In Progress", "Complete", "On Hold"];
 const materialStatuses = ["Not Ordered", "Ordered", "In Transit", "Arrived", "Not Required"];
 
 function createId() {
@@ -75,6 +75,13 @@ const demoState = {
       { id: createId(), label: "Gate code", type: "text", options: [] },
       { id: createId(), label: "Permit required", type: "select", options: ["Yes", "No", "Unknown"] },
     ],
+  },
+  portalAccess: {
+    token: "demo-garcia-access",
+    jobId: null,
+    channel: "email",
+    lastSentTo: "elena.garcia@example.com",
+    createdAt: "2026-07-03T17:20:00.000Z",
   },
   jobs: [
     {
@@ -101,6 +108,7 @@ const demoState = {
           visibility: "Customer Visible",
           status: "Reviewed",
           createdAt: "2026-07-02T15:00:00.000Z",
+          version: 1,
         },
       ],
       timeline: [
@@ -109,6 +117,8 @@ const demoState = {
         "Estimate shared with customer",
       ],
       estimateAcceptedAt: null,
+      acceptedEstimate: null,
+      viewedEstimateId: null,
       magicLinkLastSent: "2026-07-03T17:20:00.000Z",
     },
     {
@@ -129,6 +139,8 @@ const demoState = {
       documents: [],
       timeline: ["Job started", "Equipment arrived", "Service date scheduled"],
       estimateAcceptedAt: null,
+      acceptedEstimate: null,
+      viewedEstimateId: null,
       magicLinkLastSent: null,
     },
   ],
@@ -136,7 +148,9 @@ const demoState = {
 
 let state = loadState();
 let selectedJobId = state.jobs[0]?.id || null;
-let selectedCustomerJobId = selectedJobId;
+if (!state.portalAccess.jobId && selectedJobId) {
+  state.portalAccess.jobId = selectedJobId;
+}
 
 const els = {
   tabs: document.querySelectorAll(".nav-tab"),
@@ -160,7 +174,7 @@ const els = {
   detailTitle: document.getElementById("detailTitle"),
   detailStatus: document.getElementById("detailStatus"),
   jobDetail: document.getElementById("jobDetail"),
-  customerJobSelect: document.getElementById("customerJobSelect"),
+  customerAccessSummary: document.getElementById("customerAccessSummary"),
   customerPortal: document.getElementById("customerPortal"),
   billingStatus: document.getElementById("billingStatus"),
   billingForm: document.getElementById("billingForm"),
@@ -210,15 +224,33 @@ function loadState() {
 
 function normalizeState(nextState) {
   nextState.settings = { ...structuredClone(demoState.settings), ...(nextState.settings || {}) };
+  nextState.portalAccess = { ...structuredClone(demoState.portalAccess), ...(nextState.portalAccess || {}) };
   nextState.settings.customFields = Array.isArray(nextState.settings.customFields) ? nextState.settings.customFields : [];
   nextState.jobs = Array.isArray(nextState.jobs) ? nextState.jobs : [];
   nextState.jobs.forEach((job) => {
     job.documents = Array.isArray(job.documents) ? job.documents : [];
+    job.documents.forEach((doc, index) => {
+      doc.version = doc.version || (doc.type === "Estimate" ? index + 1 : null);
+    });
     job.timeline = Array.isArray(job.timeline) ? job.timeline : ["Job started"];
     job.customValues = job.customValues || {};
     job.estimateAcceptedAt = job.estimateAcceptedAt || null;
+    job.acceptedEstimate = job.acceptedEstimate || null;
+    job.viewedEstimateId = job.viewedEstimateId || null;
     job.magicLinkLastSent = job.magicLinkLastSent || null;
+    const acceptedFallback = estimateFor(job);
+    if (job.estimateAcceptedAt && !job.acceptedEstimate && acceptedFallback) {
+      job.acceptedEstimate = {
+        id: acceptedFallback.id,
+        name: acceptedFallback.name,
+        version: acceptedFallback.version || 1,
+        acceptedAt: job.estimateAcceptedAt,
+      };
+    }
   });
+  if (!nextState.jobs.some((job) => job.id === nextState.portalAccess.jobId)) {
+    nextState.portalAccess.jobId = nextState.jobs[0]?.id || null;
+  }
   return nextState;
 }
 
@@ -235,16 +267,20 @@ function selectedJob() {
 }
 
 function customerJob() {
-  return state.jobs.find((job) => job.id === selectedCustomerJobId) || state.jobs[0] || null;
+  return state.jobs.find((job) => job.id === state.portalAccess.jobId) || null;
 }
 
 function estimateFor(job) {
-  return job?.documents.find((doc) => doc.type === "Estimate" && doc.visibility === "Customer Visible") || null;
+  return (
+    job?.documents
+      .filter((doc) => doc.type === "Estimate" && doc.visibility === "Customer Visible")
+      .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))[0] || null
+  );
 }
 
 function estimateStatus(job) {
   if (!estimateFor(job)) return "No estimate";
-  return job.estimateAcceptedAt ? "Accepted" : "Needs acceptance";
+  return job.acceptedEstimate?.id === estimateFor(job).id ? "Accepted" : "Needs acceptance";
 }
 
 function escapeHtml(value) {
@@ -265,6 +301,15 @@ function formatDate(value) {
 function formatDateTime(value) {
   if (!value) return "Not sent";
   return new Intl.DateTimeFormat(undefined, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }).format(new Date(value));
+}
+
+function portalUrl(token) {
+  return `service-portal.app/magic/${token || "not-sent"}`;
+}
+
+function nextEstimateVersion(job) {
+  const versions = job.documents.filter((doc) => doc.type === "Estimate").map((doc) => Number(doc.version || 0));
+  return Math.max(0, ...versions) + 1;
 }
 
 function populateSelect(select, options, valueKey = null, labelKey = null) {
@@ -290,7 +335,7 @@ function render() {
   renderMetrics();
   renderJobs();
   renderJobDetail();
-  renderCustomerSelector();
+  renderCustomerAccessSummary();
   renderCustomerPortal();
   renderSettings();
 }
@@ -387,6 +432,7 @@ function renderJobDetail() {
       <h3>Activity</h3>
       <ol class="timeline">${job.timeline.map((event) => `<li>${escapeHtml(event)}</li>`).join("")}</ol>
       <p class="fine-print">Last magic link: ${formatDateTime(job.magicLinkLastSent)}</p>
+      <p class="fine-print">Scoped portal: ${escapeHtml(state.portalAccess.jobId === job.id ? portalUrl(state.portalAccess.token) : "No active customer link for this job")}</p>
     </section>
   `;
 }
@@ -402,7 +448,7 @@ function renderContractorEstimateStatus(job, estimate) {
     <div class="estimate-status-card">
       <span>
         <strong>${escapeHtml(estimate.name)}</strong>
-        <small>${job.estimateAcceptedAt ? `Accepted ${formatDateTime(job.estimateAcceptedAt)}` : "Waiting on customer acceptance"}</small>
+        <small>Version ${escapeHtml(estimate.version || 1)} / ${job.acceptedEstimate ? `Accepted ${formatDateTime(job.acceptedEstimate.acceptedAt)}` : "Waiting on customer acceptance"}</small>
       </span>
       <em>${escapeHtml(estimateStatus(job))}</em>
     </div>
@@ -436,11 +482,20 @@ function renderDocumentList(documents) {
     .join("");
 }
 
-function renderCustomerSelector() {
-  els.customerJobSelect.innerHTML = state.jobs
-    .map((job) => `<option value="${job.id}">${escapeHtml(job.customerName)} / ${escapeHtml(job.name)}</option>`)
-    .join("");
-  if (customerJob()) els.customerJobSelect.value = customerJob().id;
+function renderCustomerAccessSummary() {
+  const job = customerJob();
+  if (!job) {
+    els.customerAccessSummary.innerHTML = `
+      <strong>No active magic link</strong>
+      <small>Send a magic email or text from a contractor job to preview one customer's portal.</small>
+    `;
+    return;
+  }
+  els.customerAccessSummary.innerHTML = `
+    <strong>${escapeHtml(job.customerName)} / ${escapeHtml(job.name)}</strong>
+    <small>Scoped magic link: ${escapeHtml(portalUrl(state.portalAccess.token))}</small>
+    <small>Sent by ${escapeHtml(state.portalAccess.channel || "email")} to ${escapeHtml(state.portalAccess.lastSentTo || "customer")}.</small>
+  `;
 }
 
 function renderCustomerPortal() {
@@ -493,17 +548,33 @@ function renderEstimateAcceptance(job, estimate) {
   if (!estimate) {
     return `<p>No estimate has been shared yet.</p>`;
   }
-  if (job.estimateAcceptedAt) {
+  if (job.acceptedEstimate?.id === estimate.id || job.estimateAcceptedAt) {
     return `
       <div class="acceptance-confirmed">
-        <strong>Accepted</strong>
-        <span>${formatDateTime(job.estimateAcceptedAt)}</span>
+        <strong>Accepted version ${escapeHtml(job.acceptedEstimate?.version || estimate.version || 1)}</strong>
+        <span>${formatDateTime(job.acceptedEstimate?.acceptedAt || job.estimateAcceptedAt)}</span>
       </div>
     `;
   }
+  const viewed = job.viewedEstimateId === estimate.id;
   return `
-    <p>${escapeHtml(estimate.name)} is ready for review.</p>
-    <button class="accept-button" data-action="accept-estimate" type="button">✓ I accept</button>
+    <p>${escapeHtml(estimate.name)} version ${escapeHtml(estimate.version || 1)} is ready for review.</p>
+    <button class="ghost-button" data-action="view-estimate" data-doc-id="${escapeHtml(estimate.id)}" type="button">View estimate</button>
+    ${
+      viewed
+        ? `
+          <div class="estimate-preview">
+            <strong>${escapeHtml(estimate.name)}</strong>
+            <small>Version ${escapeHtml(estimate.version || 1)} / Shared ${formatDateTime(estimate.createdAt)}</small>
+            <small>Demo preview opened. A production app would render or download the uploaded estimate here.</small>
+          </div>
+        `
+        : `<p class="fine-print">Open the estimate before accepting it.</p>`
+    }
+    <div class="accept-row">
+      <button class="accept-button" data-action="accept-estimate" data-doc-id="${escapeHtml(estimate.id)}" type="button" ${viewed ? "" : "disabled"}>✓ I accept this estimate</button>
+      <small>Acceptance records this estimate's document ID, name, and version.</small>
+    </div>
   `;
 }
 
@@ -614,6 +685,8 @@ function saveJobFromForm() {
     documents: existing?.documents || [],
     timeline: existing?.timeline || ["Job started"],
     estimateAcceptedAt: existing?.estimateAcceptedAt || null,
+    acceptedEstimate: existing?.acceptedEstimate || null,
+    viewedEstimateId: existing?.viewedEstimateId || null,
     magicLinkLastSent: existing?.magicLinkLastSent || null,
   };
 
@@ -624,7 +697,6 @@ function saveJobFromForm() {
     state.jobs.unshift(payload);
   }
   selectedJobId = id;
-  selectedCustomerJobId = id;
   render();
 }
 
@@ -632,6 +704,13 @@ function sendMagicLink(channel) {
   const job = selectedJob();
   if (!job) return;
   job.magicLinkLastSent = new Date().toISOString();
+  state.portalAccess = {
+    token: `${job.id.slice(0, 8)}-${Date.now().toString(36)}`,
+    jobId: job.id,
+    channel,
+    lastSentTo: channel === "email" ? job.customerEmail : job.customerPhone || "customer phone",
+    createdAt: job.magicLinkLastSent,
+  };
   job.timeline.push(`Magic link sent by ${channel} to ${channel === "email" ? job.customerEmail : job.customerPhone || "customer phone"}`);
   render();
 }
@@ -641,7 +720,10 @@ function addDocuments(files, uploadedBy, docType = "Other") {
   if (!job || !files.length) return;
   if (docType === "Estimate") {
     job.estimateAcceptedAt = null;
+    job.acceptedEstimate = null;
+    job.viewedEstimateId = null;
   }
+  let estimateVersion = docType === "Estimate" ? nextEstimateVersion(job) : null;
   Array.from(files).forEach((file) => {
     job.documents.unshift({
       id: createId(),
@@ -651,6 +733,7 @@ function addDocuments(files, uploadedBy, docType = "Other") {
       visibility: uploadedBy === "Customer" ? "Staff Only" : "Customer Visible",
       status: uploadedBy === "Customer" ? "New" : "Reviewed",
       createdAt: new Date().toISOString(),
+      version: docType === "Estimate" ? estimateVersion++ : null,
     });
   });
   if (docType === "Estimate") {
@@ -663,12 +746,27 @@ function addDocuments(files, uploadedBy, docType = "Other") {
   render();
 }
 
-function acceptEstimate() {
+function viewEstimate(docId) {
   const job = customerJob();
-  if (!job || job.estimateAcceptedAt) return;
+  const estimate = estimateFor(job);
+  if (!job || !estimate || estimate.id !== docId) return;
+  job.viewedEstimateId = docId;
+  render();
+}
+
+function acceptEstimate(docId) {
+  const job = customerJob();
+  const estimate = estimateFor(job);
+  if (!job || !estimate || estimate.id !== docId || job.viewedEstimateId !== docId) return;
   job.estimateAcceptedAt = new Date().toISOString();
-  job.jobStatus = "Scheduled";
-  job.timeline.push("Customer accepted the estimate");
+  job.acceptedEstimate = {
+    id: estimate.id,
+    name: estimate.name,
+    version: estimate.version || 1,
+    acceptedAt: job.estimateAcceptedAt,
+  };
+  job.jobStatus = "Ready to Schedule";
+  job.timeline.push(`Customer accepted estimate version ${estimate.version || 1}`);
   render();
 }
 
@@ -704,7 +802,7 @@ function bindEvents() {
   els.resetDemo.addEventListener("click", () => {
     state = normalizeState(structuredClone(demoState));
     selectedJobId = state.jobs[0]?.id || null;
-    selectedCustomerJobId = selectedJobId;
+    state.portalAccess.jobId = selectedJobId;
     render();
   });
   els.exportData.addEventListener("click", exportState);
@@ -713,7 +811,6 @@ function bindEvents() {
     const row = event.target.closest("[data-job-id]");
     if (!row) return;
     selectedJobId = row.dataset.jobId;
-    selectedCustomerJobId = row.dataset.jobId;
     render();
   });
 
@@ -734,14 +831,13 @@ function bindEvents() {
     }
   });
 
-  els.customerJobSelect.addEventListener("change", () => {
-    selectedCustomerJobId = els.customerJobSelect.value;
-    renderCustomerPortal();
-  });
-
   els.customerPortal.addEventListener("click", (event) => {
     if (event.target.dataset.action === "accept-estimate") {
-      acceptEstimate();
+      acceptEstimate(event.target.dataset.docId);
+      return;
+    }
+    if (event.target.dataset.action === "view-estimate") {
+      viewEstimate(event.target.dataset.docId);
       return;
     }
     if (event.target.dataset.action !== "customer-upload") return;
@@ -798,7 +894,11 @@ function bindEvents() {
     const id = els.jobId.value;
     state.jobs = state.jobs.filter((job) => job.id !== id);
     selectedJobId = state.jobs[0]?.id || null;
-    selectedCustomerJobId = selectedJobId;
+    if (state.portalAccess.jobId === id) {
+      state.portalAccess.jobId = selectedJobId;
+      state.portalAccess.token = selectedJobId ? "demo-access-reset" : null;
+      state.portalAccess.lastSentTo = selectedJob()?.customerEmail || "";
+    }
     els.jobDialog.close();
     render();
   });
