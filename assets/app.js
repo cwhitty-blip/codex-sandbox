@@ -166,7 +166,6 @@ const els = {
   activeJobCount: document.getElementById("activeJobCount"),
   billingProviderSummary: document.getElementById("billingProviderSummary"),
   resetDemo: document.getElementById("resetDemo"),
-  exportData: document.getElementById("exportData"),
   startJob: document.getElementById("startJob"),
   quickStartJob: document.getElementById("quickStartJob"),
   quickUpdateJob: document.getElementById("quickUpdateJob"),
@@ -807,16 +806,6 @@ function acceptEstimate(docId) {
   render();
 }
 
-function exportState() {
-  const blob = new Blob([JSON.stringify(state, null, 2)], { type: "application/json" });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = "service-job-portal-export.json";
-  link.click();
-  URL.revokeObjectURL(url);
-}
-
 function bindEvents() {
   function setView(viewName) {
     els.tabs.forEach((item) => item.classList.toggle("active", item.dataset.view === viewName));
@@ -842,8 +831,6 @@ function bindEvents() {
     state.portalAccess.jobId = selectedJobId;
     render();
   });
-  els.exportData.addEventListener("click", exportState);
-
   els.jobList.addEventListener("click", (event) => {
     const row = event.target.closest("[data-job-id]");
     if (!row) return;
