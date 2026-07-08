@@ -6,42 +6,36 @@ const industries = [
     label: "Roofing",
     materialLabel: "Material status",
     dateLabel: "Projected install date",
-    suggestedFields: ["Insurance carrier", "Claim number", "Roof type"],
   },
   {
     id: "plumbing",
     label: "Plumbing",
     materialLabel: "Parts status",
     dateLabel: "Projected service date",
-    suggestedFields: ["Fixture type", "Water shutoff location", "Access notes"],
   },
   {
     id: "hvac",
     label: "HVAC",
     materialLabel: "Equipment status",
     dateLabel: "Projected service date",
-    suggestedFields: ["System type", "Filter size", "Equipment model"],
   },
   {
     id: "electrical",
     label: "Electrical",
     materialLabel: "Parts status",
     dateLabel: "Projected service date",
-    suggestedFields: ["Panel location", "Permit needed", "Circuit notes"],
   },
   {
     id: "tiling",
     label: "Tiling",
     materialLabel: "Material status",
     dateLabel: "Projected install date",
-    suggestedFields: ["Tile selection", "Grout color", "Room dimensions"],
   },
   {
     id: "general",
     label: "General Service",
     materialLabel: "Material or parts status",
     dateLabel: "Projected service date",
-    suggestedFields: ["Access instructions", "Parking notes", "Preferred contact"],
   },
 ];
 
@@ -188,7 +182,6 @@ const els = {
   fieldOptions: document.getElementById("fieldOptions"),
   fieldCount: document.getElementById("fieldCount"),
   customFieldList: document.getElementById("customFieldList"),
-  presetList: document.getElementById("presetList"),
   jobDialog: document.getElementById("jobDialog"),
   jobForm: document.getElementById("jobForm"),
   jobDialogMode: document.getElementById("jobDialogMode"),
@@ -613,17 +606,6 @@ function renderSettings() {
         .join("")
     : `<div class="empty-state">Add a field contractors can fill out on every job.</div>`;
 
-  els.presetList.innerHTML = industries
-    .map(
-      (industry) => `
-        <div class="preset-row">
-          <strong>${escapeHtml(industry.label)}</strong>
-          <span>${escapeHtml(industry.materialLabel)} / ${escapeHtml(industry.dateLabel)}</span>
-          <small>${escapeHtml(industry.suggestedFields.join(", "))}</small>
-        </div>
-      `,
-    )
-    .join("");
 }
 
 function renderCustomFieldInputs(job = null) {
