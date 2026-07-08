@@ -240,8 +240,7 @@ main {
 .dialog-actions,
 .customer-hero,
 .custom-field-row,
-.document-row,
-.preset-row {
+.document-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -258,7 +257,7 @@ main {
 
 .topbar-actions {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 8px;
 }
 
@@ -502,15 +501,13 @@ main {
 }
 
 .document-list,
-.custom-field-list,
-.preset-list {
+.custom-field-list {
   display: grid;
   gap: 8px;
 }
 
 .document-row,
-.custom-field-row,
-.preset-row {
+.custom-field-row {
   border: 1px solid var(--line);
   border-radius: 8px;
   padding: 12px;
@@ -520,10 +517,7 @@ main {
 .document-row strong,
 .document-row small,
 .custom-field-row strong,
-.custom-field-row small,
-.preset-row strong,
-.preset-row span,
-.preset-row small {
+.custom-field-row small {
   display: block;
 }
 
