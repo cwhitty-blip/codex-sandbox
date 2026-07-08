@@ -109,6 +109,8 @@ const demoState = {
           status: "Reviewed",
           createdAt: "2026-07-02T15:00:00.000Z",
           version: 1,
+          size: 428000,
+          stored: false,
         },
       ],
       timeline: [
@@ -231,6 +233,8 @@ function normalizeState(nextState) {
     job.documents = Array.isArray(job.documents) ? job.documents : [];
     job.documents.forEach((doc, index) => {
       doc.version = doc.version || (doc.type === "Estimate" ? index + 1 : null);
+      doc.size = doc.size || null;
+      doc.stored = Boolean(doc.stored);
     });
     job.timeline = Array.isArray(job.timeline) ? job.timeline : ["Job started"];
     job.customValues = job.customValues || {};
@@ -301,6 +305,12 @@ function formatDate(value) {
 function formatDateTime(value) {
   if (!value) return "Not sent";
   return new Intl.DateTimeFormat(undefined, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }).format(new Date(value));
+}
+
+function formatFileSize(bytes) {
+  if (!bytes) return "Size unavailable";
+  if (bytes < 1024 * 1024) return `${Math.max(1, Math.round(bytes / 1024))} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
 function portalUrl(token) {
@@ -394,6 +404,7 @@ function renderJobDetail() {
       <button class="primary-button" data-action="edit-job" type="button">Update a job</button>
       <button class="ghost-button" data-action="send-email" type="button">Send magic email</button>
       <button class="ghost-button" data-action="send-sms" type="button">Send magic text</button>
+      <button class="ghost-button" data-action="copy-portal-link" type="button">Copy link</button>
       <button class="ghost-button" data-action="upload-estimate" type="button">Upload estimate</button>
       <button class="ghost-button" data-action="upload-staff-doc" type="button">Add shared file</button>
     </div>
@@ -422,7 +433,7 @@ function renderJobDetail() {
     <section class="plain-section">
       <h3>Documents</h3>
       <div class="document-list">${renderDocumentList(job.documents)}</div>
-      <p class="fine-print">${visibleDocs} customer-visible document${visibleDocs === 1 ? "" : "s"}. ${customerDocs} customer upload${customerDocs === 1 ? "" : "s"} marked new until reviewed.</p>
+      <p class="fine-print">${visibleDocs} customer-visible document${visibleDocs === 1 ? "" : "s"}. ${customerDocs} customer upload${customerDocs === 1 ? "" : "s"} marked new until reviewed. Prototype uploads store file names and metadata only.</p>
     </section>
     <section class="plain-section internal-note">
       <h3>Internal notes</h3>
@@ -433,6 +444,7 @@ function renderJobDetail() {
       <ol class="timeline">${job.timeline.map((event) => `<li>${escapeHtml(event)}</li>`).join("")}</ol>
       <p class="fine-print">Last magic link: ${formatDateTime(job.magicLinkLastSent)}</p>
       <p class="fine-print">Scoped portal: ${escapeHtml(state.portalAccess.jobId === job.id ? portalUrl(state.portalAccess.token) : "No active customer link for this job")}</p>
+      <p class="fine-print">Demo delivery: email/text buttons create a reviewable link. Production should send through a mail provider and SMS provider such as Twilio only after cost controls are configured.</p>
     </section>
   `;
 }
@@ -474,6 +486,7 @@ function renderDocumentList(documents) {
           <span>
             <strong>${escapeHtml(doc.name)}</strong>
             <small>${escapeHtml(doc.type)} / ${escapeHtml(doc.uploadedBy)} / ${escapeHtml(doc.visibility)}</small>
+            <small>${escapeHtml(formatFileSize(doc.size))} / ${doc.stored ? "Stored" : "Prototype reference only"}</small>
           </span>
           <em>${escapeHtml(doc.status)}</em>
         </div>
@@ -528,6 +541,7 @@ function renderCustomerPortal() {
       <div class="customer-upload-actions">
         <button class="ghost-button" data-action="customer-upload" data-doc-type="Insurance Claim" type="button">Upload insurance claim</button>
       </div>
+      <p class="fine-print">Prototype upload records the file name for review. A production portal should store the file securely and notify the contractor.</p>
     </section>
     <section class="plain-section estimate-acceptance">
       <h3>Estimate</h3>
@@ -703,6 +717,12 @@ function saveJobFromForm() {
 function sendMagicLink(channel) {
   const job = selectedJob();
   if (!job) return;
+  activatePortalAccess(job, channel);
+  job.timeline.push(`Magic link sent by ${channel} to ${channel === "email" ? job.customerEmail : job.customerPhone || "customer phone"}`);
+  render();
+}
+
+function activatePortalAccess(job, channel = "email") {
   job.magicLinkLastSent = new Date().toISOString();
   state.portalAccess = {
     token: `${job.id.slice(0, 8)}-${Date.now().toString(36)}`,
@@ -711,8 +731,6 @@ function sendMagicLink(channel) {
     lastSentTo: channel === "email" ? job.customerEmail : job.customerPhone || "customer phone",
     createdAt: job.magicLinkLastSent,
   };
-  job.timeline.push(`Magic link sent by ${channel} to ${channel === "email" ? job.customerEmail : job.customerPhone || "customer phone"}`);
-  render();
 }
 
 function addDocuments(files, uploadedBy, docType = "Other") {
@@ -734,6 +752,8 @@ function addDocuments(files, uploadedBy, docType = "Other") {
       status: uploadedBy === "Customer" ? "New" : "Reviewed",
       createdAt: new Date().toISOString(),
       version: docType === "Estimate" ? estimateVersion++ : null,
+      size: file.size,
+      stored: false,
     });
   });
   if (docType === "Estimate") {
@@ -742,6 +762,23 @@ function addDocuments(files, uploadedBy, docType = "Other") {
     job.timeline.push("Customer uploaded insurance claim");
   } else {
     job.timeline.push(`${uploadedBy} uploaded ${files.length} document${files.length === 1 ? "" : "s"}`);
+  }
+  render();
+}
+
+async function copyPortalLink() {
+  const job = selectedJob();
+  if (!job) return;
+  if (state.portalAccess.jobId !== job.id) {
+    activatePortalAccess(job);
+    job.timeline.push("Magic link created for manual delivery");
+  }
+  const link = portalUrl(state.portalAccess.token);
+  try {
+    await navigator.clipboard.writeText(link);
+    job.timeline.push("Magic link copied for manual delivery");
+  } catch {
+    job.timeline.push(`Magic link ready to copy: ${link}`);
   }
   render();
 }
@@ -819,6 +856,7 @@ function bindEvents() {
     if (action === "edit-job") openJobDialog(selectedJob());
     if (action === "send-email") sendMagicLink("email");
     if (action === "send-sms") sendMagicLink("text");
+    if (action === "copy-portal-link") copyPortalLink();
     if (action === "upload-estimate") {
       els.documentPicker.dataset.uploadedBy = "Contractor";
       els.documentPicker.dataset.docType = "Estimate";
