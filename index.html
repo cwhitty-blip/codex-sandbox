@@ -29,48 +29,16 @@
     <div class="app-shell">
       <div class="app-statusbar" aria-hidden="true"><span>9:41</span><span>LTE 100%</span></div>
       <aside class="sidebar">
-        <div class="brand">
-          <div class="brand-mark" aria-hidden="true">SP</div>
-          <div><strong>Service Portal</strong><span>Customer job access</span></div>
-          <button class="settings-gear" data-view="settings" type="button" aria-label="Settings">⚙</button>
-        </div>
-        <nav class="nav-tabs" aria-label="Primary">
-          <button class="nav-tab active" data-view="dashboard" type="button"><span class="tab-icon" aria-hidden="true">+</span>Jobs</button>
-          <button class="nav-tab" data-view="customer" type="button"><span class="tab-icon" aria-hidden="true">@</span>Customer View</button>
-        </nav>
+        <div class="brand"><div class="brand-mark" aria-hidden="true">SP</div><div><strong>Service Portal</strong><span>Customer job access</span></div><button class="settings-gear" data-view="settings" type="button" aria-label="Settings">⚙</button></div>
+        <nav class="nav-tabs" aria-label="Primary"><button class="nav-tab active" data-view="dashboard" type="button"><span class="tab-icon" aria-hidden="true">+</span>Jobs</button><button class="nav-tab" data-view="customer" type="button"><span class="tab-icon" aria-hidden="true">@</span>Customer View</button></nav>
         <div class="sidebar-metric"><span class="eyebrow">Today</span><strong id="activeJobCount">0 active jobs</strong><p id="billingProviderSummary">No billing provider connected</p></div>
       </aside>
       <main>
-        <section id="authPanel" class="auth-panel">
-          <div><p class="eyebrow">Contractor account</p><strong id="authStatus">Demo mode</strong><small id="backendStatus">Create an account or sign in to save jobs and send customer links.</small></div>
-          <form id="authForm" class="auth-form">
-            <input id="authEmail" type="email" placeholder="Contractor email" autocomplete="email" />
-            <input id="authPassword" type="password" placeholder="Password" autocomplete="current-password" />
-            <input id="authCompany" type="text" placeholder="Company name" />
-            <input id="authPromoCode" type="text" placeholder="Promo code, optional" autocomplete="off" />
-            <div class="auth-actions">
-              <button id="authSubmit" class="primary-button" name="authMode" value="signin" type="submit">Sign in</button>
-              <button id="authCreate" class="ghost-button" name="authMode" value="signup" type="submit">Create account</button>
-            </div>
-          </form>
-          <button id="forgotPassword" class="text-button" type="button">Send password reset email</button>
-          <form id="recoveryForm" class="auth-form" hidden>
-            <input id="recoveryPassword" type="password" placeholder="New password" autocomplete="new-password" />
-            <button id="recoverySubmit" class="primary-button" type="submit">Save new password</button>
-          </form>
-          <button id="signOut" class="ghost-button" type="button" hidden>Sign out</button>
-        </section>
+        <section id="authPanel" class="auth-panel"><div><p class="eyebrow">Contractor account</p><strong id="authStatus">Demo mode</strong><small id="backendStatus">Create an account or sign in to save jobs and send customer links.</small></div><form id="authForm" class="auth-form"><input id="authEmail" type="email" placeholder="Contractor email" autocomplete="email" /><input id="authPassword" type="password" placeholder="Password" autocomplete="current-password" /><input id="authCompany" type="text" placeholder="Company name" /><input id="authPromoCode" type="text" placeholder="Promo code, optional" autocomplete="off" /><div class="auth-actions"><button id="authSubmit" class="primary-button" name="authMode" value="signin" type="submit">Sign in</button><button id="authCreate" class="ghost-button" name="authMode" value="signup" type="submit">Create account</button></div></form><button id="forgotPassword" class="text-button" type="button">Send password reset email</button><form id="recoveryForm" class="auth-form" hidden><input id="recoveryPassword" type="password" placeholder="New password" autocomplete="new-password" /><button id="recoverySubmit" class="primary-button" type="submit">Save new password</button></form><button id="signOut" class="ghost-button" type="button" hidden>Sign out</button></section>
         <header class="topbar"><div><p class="eyebrow">Operations</p><h1 id="viewTitle">Jobs</h1></div><div class="topbar-actions"><button id="resetDemo" class="ghost-button" type="button">Reset Demo</button><button id="startJob" class="primary-button" type="button">Start a job</button></div></header>
-        <section id="dashboardView" class="view active">
-          <section class="action-band"><button id="quickStartJob" class="choice-button" type="button"><span>Start a job</span><strong>Create customer, job details, and access in one flow.</strong></button><button id="quickUpdateJob" class="choice-button" type="button"><span>Update a job</span><strong>Change status, install date, fields, notes, or documents.</strong></button></section>
-          <section class="work-grid"><div class="panel"><div class="panel-header"><div><p class="eyebrow">Pipeline</p><h2>Active jobs</h2></div><select id="industryFilter" aria-label="Filter by industry"></select></div><div id="jobList" class="job-list"></div></div><div class="panel detail-panel"><div class="panel-header"><div><p class="eyebrow" id="detailIndustry">Job</p><h2 id="detailTitle">Select a job</h2></div><span id="detailStatus" class="status-pill">Ready</span></div><div id="jobDetail" class="job-detail empty-state"></div></div></section>
-        </section>
+        <section id="dashboardView" class="view active"><section class="action-band"><button id="quickStartJob" class="choice-button" type="button"><span>Start a job</span><strong>Create customer, job details, and access in one flow.</strong></button><button id="quickUpdateJob" class="choice-button" type="button"><span>Update a job</span><strong>Change status, install date, fields, notes, or documents.</strong></button></section><section class="work-grid"><div class="panel"><div class="panel-header"><div><p class="eyebrow">Pipeline</p><h2>Active jobs</h2></div><select id="industryFilter" aria-label="Filter by industry"></select></div><div id="jobList" class="job-list"></div></div><div class="panel detail-panel"><div class="panel-header"><div><p class="eyebrow" id="detailIndustry">Job</p><h2 id="detailTitle">Select a job</h2></div><span id="detailStatus" class="status-pill">Ready</span></div><div id="jobDetail" class="job-detail empty-state"></div></div></section></section>
         <section id="customerView" class="view"><section class="customer-layout"><div id="customerAccessSummary" class="access-summary"></div><div id="customerPortal" class="customer-portal"></div></section></section>
-        <section id="settingsView" class="view"><section class="settings-grid">
-          <div class="panel billing-plan-panel"><div class="panel-header"><div><p class="eyebrow">Subscription</p><h2>Plan and trial</h2></div><span id="subscriptionStatus" class="status-pill">Trial</span></div><div id="subscriptionSummary" class="subscription-summary"></div><form id="promoForm" class="field-form"><input id="promoCode" type="text" placeholder="Promo code, e.g. 20off" /><button class="primary-button" type="submit">Apply promo</button></form><button id="checkoutButton" class="ghost-button" type="button">Set up payment</button><p class="fine-print">Payment collection is the next backend bridge. Use Stripe Checkout for cards, trials, invoices, and promo-code enforcement.</p></div>
-          <div class="panel"><div class="panel-header"><div><p class="eyebrow">Billing</p><h2>Provider connection</h2></div><span id="billingStatus" class="status-pill">Not connected</span></div><form id="billingForm" class="stacked-form"><label>Who is your billing provider?<select id="billingProvider"></select></label><label>Account or company ID<input id="billingAccount" type="text" placeholder="Optional for demo" /></label><label>Sync preference<select id="billingSync"><option>Invoice links only</option><option>Invoices and payment status</option><option>Customers, invoices, and payments</option></select></label><button class="primary-button" type="submit">Save billing setup</button></form><p class="fine-print">This prototype stores provider preferences locally. A production build should use provider-specific OAuth or API-key adapters with encrypted tenant credentials.</p></div>
-          <div class="panel"><div class="panel-header"><div><p class="eyebrow">Customization</p><h2>Custom job fields</h2></div><span id="fieldCount" class="count-chip">0</span></div><form id="fieldForm" class="field-form"><input id="fieldLabel" type="text" placeholder="Field label, e.g. Gate code" /><select id="fieldType" aria-label="Field type"><option value="text">Text</option><option value="date">Date</option><option value="select">Dropdown</option></select><input id="fieldOptions" type="text" placeholder="Dropdown options, comma separated" /><button class="primary-button" type="submit">Add field</button></form><div id="customFieldList" class="custom-field-list"></div></div>
-        </section></section>
+        <section id="settingsView" class="view"><section class="settings-grid"><div class="panel billing-plan-panel"><div class="panel-header"><div><p class="eyebrow">Subscription</p><h2>Plan and trial</h2></div><span id="subscriptionStatus" class="status-pill">Trial</span></div><div id="subscriptionSummary" class="subscription-summary"></div><form id="promoForm" class="field-form"><input id="promoCode" type="text" placeholder="Promo code, e.g. 20off" /><button class="primary-button" type="submit">Apply promo</button></form><button id="checkoutButton" class="ghost-button" type="button">Set up payment</button><p class="fine-print">Payment collection is the next backend bridge. Use Stripe Checkout for cards, trials, invoices, and promo-code enforcement.</p></div><div class="panel"><div class="panel-header"><div><p class="eyebrow">Billing</p><h2>Provider connection</h2></div><span id="billingStatus" class="status-pill">Not connected</span></div><form id="billingForm" class="stacked-form"><label>Who is your billing provider?<select id="billingProvider"></select></label><label>Account or company ID<input id="billingAccount" type="text" placeholder="Optional for demo" /></label><label>Sync preference<select id="billingSync"><option>Invoice links only</option><option>Invoices and payment status</option><option>Customers, invoices, and payments</option></select></label><button class="primary-button" type="submit">Save billing setup</button></form><p class="fine-print">This prototype stores provider preferences locally. A production build should use provider-specific OAuth or API-key adapters with encrypted tenant credentials.</p></div><div class="panel"><div class="panel-header"><div><p class="eyebrow">Customization</p><h2>Custom job fields</h2></div><span id="fieldCount" class="count-chip">0</span></div><form id="fieldForm" class="field-form"><input id="fieldLabel" type="text" placeholder="Field label, e.g. Gate code" /><select id="fieldType" aria-label="Field type"><option value="text">Text</option><option value="date">Date</option><option value="select">Dropdown</option></select><input id="fieldOptions" type="text" placeholder="Dropdown options, comma separated" /><button class="primary-button" type="submit">Add field</button></form><div id="customFieldList" class="custom-field-list"></div></div></section></section>
       </main>
     </div>
     <div class="app-homebar" aria-hidden="true"></div>
@@ -80,5 +48,6 @@
     <script src="assets/config.js?v=accounts-v2"></script>
     <script src="assets/app.js?v=accounts-v2"></script>
     <script src="assets/live.js?v=accounts-v2"></script>
+    <script src="assets/authfix.js?v=accounts-v1"></script>
   </body>
 </html>
