@@ -1,0 +1,4 @@
+project_id = "nzwygirmuolgwwvtjexw"
+
+[functions.send-magic-link]
+verify_jwt = true
