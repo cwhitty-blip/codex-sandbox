@@ -4,7 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Service Job Portal</title>
-    <link rel="stylesheet" href="assets/styles.css?v=supabase-beta" />
+    <link rel="stylesheet" href="assets/styles.css?v=accounts-v1" />
     <style>
       .brand {
         position: relative;
@@ -167,14 +167,19 @@
       <main>
         <section id="authPanel" class="auth-panel">
           <div>
-            <p class="eyebrow">Beta access</p>
+            <p class="eyebrow">Contractor account</p>
             <strong id="authStatus">Demo mode</strong>
-            <small id="backendStatus">Connect Supabase to save jobs and send email links.</small>
+            <small id="backendStatus">Create an account or sign in to save jobs and send customer links.</small>
           </div>
           <form id="authForm" class="auth-form">
             <input id="authEmail" type="email" placeholder="Contractor email" autocomplete="email" />
+            <input id="authPassword" type="password" placeholder="Password" autocomplete="current-password" />
             <input id="authCompany" type="text" placeholder="Company name" />
-            <button id="authSubmit" class="primary-button" type="submit">Sign in</button>
+            <input id="authPromoCode" type="text" placeholder="Promo code, optional" autocomplete="off" />
+            <div class="auth-actions">
+              <button id="authSubmit" class="primary-button" name="authMode" value="signin" type="submit">Sign in</button>
+              <button id="authCreate" class="ghost-button" name="authMode" value="signup" type="submit">Create account</button>
+            </div>
           </form>
           <button id="signOut" class="ghost-button" type="button" hidden>Sign out</button>
         </section>
@@ -236,6 +241,25 @@
 
         <section id="settingsView" class="view">
           <section class="settings-grid">
+            <div class="panel billing-plan-panel">
+              <div class="panel-header">
+                <div>
+                  <p class="eyebrow">Subscription</p>
+                  <h2>Plan and trial</h2>
+                </div>
+                <span id="subscriptionStatus" class="status-pill">Trial</span>
+              </div>
+              <div id="subscriptionSummary" class="subscription-summary"></div>
+              <form id="promoForm" class="field-form">
+                <input id="promoCode" type="text" placeholder="Promo code, e.g. 20off" />
+                <button class="primary-button" type="submit">Apply promo</button>
+              </form>
+              <button id="checkoutButton" class="ghost-button" type="button">Set up payment</button>
+              <p class="fine-print">
+                Payment collection is the next backend bridge. Use Stripe Checkout for cards, trials, invoices, and promo-code enforcement.
+              </p>
+            </div>
+
             <div class="panel">
               <div class="panel-header">
                 <div>
@@ -372,8 +396,8 @@
 
     <input id="documentPicker" class="hidden-file" multiple type="file" />
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="assets/config.js?v=supabase-beta"></script>
-    <script src="assets/app.js?v=supabase-beta"></script>
-    <script src="assets/live.js?v=supabase-beta"></script>
+    <script src="assets/config.js?v=accounts-v1"></script>
+    <script src="assets/app.js?v=accounts-v1"></script>
+    <script src="assets/live.js?v=accounts-v1"></script>
   </body>
 </html>

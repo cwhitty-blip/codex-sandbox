@@ -8,15 +8,31 @@
     company: null,
     live: false,
   };
+  const monthlyPlanCents = 1299;
+  const trialDays = 7;
+  const promoCodes = {
+    "20off": 20,
+    "30off": 30,
+  };
 
   const authEls = {
     form: document.getElementById("authForm"),
     email: document.getElementById("authEmail"),
+    password: document.getElementById("authPassword"),
     company: document.getElementById("authCompany"),
+    promoCode: document.getElementById("authPromoCode"),
     submit: document.getElementById("authSubmit"),
+    create: document.getElementById("authCreate"),
     status: document.getElementById("authStatus"),
     backendStatus: document.getElementById("backendStatus"),
     signOut: document.getElementById("signOut"),
+  };
+  const billingEls = {
+    status: document.getElementById("subscriptionStatus"),
+    summary: document.getElementById("subscriptionSummary"),
+    promoForm: document.getElementById("promoForm"),
+    promoCode: document.getElementById("promoCode"),
+    checkout: document.getElementById("checkoutButton"),
   };
 
   function setStatus(title, detail) {
@@ -31,9 +47,50 @@
       authEls.signOut.hidden = false;
       return;
     }
-    setStatus("Sign in for live beta", "Enter your contractor email. Supabase will email you a sign-in link.");
+    setStatus("Contractor sign in", "Create an account for a 7-day trial, or sign in with your contractor password.");
     authEls.form.hidden = false;
     authEls.signOut.hidden = true;
+  }
+
+  function normalizePromoCode(value) {
+    return (value || "").trim().toLowerCase();
+  }
+
+  function promoPercentFor(value) {
+    return promoCodes[normalizePromoCode(value)] || 0;
+  }
+
+  function formatMoney(cents) {
+    return `$${(cents / 100).toFixed(2)}`;
+  }
+
+  function trialDaysLeft() {
+    if (!state.settings.trialEndsAt) return trialDays;
+    const ms = new Date(state.settings.trialEndsAt).getTime() - Date.now();
+    return Math.max(0, Math.ceil(ms / 86400000));
+  }
+
+  function renderSubscription() {
+    if (!billingEls.summary) return;
+    const status = state.settings.subscriptionStatus || "trialing";
+    const percent = Number(state.settings.promoPercentOff || 0);
+    const price = Number(state.settings.planPriceCents || monthlyPlanCents);
+    const discounted = Math.round(price * (100 - percent) / 100);
+    const daysLeft = trialDaysLeft();
+    billingEls.status.textContent = status === "active" ? "Active" : status === "past_due" ? "Payment needed" : "Trial";
+    billingEls.promoCode.value = state.settings.promoCode || "";
+    billingEls.summary.innerHTML = `
+      <span>
+        <strong>${status === "trialing" ? `${daysLeft} trial ${daysLeft === 1 ? "day" : "days"} left` : "Monthly plan"}</strong>
+        <small>7 days free, then <span class="subscription-price">${formatMoney(discounted)}</span> / month.</small>
+      </span>
+      <small>${percent ? `${percent}% promo applied (${state.settings.promoCode}). Standard price is ${formatMoney(price)} / month.` : "No promo code applied."}</small>
+    `;
+  }
+
+  function renderLive() {
+    render();
+    renderSubscription();
   }
 
   function mapDbDocument(doc) {
@@ -80,7 +137,10 @@
 
   async function ensureCompany() {
     const companyName = authEls.company.value.trim() || "Service Company";
-    const { data, error } = await backend.client.rpc("bootstrap_company", { company_name: companyName });
+    const { data, error } = await backend.client.rpc("bootstrap_company", {
+      company_name: companyName,
+      promo_code: normalizePromoCode(authEls.promoCode.value),
+    });
     if (error) throw error;
     backend.company = Array.isArray(data) ? data[0] : data;
   }
@@ -102,6 +162,12 @@
       billingAccount: backend.company.billing_account || backend.company.name || "",
       billingSync: backend.company.billing_sync || "Invoice links only",
       billingConnected: Boolean(backend.company.billing_provider),
+      subscriptionStatus: backend.company.subscription_status || "trialing",
+      trialStartedAt: backend.company.trial_started_at || backend.company.created_at,
+      trialEndsAt: backend.company.trial_ends_at || "",
+      planPriceCents: backend.company.plan_price_cents || 1299,
+      promoCode: backend.company.promo_code || "",
+      promoPercentOff: backend.company.promo_percent_off || 0,
       customFields: (fieldsResult.data || []).map((field) => ({
         id: field.id,
         label: field.label,
@@ -127,7 +193,7 @@
       await loadLiveState();
       backend.live = true;
       renderAuth();
-      render();
+      renderLive();
     } catch (error) {
       setStatus("Setup needed", error.message || "Supabase could not load.");
     }
@@ -193,7 +259,7 @@
 
     els.jobDialog.close();
     await loadLiveState();
-    render();
+    renderLive();
   }
 
   async function sendLiveMagicEmail(event) {
@@ -205,7 +271,7 @@
     const { error } = await backend.client.functions.invoke("send-magic-link", { body: { jobId: job.id } });
     job.magicLinkLastSent = new Date().toISOString();
     job.timeline.push(error ? `Magic email failed: ${error.message}` : `Magic email sent to ${job.customerEmail}`);
-    render();
+    renderLive();
   }
 
   async function saveLiveBilling(event) {
@@ -219,7 +285,7 @@
     }).eq("id", backend.company.id);
     if (error) throw error;
     await loadLiveState();
-    render();
+    renderLive();
   }
 
   async function addLiveField(event) {
@@ -237,7 +303,7 @@
     if (error) throw error;
     els.fieldForm.reset();
     await loadLiveState();
-    render();
+    renderLive();
   }
 
   async function removeLiveField(event) {
@@ -249,7 +315,7 @@
     const { error } = await backend.client.from("custom_fields").delete().eq("id", button.dataset.fieldId);
     if (error) throw error;
     await loadLiveState();
-    render();
+    renderLive();
   }
 
   async function deleteLiveJob(event) {
@@ -260,7 +326,7 @@
     if (error) throw error;
     els.jobDialog.close();
     await loadLiveState();
-    render();
+    renderLive();
   }
 
   async function addLiveDocuments(event) {
@@ -287,7 +353,7 @@
     els.documentPicker.value = "";
     if (error) throw error;
     await loadLiveState();
-    render();
+    renderLive();
   }
 
   function catchAsync(handler) {
@@ -296,19 +362,70 @@
 
   authEls.form.addEventListener("submit", async (event) => {
     event.preventDefault();
+    event.stopImmediatePropagation();
     const email = authEls.email.value.trim();
-    if (!email) return;
+    const password = authEls.password.value;
+    if (!email || !password) {
+      setStatus("Missing info", "Enter your contractor email and password.");
+      return;
+    }
+    if (password.length < 6) {
+      setStatus("Password too short", "Use at least 6 characters for the password.");
+      return;
+    }
+    const mode = event.submitter?.value || "signin";
     authEls.submit.disabled = true;
-    setStatus("Sending sign-in email", "Check your inbox after this finishes.");
-    const { error } = await backend.client.auth.signInWithOtp({
-      email,
-      options: { emailRedirectTo: window.location.href.split("#")[0] },
-    });
+    authEls.create.disabled = true;
+    setStatus(mode === "signup" ? "Creating account" : "Signing in", "One moment...");
+    const { error } = mode === "signup"
+      ? await backend.client.auth.signUp({
+          email,
+          password,
+          options: {
+            emailRedirectTo: window.location.href.split("#")[0],
+            data: {
+              company_name: authEls.company.value.trim(),
+              promo_code: normalizePromoCode(authEls.promoCode.value),
+            },
+          },
+        })
+      : await backend.client.auth.signInWithPassword({ email, password });
     authEls.submit.disabled = false;
-    setStatus(error ? "Sign-in failed" : "Check your email", error ? error.message : "Open the Supabase sign-in link to activate live beta mode.");
-  });
+    authEls.create.disabled = false;
+    setStatus(
+      error ? "Sign-in failed" : mode === "signup" ? "Account created" : "Signed in",
+      error ? error.message : mode === "signup" ? "If Supabase asks for email confirmation, check your inbox once." : "Loading your workspace.",
+    );
+  }, true);
 
   authEls.signOut.addEventListener("click", () => backend.client.auth.signOut());
+  billingEls.promoForm.addEventListener("submit", catchAsync(async (event) => {
+    event.preventDefault();
+    event.stopImmediatePropagation();
+    const code = normalizePromoCode(billingEls.promoCode.value);
+    const percent = promoPercentFor(code);
+    if (code && !percent) {
+      window.alert("That promo code is not active yet. Try 20off or 30off.");
+      return;
+    }
+    if (backend.live) {
+      const { error } = await backend.client
+        .from("companies")
+        .update({ promo_code: code || null, promo_percent_off: percent })
+        .eq("id", backend.company.id);
+      if (error) throw error;
+      await loadLiveState();
+    } else {
+      state.settings.promoCode = code;
+      state.settings.promoPercentOff = percent;
+    }
+    renderLive();
+  }), true);
+  billingEls.checkout.addEventListener("click", (event) => {
+    event.preventDefault();
+    event.stopImmediatePropagation();
+    window.alert("Next step: connect Stripe Checkout. The app already knows the trial, price, and promo code to send to Stripe.");
+  }, true);
   els.jobForm.addEventListener("submit", catchAsync(saveLiveJob), true);
   els.jobDetail.addEventListener("click", catchAsync(sendLiveMagicEmail), true);
   els.billingForm.addEventListener("submit", catchAsync(saveLiveBilling), true);
@@ -317,7 +434,10 @@
   els.deleteJob.addEventListener("click", catchAsync(deleteLiveJob), true);
   els.documentPicker.addEventListener("change", catchAsync(addLiveDocuments), true);
 
-  backend.client.auth.getSession().then(({ data }) => handleSession(data.session));
+  backend.client.auth.getSession().then(({ data }) => {
+    renderSubscription();
+    handleSession(data.session);
+  });
   backend.client.auth.onAuthStateChange((event, session) => {
     if (event === "SIGNED_IN" || event === "TOKEN_REFRESHED") handleSession(session);
     if (event === "SIGNED_OUT") {

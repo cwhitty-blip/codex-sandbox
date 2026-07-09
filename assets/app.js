@@ -52,6 +52,12 @@ const billingProviders = [
 
 const jobStatuses = ["Active", "Waiting on Customer", "Ready to Schedule", "Scheduled", "In Progress", "Complete", "On Hold"];
 const materialStatuses = ["Not Ordered", "Ordered", "In Transit", "Arrived", "Not Required"];
+const monthlyPlanCents = 1299;
+const trialDays = 7;
+const promoCodes = {
+  "20off": 20,
+  "30off": 30,
+};
 
 function createId() {
   if (window.crypto?.randomUUID) return window.crypto.randomUUID();
@@ -64,6 +70,12 @@ const demoState = {
     billingAccount: "Demo Roofing Co.",
     billingSync: "Invoices and payment status",
     billingConnected: true,
+    subscriptionStatus: "trialing",
+    trialStartedAt: "2026-07-09T00:00:00.000Z",
+    trialEndsAt: "2026-07-16T00:00:00.000Z",
+    planPriceCents: monthlyPlanCents,
+    promoCode: "",
+    promoPercentOff: 0,
     customFields: [
       { id: createId(), label: "Claim number", type: "text", options: [] },
       { id: createId(), label: "Gate code", type: "text", options: [] },
@@ -216,11 +228,19 @@ const els = {
   authPanel: document.getElementById("authPanel"),
   authForm: document.getElementById("authForm"),
   authEmail: document.getElementById("authEmail"),
+  authPassword: document.getElementById("authPassword"),
   authCompany: document.getElementById("authCompany"),
+  authPromoCode: document.getElementById("authPromoCode"),
   authSubmit: document.getElementById("authSubmit"),
+  authCreate: document.getElementById("authCreate"),
   authStatus: document.getElementById("authStatus"),
   backendStatus: document.getElementById("backendStatus"),
   signOut: document.getElementById("signOut"),
+  subscriptionStatus: document.getElementById("subscriptionStatus"),
+  subscriptionSummary: document.getElementById("subscriptionSummary"),
+  promoForm: document.getElementById("promoForm"),
+  promoCode: document.getElementById("promoCode"),
+  checkoutButton: document.getElementById("checkoutButton"),
 };
 
 function loadState() {
@@ -301,8 +321,8 @@ function renderAuth() {
     return;
   }
 
-  els.authStatus.textContent = "Sign in for live beta";
-  els.backendStatus.textContent = "Enter your contractor email. Supabase will email you a sign-in link.";
+  els.authStatus.textContent = "Contractor sign in";
+  els.backendStatus.textContent = "Create an account for a 7-day trial, or sign in with your contractor password.";
   els.authForm.hidden = false;
   els.signOut.hidden = true;
 }
@@ -358,7 +378,10 @@ async function handleSession(session) {
 
 async function ensureCompany() {
   const companyName = els.authCompany.value.trim() || "Service Company";
-  const { data, error } = await backend.client.rpc("bootstrap_company", { company_name: companyName });
+  const { data, error } = await backend.client.rpc("bootstrap_company", {
+    company_name: companyName,
+    promo_code: normalizePromoCode(els.authPromoCode.value),
+  });
   if (error) throw error;
   backend.company = Array.isArray(data) ? data[0] : data;
 }
@@ -428,6 +451,12 @@ async function loadLiveState() {
     billingAccount: company.billing_account || company.name || "",
     billingSync: company.billing_sync || "Invoice links only",
     billingConnected: Boolean(company.billing_provider),
+    subscriptionStatus: company.subscription_status || "trialing",
+    trialStartedAt: company.trial_started_at || company.created_at,
+    trialEndsAt: company.trial_ends_at || "",
+    planPriceCents: company.plan_price_cents || monthlyPlanCents,
+    promoCode: company.promo_code || "",
+    promoPercentOff: company.promo_percent_off || 0,
     customFields: (fields || []).map((field) => ({
       id: field.id,
       label: field.label,
@@ -793,6 +822,7 @@ function renderSettings() {
   els.billingAccount.value = state.settings.billingAccount || "";
   els.billingSync.value = state.settings.billingSync;
   els.billingStatus.textContent = state.settings.billingConnected ? "Connected" : "Not connected";
+  renderSubscriptionSettings();
   els.fieldCount.textContent = String(state.settings.customFields.length);
   els.customFieldList.innerHTML = state.settings.customFields.length
     ? state.settings.customFields
@@ -810,6 +840,40 @@ function renderSettings() {
         .join("")
     : `<div class="empty-state">Add a field contractors can fill out on every job.</div>`;
 
+}
+
+function normalizePromoCode(value) {
+  return (value || "").trim().toLowerCase();
+}
+
+function promoPercentFor(value) {
+  return promoCodes[normalizePromoCode(value)] || 0;
+}
+
+function formatMoney(cents) {
+  return `$${(cents / 100).toFixed(2)}`;
+}
+
+function trialDaysLeft() {
+  if (!state.settings.trialEndsAt) return trialDays;
+  const ms = new Date(state.settings.trialEndsAt).getTime() - Date.now();
+  return Math.max(0, Math.ceil(ms / 86400000));
+}
+
+function renderSubscriptionSettings() {
+  const status = state.settings.subscriptionStatus || "trialing";
+  const percent = Number(state.settings.promoPercentOff || 0);
+  const price = Number(state.settings.planPriceCents || monthlyPlanCents);
+  const discounted = Math.round(price * (100 - percent) / 100);
+  els.subscriptionStatus.textContent = status === "active" ? "Active" : status === "past_due" ? "Payment needed" : "Trial";
+  els.promoCode.value = state.settings.promoCode || "";
+  els.subscriptionSummary.innerHTML = `
+    <span>
+      <strong>${status === "trialing" ? `${trialDaysLeft()} trial ${trialDaysLeft() === 1 ? "day" : "days"} left` : "Monthly plan"}</strong>
+      <small>7 days free, then <span class="subscription-price">${formatMoney(discounted)}</span> / month.</small>
+    </span>
+    <small>${percent ? `${percent}% promo applied (${escapeHtml(state.settings.promoCode)}). Standard price is ${formatMoney(price)} / month.` : "No promo code applied."}</small>
+  `;
 }
 
 function renderCustomFieldInputs(job = null) {
@@ -1084,15 +1148,40 @@ function bindEvents() {
     event.preventDefault();
     if (!backend.client) return;
     const email = els.authEmail.value.trim();
-    if (!email) return;
+    const password = els.authPassword.value;
+    if (!email || !password) {
+      els.backendStatus.textContent = "Enter your email and password.";
+      return;
+    }
+    if (password.length < 6) {
+      els.backendStatus.textContent = "Use at least 6 characters for the password.";
+      return;
+    }
+    const mode = event.submitter?.value || "signin";
     els.authSubmit.disabled = true;
-    els.backendStatus.textContent = "Sending sign-in email...";
-    const { error } = await backend.client.auth.signInWithOtp({
-      email,
-      options: { emailRedirectTo: window.location.href.split("#")[0] },
-    });
+    els.authCreate.disabled = true;
+    els.backendStatus.textContent = mode === "signup" ? "Creating your account..." : "Signing in...";
+    const promoCode = normalizePromoCode(els.authPromoCode.value);
+    const { error } = mode === "signup"
+      ? await backend.client.auth.signUp({
+          email,
+          password,
+          options: {
+            emailRedirectTo: window.location.href.split("#")[0],
+            data: {
+              company_name: els.authCompany.value.trim(),
+              promo_code: promoCode,
+            },
+          },
+        })
+      : await backend.client.auth.signInWithPassword({ email, password });
     els.authSubmit.disabled = false;
-    els.backendStatus.textContent = error ? error.message : "Check your email for the sign-in link.";
+    els.authCreate.disabled = false;
+    els.backendStatus.textContent = error
+      ? error.message
+      : mode === "signup"
+        ? "Account created. If Supabase asks for email confirmation, check your inbox once."
+        : "Signed in.";
   });
 
   els.signOut.addEventListener("click", async () => {
@@ -1189,6 +1278,35 @@ function bindEvents() {
     state.settings.billingSync = els.billingSync.value;
     state.settings.billingConnected = true;
     render();
+  });
+
+  els.promoForm.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const code = normalizePromoCode(els.promoCode.value);
+    const percent = promoPercentFor(code);
+    if (code && !percent) {
+      alert("That promo code is not active yet. Try 20off or 30off.");
+      return;
+    }
+    if (backend.live) {
+      const { error } = await backend.client
+        .from("companies")
+        .update({ promo_code: code || null, promo_percent_off: percent })
+        .eq("id", backend.company.id);
+      if (error) {
+        alert(error.message);
+        return;
+      }
+      await loadLiveState();
+    } else {
+      state.settings.promoCode = code;
+      state.settings.promoPercentOff = percent;
+    }
+    render();
+  });
+
+  els.checkoutButton.addEventListener("click", () => {
+    alert("Next step: connect Stripe Checkout. The app already knows the trial, price, and promo code to send to Stripe.");
   });
 
   els.fieldForm.addEventListener("submit", async (event) => {

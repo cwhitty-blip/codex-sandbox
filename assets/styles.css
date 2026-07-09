@@ -258,6 +258,36 @@ main {
   gap: 8px;
 }
 
+.auth-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.subscription-summary {
+  display: grid;
+  gap: 10px;
+  border: 1px solid rgba(23, 106, 122, 0.18);
+  border-radius: 8px;
+  padding: 12px;
+  background: #f7fbfb;
+}
+
+.subscription-summary strong,
+.subscription-summary small {
+  display: block;
+}
+
+.subscription-price {
+  color: var(--accent);
+  font-size: 1.6rem;
+  font-weight: 900;
+}
+
+.billing-plan-panel {
+  grid-column: 1 / -1;
+}
+
 .topbar,
 .topbar-actions,
 .panel-header,
@@ -892,9 +922,11 @@ dialog::backdrop {
   }
 
   .topbar-actions,
+  .auth-actions,
   .detail-actions,
   .customer-upload-actions {
     justify-content: stretch;
+    grid-template-columns: 1fr;
   }
 
   .primary-button,

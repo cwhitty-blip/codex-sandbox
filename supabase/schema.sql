@@ -6,8 +6,25 @@ create table if not exists public.companies (
   billing_provider text,
   billing_account text,
   billing_sync text default 'Invoice links only',
+  trial_started_at timestamptz not null default now(),
+  trial_ends_at timestamptz not null default now() + interval '7 days',
+  subscription_status text not null default 'trialing',
+  plan_price_cents integer not null default 1299,
+  promo_code text,
+  promo_percent_off integer not null default 0,
+  stripe_customer_id text,
+  stripe_subscription_id text,
   created_at timestamptz not null default now()
 );
+
+alter table public.companies add column if not exists trial_started_at timestamptz not null default now();
+alter table public.companies add column if not exists trial_ends_at timestamptz not null default now() + interval '7 days';
+alter table public.companies add column if not exists subscription_status text not null default 'trialing';
+alter table public.companies add column if not exists plan_price_cents integer not null default 1299;
+alter table public.companies add column if not exists promo_code text;
+alter table public.companies add column if not exists promo_percent_off integer not null default 0;
+alter table public.companies add column if not exists stripe_customer_id text;
+alter table public.companies add column if not exists stripe_subscription_id text;
 
 create table if not exists public.company_members (
   id uuid primary key default gen_random_uuid(),
@@ -119,7 +136,7 @@ begin
 end;
 $$;
 
-create or replace function public.bootstrap_company(company_name text)
+create or replace function public.bootstrap_company(company_name text, promo_code text default null)
 returns public.companies
 language plpgsql
 security definer
@@ -127,6 +144,12 @@ set search_path = public
 as $$
 declare
   company public.companies;
+  clean_promo text := lower(nullif(trim(promo_code), ''));
+  promo_percent integer := case lower(nullif(trim(promo_code), ''))
+    when '20off' then 20
+    when '30off' then 30
+    else 0
+  end;
 begin
   if auth.uid() is null then
     raise exception 'Not authenticated';
@@ -141,8 +164,12 @@ begin
   limit 1;
 
   if company.id is null then
-    insert into public.companies (name)
-    values (coalesce(nullif(trim(company_name), ''), 'Service Company'))
+    insert into public.companies (name, promo_code, promo_percent_off)
+    values (
+      coalesce(nullif(trim(company_name), ''), 'Service Company'),
+      clean_promo,
+      promo_percent
+    )
     returning * into company;
 
     insert into public.company_members (company_id, user_id, role)

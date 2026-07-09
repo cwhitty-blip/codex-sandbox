@@ -23,13 +23,21 @@ Use `.env.example` as the local checklist, but do not commit real API keys.
    Supabase provides `SUPABASE_URL` and `SUPABASE_SECRET_KEYS` by default.
 4. Deploy `supabase/functions/send-magic-link`.
 
-The frontend has a demo fallback, but once the schema and function are deployed it can sign in contractors, create a company workspace, save jobs/custom fields/billing settings to Supabase, and send customer magic-link emails through Resend.
+The frontend has a demo fallback, but once the schema and function are deployed it can create/sign in contractor accounts, create a company workspace, save jobs/custom fields/billing settings to Supabase, and send customer magic-link emails through Resend.
+
+### Subscription Direction
+
+Contractors start with a 7-day trial, then the intended plan is `$12.99/month`. The schema stores subscription status, trial dates, and simple promo codes such as `20off` and `30off`.
+
+The prototype does not collect cards directly. The next production bridge should use Stripe Checkout or Stripe Billing so Stripe handles cards, receipts, trial conversion, subscription cancellation, and promo enforcement.
 
 ## Included MVP Flows
 
 - Contractor dashboard with `Start a job` and `Update a job`
 - Generic service-industry job records
 - Billing provider selection and simulated connection state
+- Contractor account sign-up/sign-in with a 7-day trial model
+- Simple promo-code tracking for future Stripe checkout
 - Custom job field builder
 - Customer magic-link send simulation by email or SMS
 - Customer portal preview limited to status visibility and document uploads
