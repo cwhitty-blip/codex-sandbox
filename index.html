@@ -4,7 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Service Job Portal</title>
-    <link rel="stylesheet" href="assets/styles.css?v=remove-presets-panel" />
+    <link rel="stylesheet" href="assets/styles.css?v=supabase-beta" />
     <style>
       .brand {
         position: relative;
@@ -165,6 +165,20 @@
       </aside>
 
       <main>
+        <section id="authPanel" class="auth-panel">
+          <div>
+            <p class="eyebrow">Beta access</p>
+            <strong id="authStatus">Demo mode</strong>
+            <small id="backendStatus">Connect Supabase to save jobs and send email links.</small>
+          </div>
+          <form id="authForm" class="auth-form">
+            <input id="authEmail" type="email" placeholder="Contractor email" autocomplete="email" />
+            <input id="authCompany" type="text" placeholder="Company name" />
+            <button id="authSubmit" class="primary-button" type="submit">Sign in</button>
+          </form>
+          <button id="signOut" class="ghost-button" type="button" hidden>Sign out</button>
+        </section>
+
         <header class="topbar">
           <div>
             <p class="eyebrow">Operations</p>
@@ -357,6 +371,8 @@
     </dialog>
 
     <input id="documentPicker" class="hidden-file" multiple type="file" />
-    <script src="assets/app.js?v=remove-presets-panel"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="assets/config.js?v=supabase-beta"></script>
+    <script src="assets/app.js?v=supabase-beta"></script>
   </body>
 </html>
