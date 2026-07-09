@@ -15,6 +15,48 @@
     "30off": 30,
   };
 
+  function ensureAuthSupportUi() {
+    if (!document.getElementById("forgotPassword")) {
+      const forgot = document.createElement("button");
+      forgot.id = "forgotPassword";
+      forgot.className = "text-button";
+      forgot.type = "button";
+      forgot.textContent = "Send password reset email";
+      document.getElementById("authForm").after(forgot);
+    }
+    if (!document.getElementById("recoveryForm")) {
+      const recovery = document.createElement("form");
+      recovery.id = "recoveryForm";
+      recovery.className = "auth-form";
+      recovery.hidden = true;
+      recovery.innerHTML = `
+        <input id="recoveryPassword" type="password" placeholder="New password" autocomplete="new-password" />
+        <button id="recoverySubmit" class="primary-button" type="submit">Save new password</button>
+      `;
+      document.getElementById("forgotPassword").after(recovery);
+    }
+    if (!document.getElementById("authRecoveryStyles")) {
+      const style = document.createElement("style");
+      style.id = "authRecoveryStyles";
+      style.textContent = `
+        .text-button {
+          justify-self: start;
+          min-height: auto;
+          border: 0;
+          padding: 4px 0;
+          background: transparent;
+          color: var(--accent);
+          font: inherit;
+          font-weight: 850;
+          text-align: left;
+        }
+      `;
+      document.head.append(style);
+    }
+  }
+
+  ensureAuthSupportUi();
+
   const authEls = {
     form: document.getElementById("authForm"),
     email: document.getElementById("authEmail"),
@@ -23,6 +65,10 @@
     promoCode: document.getElementById("authPromoCode"),
     submit: document.getElementById("authSubmit"),
     create: document.getElementById("authCreate"),
+    forgot: document.getElementById("forgotPassword"),
+    recoveryForm: document.getElementById("recoveryForm"),
+    recoveryPassword: document.getElementById("recoveryPassword"),
+    recoverySubmit: document.getElementById("recoverySubmit"),
     status: document.getElementById("authStatus"),
     backendStatus: document.getElementById("backendStatus"),
     signOut: document.getElementById("signOut"),
@@ -44,11 +90,23 @@
     if (backend.live) {
       setStatus(backend.company?.name || "Live workspace", `Signed in as ${backend.user.email}. Jobs are syncing to Supabase.`);
       authEls.form.hidden = true;
+      authEls.forgot.hidden = true;
+      authEls.recoveryForm.hidden = true;
       authEls.signOut.hidden = false;
       return;
     }
     setStatus("Contractor sign in", "Create an account for a 7-day trial, or sign in with your contractor password.");
     authEls.form.hidden = false;
+    authEls.forgot.hidden = false;
+    authEls.recoveryForm.hidden = true;
+    authEls.signOut.hidden = true;
+  }
+
+  function showRecoveryMode() {
+    setStatus("Choose a new password", "Enter a new contractor password, then sign in normally.");
+    authEls.form.hidden = true;
+    authEls.forgot.hidden = true;
+    authEls.recoveryForm.hidden = false;
     authEls.signOut.hidden = true;
   }
 
@@ -377,7 +435,7 @@
     authEls.submit.disabled = true;
     authEls.create.disabled = true;
     setStatus(mode === "signup" ? "Creating account" : "Signing in", "One moment...");
-    const { error } = mode === "signup"
+    const { data, error } = mode === "signup"
       ? await backend.client.auth.signUp({
           email,
           password,
@@ -392,10 +450,61 @@
       : await backend.client.auth.signInWithPassword({ email, password });
     authEls.submit.disabled = false;
     authEls.create.disabled = false;
+    if (error?.message === "Invalid login credentials") {
+      setStatus(
+        "Sign-in failed",
+        "That usually means the password is wrong, the email is not confirmed yet, or this email was used before without a password. Check your email or send a password reset.",
+      );
+      return;
+    }
     setStatus(
       error ? "Sign-in failed" : mode === "signup" ? "Account created" : "Signed in",
-      error ? error.message : mode === "signup" ? "If Supabase asks for email confirmation, check your inbox once." : "Loading your workspace.",
+      error
+        ? error.message
+        : mode === "signup" && !data?.session
+          ? "Check your email and confirm the account. If you used this email before, send a password reset instead."
+          : "Loading your workspace.",
     );
+  }, true);
+
+  authEls.forgot.addEventListener("click", async () => {
+    const email = authEls.email.value.trim();
+    if (!email) {
+      setStatus("Email needed", "Enter your contractor email first, then click password reset.");
+      return;
+    }
+    authEls.forgot.disabled = true;
+    setStatus("Sending reset email", "Check your inbox after this finishes.");
+    const { error } = await backend.client.auth.resetPasswordForEmail(email, {
+      redirectTo: window.location.href.split("#")[0],
+    });
+    authEls.forgot.disabled = false;
+    setStatus(
+      error ? "Reset failed" : "Reset email sent",
+      error ? error.message : "Open the reset link, then choose a new password here.",
+    );
+  });
+
+  authEls.recoveryForm.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    event.stopImmediatePropagation();
+    const password = authEls.recoveryPassword.value;
+    if (password.length < 6) {
+      setStatus("Password too short", "Use at least 6 characters for the password.");
+      return;
+    }
+    authEls.recoverySubmit.disabled = true;
+    const { error } = await backend.client.auth.updateUser({ password });
+    authEls.recoverySubmit.disabled = false;
+    if (error) {
+      setStatus("Password update failed", error.message);
+      return;
+    }
+    authEls.recoveryPassword.value = "";
+    setStatus("Password saved", "You can sign in with the new password now.");
+    authEls.form.hidden = false;
+    authEls.forgot.hidden = false;
+    authEls.recoveryForm.hidden = true;
   }, true);
 
   authEls.signOut.addEventListener("click", () => backend.client.auth.signOut());
@@ -439,6 +548,10 @@
     handleSession(data.session);
   });
   backend.client.auth.onAuthStateChange((event, session) => {
+    if (event === "PASSWORD_RECOVERY") {
+      showRecoveryMode();
+      return;
+    }
     if (event === "SIGNED_IN" || event === "TOKEN_REFRESHED") handleSession(session);
     if (event === "SIGNED_OUT") {
       backend.user = null;
