@@ -14,6 +14,7 @@
   const promoInput = document.getElementById("authPromoCode");
   const status = document.getElementById("authStatus");
   const detail = document.getElementById("backendStatus");
+  let actionId = 0;
 
   createButton.type = "button";
   signInButton.type = "button";
@@ -42,6 +43,15 @@
     authForm.hidden = false;
     forgotButton.hidden = false;
     recoveryForm.hidden = true;
+  }
+
+  function nextAction() {
+    actionId += 1;
+    return actionId;
+  }
+
+  function isCurrentAction(id) {
+    return id === actionId;
   }
 
   function withTimeout(promise, ms = 12000) {
@@ -86,12 +96,13 @@
   createButton.addEventListener("click", async (event) => {
     event.preventDefault();
     event.stopImmediatePropagation();
+    const id = nextAction();
 
     const { email, password } = readCredentials();
     if (!validateCredentials(email, password)) return;
 
     createButton.disabled = true;
-    signInButton.disabled = true;
+    signInButton.disabled = false;
     setStatus("Creating account", "One moment...");
     try {
       const { data, error } = await withTimeout(client.auth.signUp({
@@ -107,12 +118,14 @@
       }));
 
       if (error) {
+        if (!isCurrentAction(id)) return;
         setStatus("Could not create account", publicError(error, "Could not create account."));
         return;
       }
 
       if (!data?.session) {
         const resetResult = await withTimeout(sendPasswordSetupEmail(email));
+        if (!isCurrentAction(id)) return;
         setStatus(
           resetResult.error ? "Account created" : "Check your email",
           resetResult.error
@@ -122,36 +135,42 @@
         return;
       }
 
+      if (!isCurrentAction(id)) return;
       setStatus("Account created", "Loading your workspace.");
     } catch (error) {
+      if (!isCurrentAction(id)) return;
       setStatus("Could not create account", publicError(error, "Could not create account."));
     } finally {
-      showSignInMode();
+      if (isCurrentAction(id)) showSignInMode();
     }
   }, true);
 
   signInButton.addEventListener("click", async (event) => {
     event.preventDefault();
     event.stopImmediatePropagation();
+    const id = nextAction();
 
     showSignInMode();
     const { email, password } = readCredentials();
     if (!validateCredentials(email, password)) return;
 
-    createButton.disabled = true;
+    createButton.disabled = false;
     signInButton.disabled = true;
     setStatus("Signing in", "One moment...");
     try {
       const { error } = await withTimeout(client.auth.signInWithPassword({ email, password }));
       if (error) {
+        if (!isCurrentAction(id)) return;
         setStatus("Sign-in failed", publicError(error, "Could not complete sign in."));
         return;
       }
+      if (!isCurrentAction(id)) return;
       setStatus("Signed in", "Loading your workspace.");
     } catch (error) {
+      if (!isCurrentAction(id)) return;
       setStatus("Could not complete", publicError(error));
     } finally {
-      showSignInMode();
+      if (isCurrentAction(id)) showSignInMode();
     }
   }, true);
 })();
