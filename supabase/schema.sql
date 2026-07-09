@@ -1,63 +1,5 @@
 create extension if not exists pgcrypto;
 
-create or replace function public.is_company_member(target_company_id uuid)
-returns boolean
-language sql
-security definer
-set search_path = public
-as $$
-  select exists (
-    select 1
-    from public.company_members
-    where company_id = target_company_id
-      and user_id = auth.uid()
-  );
-$$;
-
-create or replace function public.touch_updated_at()
-returns trigger
-language plpgsql
-as $$
-begin
-  new.updated_at = now();
-  return new;
-end;
-$$;
-
-create or replace function public.bootstrap_company(company_name text)
-returns public.companies
-language plpgsql
-security definer
-set search_path = public
-as $$
-declare
-  company public.companies;
-begin
-  if auth.uid() is null then
-    raise exception 'Not authenticated';
-  end if;
-
-  select c.*
-  into company
-  from public.companies c
-  join public.company_members cm on cm.company_id = c.id
-  where cm.user_id = auth.uid()
-  order by c.created_at
-  limit 1;
-
-  if company.id is null then
-    insert into public.companies (name)
-    values (coalesce(nullif(trim(company_name), ''), 'Service Company'))
-    returning * into company;
-
-    insert into public.company_members (company_id, user_id, role)
-    values (company.id, auth.uid(), 'owner');
-  end if;
-
-  return company;
-end;
-$$;
-
 create table if not exists public.companies (
   id uuid primary key default gen_random_uuid(),
   name text not null,
@@ -152,6 +94,64 @@ create table if not exists public.estimate_acceptances (
   accepted_from_ip text,
   user_agent text
 );
+
+create or replace function public.is_company_member(target_company_id uuid)
+returns boolean
+language sql
+security definer
+set search_path = public
+as $$
+  select exists (
+    select 1
+    from public.company_members
+    where company_id = target_company_id
+      and user_id = auth.uid()
+  );
+$$;
+
+create or replace function public.touch_updated_at()
+returns trigger
+language plpgsql
+as $$
+begin
+  new.updated_at = now();
+  return new;
+end;
+$$;
+
+create or replace function public.bootstrap_company(company_name text)
+returns public.companies
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  company public.companies;
+begin
+  if auth.uid() is null then
+    raise exception 'Not authenticated';
+  end if;
+
+  select c.*
+  into company
+  from public.companies c
+  join public.company_members cm on cm.company_id = c.id
+  where cm.user_id = auth.uid()
+  order by c.created_at
+  limit 1;
+
+  if company.id is null then
+    insert into public.companies (name)
+    values (coalesce(nullif(trim(company_name), ''), 'Service Company'))
+    returning * into company;
+
+    insert into public.company_members (company_id, user_id, role)
+    values (company.id, auth.uid(), 'owner');
+  end if;
+
+  return company;
+end;
+$$;
 
 alter table public.companies enable row level security;
 alter table public.company_members enable row level security;
