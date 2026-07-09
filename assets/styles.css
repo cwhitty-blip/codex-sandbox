@@ -232,6 +232,32 @@ main {
   padding: 18px 16px 42px;
 }
 
+.auth-panel {
+  display: grid;
+  gap: 10px;
+  margin-bottom: 14px;
+  border: 1px solid rgba(23, 106, 122, 0.2);
+  border-radius: 8px;
+  padding: 12px;
+  background: #ffffff;
+  box-shadow: 0 8px 22px rgba(29, 46, 52, 0.08);
+}
+
+.auth-panel strong,
+.auth-panel small {
+  display: block;
+}
+
+.auth-panel small {
+  margin-top: 4px;
+}
+
+.auth-form {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 8px;
+}
+
 .topbar,
 .topbar-actions,
 .panel-header,
@@ -856,6 +882,7 @@ dialog::backdrop {
   }
 
   .topbar,
+  .auth-panel,
   .panel-header,
   .customer-hero,
   .dialog-actions,
