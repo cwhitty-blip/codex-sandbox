@@ -148,6 +148,15 @@ if (!state.portalAccess.jobId && selectedJobId) {
   state.portalAccess.jobId = selectedJobId;
 }
 
+const backend = {
+  client: null,
+  session: null,
+  user: null,
+  company: null,
+  live: false,
+  loading: false,
+};
+
 const els = {
   tabs: document.querySelectorAll(".nav-tab"),
   settingsGear: document.querySelector(".settings-gear"),
@@ -204,6 +213,14 @@ const els = {
   closeJobDialog: document.getElementById("closeJobDialog"),
   cancelJobDialog: document.getElementById("cancelJobDialog"),
   documentPicker: document.getElementById("documentPicker"),
+  authPanel: document.getElementById("authPanel"),
+  authForm: document.getElementById("authForm"),
+  authEmail: document.getElementById("authEmail"),
+  authCompany: document.getElementById("authCompany"),
+  authSubmit: document.getElementById("authSubmit"),
+  authStatus: document.getElementById("authStatus"),
+  backendStatus: document.getElementById("backendStatus"),
+  signOut: document.getElementById("signOut"),
 };
 
 function loadState() {
@@ -252,6 +269,192 @@ function normalizeState(nextState) {
 
 function saveState() {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+}
+
+function backendConfigured() {
+  const config = window.SERVICE_PORTAL_CONFIG;
+  return Boolean(config?.supabaseUrl && config?.supabasePublishableKey && window.supabase?.createClient);
+}
+
+function renderAuth() {
+  if (!backendConfigured()) {
+    els.authStatus.textContent = "Demo mode";
+    els.backendStatus.textContent = "Supabase is not configured for this build.";
+    els.authForm.hidden = true;
+    els.signOut.hidden = true;
+    return;
+  }
+
+  if (backend.loading) {
+    els.authStatus.textContent = "Connecting";
+    els.backendStatus.textContent = "Checking Supabase session...";
+    els.authForm.hidden = true;
+    els.signOut.hidden = true;
+    return;
+  }
+
+  if (backend.live) {
+    els.authStatus.textContent = backend.company?.name || "Live workspace";
+    els.backendStatus.textContent = `Signed in as ${backend.user.email}. Jobs are syncing to Supabase.`;
+    els.authForm.hidden = true;
+    els.signOut.hidden = false;
+    return;
+  }
+
+  els.authStatus.textContent = "Sign in for live beta";
+  els.backendStatus.textContent = "Enter your contractor email. Supabase will email you a sign-in link.";
+  els.authForm.hidden = false;
+  els.signOut.hidden = true;
+}
+
+async function initBackend() {
+  if (!backendConfigured()) {
+    renderAuth();
+    return;
+  }
+
+  const config = window.SERVICE_PORTAL_CONFIG;
+  backend.client = window.supabase.createClient(config.supabaseUrl, config.supabasePublishableKey);
+  backend.loading = true;
+  renderAuth();
+
+  const { data } = await backend.client.auth.getSession();
+  await handleSession(data.session);
+  backend.client.auth.onAuthStateChange((event, session) => {
+    if (event === "SIGNED_IN" || event === "TOKEN_REFRESHED") handleSession(session);
+    if (event === "SIGNED_OUT") {
+      backend.session = null;
+      backend.user = null;
+      backend.company = null;
+      backend.live = false;
+      renderAuth();
+      render();
+    }
+  });
+}
+
+async function handleSession(session) {
+  backend.session = session || null;
+  backend.user = session?.user || null;
+  backend.live = false;
+  if (!backend.user) {
+    backend.loading = false;
+    renderAuth();
+    return;
+  }
+
+  try {
+    await ensureCompany();
+    await loadLiveState();
+    backend.live = true;
+  } catch (error) {
+    els.backendStatus.textContent = error.message || "Supabase could not load.";
+  } finally {
+    backend.loading = false;
+    renderAuth();
+    render();
+  }
+}
+
+async function ensureCompany() {
+  const companyName = els.authCompany.value.trim() || "Service Company";
+  const { data, error } = await backend.client.rpc("bootstrap_company", { company_name: companyName });
+  if (error) throw error;
+  backend.company = Array.isArray(data) ? data[0] : data;
+}
+
+function mapDbDocument(doc) {
+  return {
+    id: doc.id,
+    name: doc.name,
+    type: doc.document_type,
+    uploadedBy: doc.uploaded_by,
+    visibility: doc.visibility,
+    status: doc.status,
+    createdAt: doc.created_at,
+    version: doc.version,
+    size: doc.size_bytes,
+    stored: Boolean(doc.storage_file_id || doc.storage_url),
+  };
+}
+
+function mapDbJob(job) {
+  const customer = Array.isArray(job.customers) ? job.customers[0] : job.customers;
+  return {
+    id: job.id,
+    customerId: job.customer_id,
+    industry: job.industry,
+    name: job.name,
+    customerName: customer?.name || "",
+    customerEmail: customer?.email || "",
+    customerPhone: customer?.phone || "",
+    serviceAddress: job.service_address || "",
+    jobStatus: job.job_status,
+    materialStatus: job.material_status,
+    projectedDate: job.projected_date || "",
+    invoiceUrl: job.invoice_url || "",
+    nextAction: job.next_action || "",
+    internalNotes: job.internal_notes || "",
+    customValues: job.custom_values || {},
+    documents: (job.documents || []).map(mapDbDocument),
+    timeline: ["Loaded from Supabase"],
+    estimateAcceptedAt: null,
+    acceptedEstimate: null,
+    viewedEstimateId: null,
+    magicLinkLastSent: null,
+  };
+}
+
+async function loadLiveState() {
+  const companyId = backend.company.id;
+  const [{ data: company, error: companyError }, { data: fields, error: fieldsError }, { data: jobs, error: jobsError }] =
+    await Promise.all([
+      backend.client.from("companies").select("*").eq("id", companyId).single(),
+      backend.client.from("custom_fields").select("*").eq("company_id", companyId).order("created_at"),
+      backend.client
+        .from("jobs")
+        .select("*, customers(*), documents(*)")
+        .eq("company_id", companyId)
+        .order("created_at", { ascending: false }),
+    ]);
+
+  if (companyError) throw companyError;
+  if (fieldsError) throw fieldsError;
+  if (jobsError) throw jobsError;
+
+  backend.company = company;
+  state.settings = {
+    billingProvider: company.billing_provider || "QuickBooks Online",
+    billingAccount: company.billing_account || company.name || "",
+    billingSync: company.billing_sync || "Invoice links only",
+    billingConnected: Boolean(company.billing_provider),
+    customFields: (fields || []).map((field) => ({
+      id: field.id,
+      label: field.label,
+      type: field.field_type,
+      options: Array.isArray(field.options) ? field.options : [],
+    })),
+  };
+  state.jobs = (jobs || []).map(mapDbJob);
+  selectedJobId = state.jobs[0]?.id || null;
+  state.portalAccess.jobId = selectedJobId;
+}
+
+function dbJobPayload(job, customerId) {
+  return {
+    company_id: backend.company.id,
+    customer_id: customerId,
+    industry: job.industry,
+    name: job.name,
+    service_address: job.serviceAddress,
+    job_status: job.jobStatus,
+    material_status: job.materialStatus,
+    projected_date: job.projectedDate || null,
+    invoice_url: job.invoiceUrl || null,
+    next_action: job.nextAction,
+    internal_notes: job.internalNotes,
+    custom_values: job.customValues,
+  };
 }
 
 function industryFor(id) {
@@ -334,6 +537,7 @@ function initStaticControls() {
 
 function render() {
   saveState();
+  renderAuth();
   renderMetrics();
   renderJobs();
   renderJobDetail();
@@ -655,7 +859,7 @@ function openJobDialog(job = null) {
   els.jobDialog.showModal();
 }
 
-function saveJobFromForm() {
+async function saveJobFromForm() {
   const id = els.jobId.value || createId();
   const existing = state.jobs.find((job) => job.id === id);
   const customValues = {};
@@ -685,6 +889,36 @@ function saveJobFromForm() {
     magicLinkLastSent: existing?.magicLinkLastSent || null,
   };
 
+  if (backend.live) {
+    const customerPayload = {
+      company_id: backend.company.id,
+      name: payload.customerName,
+      email: payload.customerEmail,
+      phone: payload.customerPhone || null,
+    };
+    let customerId = existing?.customerId;
+    if (customerId) {
+      const { error } = await backend.client.from("customers").update(customerPayload).eq("id", customerId);
+      if (error) throw error;
+    } else {
+      const { data, error } = await backend.client.from("customers").insert(customerPayload).select("id").single();
+      if (error) throw error;
+      customerId = data.id;
+    }
+
+    const jobPayload = dbJobPayload(payload, customerId);
+    if (existing) {
+      const { error } = await backend.client.from("jobs").update(jobPayload).eq("id", id);
+      if (error) throw error;
+    } else {
+      const { data, error } = await backend.client.from("jobs").insert(jobPayload).select("id").single();
+      if (error) throw error;
+      selectedJobId = data.id;
+    }
+    await loadLiveState();
+    return;
+  }
+
   if (existing) {
     Object.assign(existing, payload);
     existing.timeline.push("Job updated by contractor");
@@ -695,9 +929,22 @@ function saveJobFromForm() {
   render();
 }
 
-function sendMagicLink(channel) {
+async function sendMagicLink(channel) {
   const job = selectedJob();
   if (!job) return;
+  if (backend.live && channel === "email") {
+    const { error } = await backend.client.functions.invoke("send-magic-link", {
+      body: { jobId: job.id },
+    });
+    if (error) {
+      job.timeline.push(`Magic email failed: ${error.message}`);
+    } else {
+      job.magicLinkLastSent = new Date().toISOString();
+      job.timeline.push(`Magic email sent to ${job.customerEmail}`);
+    }
+    render();
+    return;
+  }
   activatePortalAccess(job, channel);
   job.timeline.push(`Magic link sent by ${channel} to ${channel === "email" ? job.customerEmail : job.customerPhone || "customer phone"}`);
   render();
@@ -714,7 +961,7 @@ function activatePortalAccess(job, channel = "email") {
   };
 }
 
-function addDocuments(files, uploadedBy, docType = "Other") {
+async function addDocuments(files, uploadedBy, docType = "Other") {
   const job = uploadedBy === "Customer" ? customerJob() : selectedJob();
   if (!job || !files.length) return;
   if (docType === "Estimate") {
@@ -723,8 +970,7 @@ function addDocuments(files, uploadedBy, docType = "Other") {
     job.viewedEstimateId = null;
   }
   let estimateVersion = docType === "Estimate" ? nextEstimateVersion(job) : null;
-  Array.from(files).forEach((file) => {
-    job.documents.unshift({
+  const docs = Array.from(files).map((file) => ({
       id: createId(),
       name: file.name,
       type: docType,
@@ -735,8 +981,29 @@ function addDocuments(files, uploadedBy, docType = "Other") {
       version: docType === "Estimate" ? estimateVersion++ : null,
       size: file.size,
       stored: false,
-    });
-  });
+    }));
+
+  if (backend.live && uploadedBy !== "Customer") {
+    const { error } = await backend.client.from("documents").insert(
+      docs.map((doc) => ({
+        company_id: backend.company.id,
+        job_id: job.id,
+        name: doc.name,
+        document_type: doc.type,
+        uploaded_by: doc.uploadedBy,
+        visibility: doc.visibility,
+        status: doc.status,
+        version: doc.version,
+        size_bytes: doc.size,
+      })),
+    );
+    if (error) throw error;
+    await loadLiveState();
+    render();
+    return;
+  }
+
+  docs.forEach((doc) => job.documents.unshift(doc));
   if (docType === "Estimate") {
     job.timeline.push("Estimate shared with customer");
   } else if (docType === "Insurance Claim" && uploadedBy === "Customer") {
@@ -772,10 +1039,20 @@ function viewEstimate(docId) {
   render();
 }
 
-function acceptEstimate(docId) {
+async function acceptEstimate(docId) {
   const job = customerJob();
   const estimate = estimateFor(job);
   if (!job || !estimate || estimate.id !== docId || job.viewedEstimateId !== docId) return;
+  if (backend.live) {
+    const { error } = await backend.client.from("estimate_acceptances").insert({
+      company_id: backend.company.id,
+      job_id: job.id,
+      document_id: estimate.id,
+      customer_id: job.customerId,
+      user_agent: navigator.userAgent,
+    });
+    if (error) throw error;
+  }
   job.estimateAcceptedAt = new Date().toISOString();
   job.acceptedEstimate = {
     id: estimate.id,
@@ -803,6 +1080,26 @@ function bindEvents() {
   });
   els.settingsGear.addEventListener("click", () => setView("settings"));
 
+  els.authForm.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    if (!backend.client) return;
+    const email = els.authEmail.value.trim();
+    if (!email) return;
+    els.authSubmit.disabled = true;
+    els.backendStatus.textContent = "Sending sign-in email...";
+    const { error } = await backend.client.auth.signInWithOtp({
+      email,
+      options: { emailRedirectTo: window.location.href.split("#")[0] },
+    });
+    els.authSubmit.disabled = false;
+    els.backendStatus.textContent = error ? error.message : "Check your email for the sign-in link.";
+  });
+
+  els.signOut.addEventListener("click", async () => {
+    if (!backend.client) return;
+    await backend.client.auth.signOut();
+  });
+
   els.startJob.addEventListener("click", () => openJobDialog());
   els.quickStartJob.addEventListener("click", () => openJobDialog());
   els.quickUpdateJob.addEventListener("click", () => openJobDialog(selectedJob()));
@@ -823,8 +1120,14 @@ function bindEvents() {
   els.jobDetail.addEventListener("click", (event) => {
     const action = event.target.dataset.action;
     if (action === "edit-job") openJobDialog(selectedJob());
-    if (action === "send-email") sendMagicLink("email");
-    if (action === "send-sms") sendMagicLink("text");
+    if (action === "send-email") sendMagicLink("email").catch((error) => {
+      selectedJob().timeline.push(`Magic email failed: ${error.message}`);
+      render();
+    });
+    if (action === "send-sms") sendMagicLink("text").catch((error) => {
+      selectedJob().timeline.push(`Magic text failed: ${error.message}`);
+      render();
+    });
     if (action === "copy-portal-link") copyPortalLink();
     if (action === "upload-estimate") {
       els.documentPicker.dataset.uploadedBy = "Contractor";
@@ -854,12 +1157,33 @@ function bindEvents() {
   });
 
   els.documentPicker.addEventListener("change", () => {
-    addDocuments(els.documentPicker.files, els.documentPicker.dataset.uploadedBy, els.documentPicker.dataset.docType);
+    addDocuments(els.documentPicker.files, els.documentPicker.dataset.uploadedBy, els.documentPicker.dataset.docType).catch((error) => {
+      const job = selectedJob();
+      if (job) job.timeline.push(`Document upload failed: ${error.message}`);
+      render();
+    });
     els.documentPicker.value = "";
   });
 
-  els.billingForm.addEventListener("submit", (event) => {
+  els.billingForm.addEventListener("submit", async (event) => {
     event.preventDefault();
+    if (backend.live) {
+      const { error } = await backend.client
+        .from("companies")
+        .update({
+          billing_provider: els.billingProvider.value,
+          billing_account: els.billingAccount.value,
+          billing_sync: els.billingSync.value,
+        })
+        .eq("id", backend.company.id);
+      if (error) {
+        els.backendStatus.textContent = error.message;
+        return;
+      }
+      await loadLiveState();
+      render();
+      return;
+    }
     state.settings.billingProvider = els.billingProvider.value;
     state.settings.billingAccount = els.billingAccount.value;
     state.settings.billingSync = els.billingSync.value;
@@ -867,38 +1191,86 @@ function bindEvents() {
     render();
   });
 
-  els.fieldForm.addEventListener("submit", (event) => {
+  els.fieldForm.addEventListener("submit", async (event) => {
     event.preventDefault();
     const label = els.fieldLabel.value.trim();
     if (!label) return;
-    state.settings.customFields.push({
+    const field = {
       id: createId(),
       label,
       type: els.fieldType.value,
       options: els.fieldOptions.value.split(",").map((option) => option.trim()).filter(Boolean),
+    };
+    if (backend.live) {
+      const { error } = await backend.client.from("custom_fields").insert({
+        company_id: backend.company.id,
+        label: field.label,
+        field_type: field.type,
+        options: field.options,
+      });
+      if (error) {
+        els.backendStatus.textContent = error.message;
+        return;
+      }
+      els.fieldForm.reset();
+      await loadLiveState();
+      render();
+      return;
+    }
+    state.settings.customFields.push({
+      id: field.id,
+      label: field.label,
+      type: field.type,
+      options: field.options,
     });
     els.fieldForm.reset();
     render();
   });
 
-  els.customFieldList.addEventListener("click", (event) => {
+  els.customFieldList.addEventListener("click", async (event) => {
     const button = event.target.closest("[data-field-id]");
     if (!button) return;
+    if (backend.live) {
+      const { error } = await backend.client.from("custom_fields").delete().eq("id", button.dataset.fieldId);
+      if (error) {
+        els.backendStatus.textContent = error.message;
+        return;
+      }
+      await loadLiveState();
+      render();
+      return;
+    }
     state.settings.customFields = state.settings.customFields.filter((field) => field.id !== button.dataset.fieldId);
     render();
   });
 
-  els.jobForm.addEventListener("submit", (event) => {
+  els.jobForm.addEventListener("submit", async (event) => {
     event.preventDefault();
-    saveJobFromForm();
-    els.jobDialog.close();
+    try {
+      await saveJobFromForm();
+      els.jobDialog.close();
+      render();
+    } catch (error) {
+      els.backendStatus.textContent = error.message;
+    }
   });
 
   els.closeJobDialog.addEventListener("click", () => els.jobDialog.close());
   els.cancelJobDialog.addEventListener("click", () => els.jobDialog.close());
 
-  els.deleteJob.addEventListener("click", () => {
+  els.deleteJob.addEventListener("click", async () => {
     const id = els.jobId.value;
+    if (backend.live) {
+      const { error } = await backend.client.from("jobs").delete().eq("id", id);
+      if (error) {
+        els.backendStatus.textContent = error.message;
+        return;
+      }
+      els.jobDialog.close();
+      await loadLiveState();
+      render();
+      return;
+    }
     state.jobs = state.jobs.filter((job) => job.id !== id);
     selectedJobId = state.jobs[0]?.id || null;
     if (state.portalAccess.jobId === id) {
@@ -914,3 +1286,4 @@ function bindEvents() {
 initStaticControls();
 bindEvents();
 render();
+initBackend();

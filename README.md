@@ -24,7 +24,7 @@ Use `.env.example` as the local checklist, but do not commit real API keys.
    - `FROM_EMAIL`
 4. Deploy `supabase/functions/send-magic-link`.
 
-The current prototype still uses local storage. The schema and function are the first backend bridge pieces for the operational beta.
+The frontend has a demo fallback, but once the schema and function are deployed it can sign in contractors, create a company workspace, save jobs/custom fields/billing settings to Supabase, and send customer magic-link emails through Resend.
 
 ## Included MVP Flows
 
