@@ -24,6 +24,21 @@ function jsonResponse(body: unknown, status = 200) {
   });
 }
 
+function serviceRoleKey() {
+  const legacyKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+  if (legacyKey) return legacyKey;
+
+  const secretKeys = Deno.env.get("SUPABASE_SECRET_KEYS");
+  if (!secretKeys) return null;
+
+  try {
+    const parsed = JSON.parse(secretKeys);
+    return Object.values(parsed).find((value) => typeof value === "string") as string | undefined;
+  } catch {
+    return null;
+  }
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { status: 204, headers: corsHeaders });
@@ -35,11 +50,11 @@ serve(async (req) => {
 
   const resendApiKey = Deno.env.get("RESEND_API_KEY");
   const supabaseUrl = Deno.env.get("SUPABASE_URL");
-  const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+  const serviceKey = serviceRoleKey();
   const appBaseUrl = Deno.env.get("APP_BASE_URL");
   const fromEmail = Deno.env.get("FROM_EMAIL") || "Service Portal <onboarding@resend.dev>";
 
-  if (!resendApiKey || !supabaseUrl || !serviceRoleKey || !appBaseUrl) {
+  if (!resendApiKey || !supabaseUrl || !serviceKey || !appBaseUrl) {
     return jsonResponse({ error: "Server is missing required environment variables" }, 500);
   }
 
@@ -53,8 +68,8 @@ serve(async (req) => {
     return jsonResponse({ error: "jobId is required" }, 400);
   }
 
-  const supabase = createClient(supabaseUrl, serviceRoleKey);
-  const supabaseForAuth = createClient(supabaseUrl, serviceRoleKey, {
+  const supabase = createClient(supabaseUrl, serviceKey);
+  const supabaseForAuth = createClient(supabaseUrl, serviceKey, {
     global: { headers: { Authorization: authHeader } },
   });
   const { data: authData, error: authError } = await supabaseForAuth.auth.getUser();
