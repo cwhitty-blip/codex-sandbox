@@ -18,10 +18,9 @@ Use `.env.example` as the local checklist, but do not commit real API keys.
 2. Run `supabase/schema.sql` in the Supabase SQL editor.
 3. Add these Edge Function secrets inside Supabase:
    - `RESEND_API_KEY`
-   - `SUPABASE_URL`
-   - `SUPABASE_SERVICE_ROLE_KEY`
    - `APP_BASE_URL`
    - `FROM_EMAIL`
+   Supabase provides `SUPABASE_URL` and `SUPABASE_SECRET_KEYS` by default.
 4. Deploy `supabase/functions/send-magic-link`.
 
 The frontend has a demo fallback, but once the schema and function are deployed it can sign in contractors, create a company workspace, save jobs/custom fields/billing settings to Supabase, and send customer magic-link emails through Resend.
