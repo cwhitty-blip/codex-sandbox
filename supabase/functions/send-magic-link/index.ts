@@ -43,12 +43,25 @@ serve(async (req) => {
     return jsonResponse({ error: "Server is missing required environment variables" }, 500);
   }
 
+  const authHeader = req.headers.get("Authorization");
+  if (!authHeader) {
+    return jsonResponse({ error: "Unauthorized" }, 401);
+  }
+
   const payload = (await req.json()) as MagicLinkRequest;
   if (!payload.jobId) {
     return jsonResponse({ error: "jobId is required" }, 400);
   }
 
   const supabase = createClient(supabaseUrl, serviceRoleKey);
+  const supabaseForAuth = createClient(supabaseUrl, serviceRoleKey, {
+    global: { headers: { Authorization: authHeader } },
+  });
+  const { data: authData, error: authError } = await supabaseForAuth.auth.getUser();
+  if (authError || !authData.user) {
+    return jsonResponse({ error: "Unauthorized" }, 401);
+  }
+
   const { data: job, error: jobError } = await supabase
     .from("jobs")
     .select("id, company_id, customer_id, name, customers(name, email)")
@@ -57,6 +70,17 @@ serve(async (req) => {
 
   if (jobError || !job) {
     return jsonResponse({ error: "Job not found" }, 404);
+  }
+
+  const { data: member, error: memberError } = await supabase
+    .from("company_members")
+    .select("id")
+    .eq("company_id", job.company_id)
+    .eq("user_id", authData.user.id)
+    .single();
+
+  if (memberError || !member) {
+    return jsonResponse({ error: "You do not have access to this job" }, 403);
   }
 
   const customer = Array.isArray(job.customers) ? job.customers[0] : job.customers;
