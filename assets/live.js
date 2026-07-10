@@ -491,6 +491,16 @@
     return name.replace(/[^a-zA-Z0-9._-]+/g, "-").replace(/^-+|-+$/g, "") || "document";
   }
 
+  function isDuplicateDocument(job, file, uploadedBy, docType) {
+    return (job.documents || []).some((doc) =>
+      doc.status !== "Archived"
+      && doc.name === file.name
+      && Number(doc.size || 0) === Number(file.size || 0)
+      && doc.type === docType
+      && doc.uploadedBy === uploadedBy
+    );
+  }
+
   async function uploadLiveDocumentFile(job, file) {
     const storagePath = `${backend.company.id}/${job.id}/${crypto.randomUUID()}-${safeStorageName(file.name)}`;
     const { error } = await backend.client.storage.from(DOCUMENT_BUCKET).upload(storagePath, file, {
@@ -512,9 +522,15 @@
     event.stopImmediatePropagation();
 
     const docType = els.documentPicker.dataset.docType || "Other";
+    const uniqueFiles = files.filter((file) => !isDuplicateDocument(job, file, uploadedBy, docType));
+    if (!uniqueFiles.length) {
+      els.documentPicker.value = "";
+      setStatus("Duplicate skipped", "That file is already uploaded for this job.");
+      return;
+    }
     let estimateVersion = docType === "Estimate" ? nextEstimateVersion(job) : null;
-    const uploadedFiles = await Promise.all(files.map((file) => uploadLiveDocumentFile(job, file)));
-    const { error } = await backend.client.from("documents").insert(files.map((file, index) => ({
+    const uploadedFiles = await Promise.all(uniqueFiles.map((file) => uploadLiveDocumentFile(job, file)));
+    const { error } = await backend.client.from("documents").insert(uniqueFiles.map((file, index) => ({
       company_id: backend.company.id,
       job_id: job.id,
       name: file.name,

@@ -594,7 +594,7 @@ function customerJob() {
 function estimateFor(job) {
   return (
     job?.documents
-      .filter((doc) => doc.type === "Estimate" && doc.visibility === "Customer Visible")
+      .filter((doc) => doc.type === "Estimate" && doc.visibility === "Customer Visible" && doc.status !== "Archived")
       .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))[0] || null
   );
 }
@@ -705,8 +705,10 @@ function renderJobDetail() {
   }
 
   const estimate = estimateFor(job);
-  const visibleDocs = job.documents.filter((doc) => doc.visibility === "Customer Visible").length;
-  const customerDocs = job.documents.filter((doc) => doc.uploadedBy === "Customer").length;
+  const activeDocuments = job.documents.filter((doc) => doc.status !== "Archived");
+  const visibleDocs = activeDocuments.filter((doc) => doc.visibility === "Customer Visible").length;
+  const customerDocs = activeDocuments.filter((doc) => doc.uploadedBy === "Customer").length;
+  const archivedDocs = job.documents.length - activeDocuments.length;
   els.detailTitle.textContent = job.name;
   els.detailStatus.textContent = job.jobStatus;
   els.jobDetail.classList.remove("empty-state");
@@ -743,8 +745,8 @@ function renderJobDetail() {
     </section>
     <section class="plain-section">
       <h3>Documents</h3>
-      <div class="document-list">${renderDocumentList(job.documents)}</div>
-      <p class="fine-print">${visibleDocs} shared document${visibleDocs === 1 ? "" : "s"}. ${customerDocs} customer upload${customerDocs === 1 ? "" : "s"} awaiting review.</p>
+      <div class="document-list">${renderDocumentList(activeDocuments)}</div>
+      <p class="fine-print">${visibleDocs} shared document${visibleDocs === 1 ? "" : "s"}. ${customerDocs} customer upload${customerDocs === 1 ? "" : "s"} awaiting review.${archivedDocs ? ` ${archivedDocs} archived.` : ""}</p>
     </section>
     <section class="plain-section internal-note">
       <h3>Internal notes</h3>
@@ -771,9 +773,22 @@ function renderContractorEstimateStatus(job, estimate) {
         <strong>${escapeHtml(estimate.name)}</strong>
         <small>Version ${escapeHtml(estimate.version || 1)} / ${job.acceptedEstimate ? `Accepted ${formatDateTime(job.acceptedEstimate.acceptedAt)}` : "Waiting on customer acceptance"}</small>
       </span>
-      <em>${escapeHtml(estimateStatus(job))}</em>
+      <span class="document-row-actions">
+        ${renderDocumentOpenAction(estimate, "Open estimate")}
+        <em>${escapeHtml(estimateStatus(job))}</em>
+      </span>
     </div>
   `;
+}
+
+function renderDocumentOpenAction(doc, label = "Open file") {
+  if (doc.previewUrl) {
+    return `<a class="document-open-link" href="${escapeHtml(doc.previewUrl)}" target="_blank" rel="noopener">${escapeHtml(label)}</a>`;
+  }
+  if (doc.storagePath) {
+    return `<span class="document-pending-link">Preparing file link</span>`;
+  }
+  return "";
 }
 
 function renderCustomValueReadout(job) {
@@ -791,11 +806,7 @@ function renderDocumentList(documents) {
   return documents
     .map(
       (doc) => {
-        const fileAction = doc.previewUrl
-          ? `<a class="document-open-link" href="${escapeHtml(doc.previewUrl)}" target="_blank" rel="noopener">Open file</a>`
-          : doc.storagePath
-            ? `<span class="document-pending-link">Preparing file link</span>`
-            : "";
+        const fileAction = renderDocumentOpenAction(doc);
         return `
         <div class="document-row">
           <span>
@@ -806,6 +817,7 @@ function renderDocumentList(documents) {
           <span class="document-row-actions">
             ${fileAction}
             <em>${escapeHtml(doc.status)}</em>
+            <button class="text-button document-archive-button" data-action="archive-document" data-doc-id="${escapeHtml(doc.id)}" type="button">Archive</button>
           </span>
         </div>
       `;
@@ -906,8 +918,9 @@ function renderCustomerPortal() {
     els.customerPortal.innerHTML = `<div class="empty-state">No customer portal to preview yet.</div>`;
     return;
   }
-  const customerVisibleDocs = job.documents.filter((doc) => doc.visibility === "Customer Visible");
-  const customerUploads = job.documents.filter((doc) => doc.uploadedBy === "Customer");
+  const activeDocuments = job.documents.filter((doc) => doc.status !== "Archived");
+  const customerVisibleDocs = activeDocuments.filter((doc) => doc.visibility === "Customer Visible");
+  const customerUploads = activeDocuments.filter((doc) => doc.uploadedBy === "Customer");
   const estimate = estimateFor(job);
   const receivedUploads = customerUploads.length;
   els.customerPortal.innerHTML = `
@@ -959,6 +972,7 @@ function renderEstimateAcceptance(job, estimate) {
         <strong>Accepted version ${escapeHtml(job.acceptedEstimate?.version || estimate.version || 1)}</strong>
         <span>${formatDateTime(job.acceptedEstimate?.acceptedAt || job.estimateAcceptedAt)}</span>
       </div>
+      <div class="accept-row">${renderDocumentOpenAction(estimate, "Open estimate")}</div>
     `;
   }
   if (job.estimateDecision?.documentId === estimate.id) {
@@ -971,6 +985,7 @@ function renderEstimateAcceptance(job, estimate) {
         <span>${formatDateTime(job.estimateDecision.decidedAt)}</span>
       </div>
       ${job.estimateDecision.notes ? `<p>${escapeHtml(job.estimateDecision.notes)}</p>` : ""}
+      <div class="accept-row">${renderDocumentOpenAction(estimate, "Open estimate")}</div>
     `;
   }
   const viewed = job.viewedEstimateId === estimate.id;
@@ -1214,6 +1229,16 @@ function safeStorageName(name) {
   return name.replace(/[^a-zA-Z0-9._-]+/g, "-").replace(/^-+|-+$/g, "") || "document";
 }
 
+function isDuplicateDocument(job, file, uploadedBy, docType) {
+  return (job.documents || []).some((doc) =>
+    doc.status !== "Archived"
+    && doc.name === file.name
+    && Number(doc.size || 0) === Number(file.size || 0)
+    && doc.type === docType
+    && doc.uploadedBy === uploadedBy
+  );
+}
+
 async function uploadLiveDocumentFile(job, file) {
   const storagePath = `${backend.company.id}/${job.id}/${createId()}-${safeStorageName(file.name)}`;
   const { error } = await backend.client.storage
@@ -1260,10 +1285,15 @@ async function uploadPortalDocument(file, docType) {
 
 async function uploadPortalDocuments(files, docType) {
   const status = document.getElementById("customerUploadStatus");
+  const job = customerJob();
+  const uniqueFiles = Array.from(files).filter((file) => !isDuplicateDocument(job, file, "Customer", docType));
   if (status) {
-    status.innerHTML = `<div class="empty-state">Uploading ${files.length} file${files.length === 1 ? "" : "s"}...</div>`;
+    status.innerHTML = uniqueFiles.length
+      ? `<div class="empty-state">Uploading ${uniqueFiles.length} file${uniqueFiles.length === 1 ? "" : "s"}...</div>`
+      : `<div class="empty-state">That file is already uploaded for this job.</div>`;
   }
-  await Promise.all(Array.from(files).map((file) => uploadPortalDocument(file, docType)));
+  if (!uniqueFiles.length) return;
+  await Promise.all(uniqueFiles.map((file) => uploadPortalDocument(file, docType)));
   const updatedStatus = document.getElementById("customerUploadStatus");
   if (updatedStatus) {
     updatedStatus.innerHTML = `<div class="empty-state">Upload complete.</div>`;
@@ -1284,7 +1314,12 @@ async function addDocuments(files, uploadedBy, docType = "Other") {
     job.viewedEstimateId = null;
   }
   let estimateVersion = docType === "Estimate" ? nextEstimateVersion(job) : null;
-  const sourceFiles = Array.from(files);
+  const sourceFiles = Array.from(files).filter((file) => !isDuplicateDocument(job, file, uploadedBy, docType));
+  if (!sourceFiles.length) {
+    job.timeline.push("Duplicate upload skipped");
+    render();
+    return;
+  }
   const uploadedFiles = backend.live
     ? await Promise.all(sourceFiles.map((file) => uploadLiveDocumentFile(job, file)))
     : sourceFiles.map(() => ({ storagePath: "", previewUrl: "" }));
@@ -1356,6 +1391,22 @@ async function copyPortalLink() {
   } catch {
     job.timeline.push(`Magic link ready to copy: ${link}`);
   }
+  render();
+}
+
+async function archiveDocument(docId) {
+  const job = selectedJob();
+  const doc = job?.documents.find((item) => item.id === docId);
+  if (!job || !doc) return;
+  if (backend.live) {
+    const { error } = await backend.client.from("documents").update({ status: "Archived" }).eq("id", docId);
+    if (error) throw error;
+    await loadLiveState();
+    render();
+    return;
+  }
+  doc.status = "Archived";
+  job.timeline.push(`Archived ${doc.name}`);
   render();
 }
 
@@ -1557,7 +1608,9 @@ function bindEvents() {
   });
 
   els.jobDetail.addEventListener("click", (event) => {
-    const action = event.target.dataset.action;
+    const actionTarget = event.target.closest("[data-action]");
+    if (!actionTarget) return;
+    const action = actionTarget.dataset.action;
     if (action === "edit-job") openJobDialog(selectedJob());
     if (action === "send-email") sendMagicLink("email").catch((error) => {
       console.warn("Magic email failed", error);
@@ -1570,6 +1623,12 @@ function bindEvents() {
       render();
     });
     if (action === "copy-portal-link") copyPortalLink();
+    if (action === "archive-document") archiveDocument(actionTarget.dataset.docId).catch((error) => {
+      console.warn("Document archive failed", error);
+      const job = selectedJob();
+      if (job) job.timeline.push("Document could not be archived");
+      render();
+    });
     if (action === "upload-estimate") {
       els.documentPicker.dataset.uploadedBy = "Contractor";
       els.documentPicker.dataset.docType = "Estimate";
