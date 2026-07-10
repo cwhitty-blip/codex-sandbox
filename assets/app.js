@@ -790,16 +790,26 @@ function renderDocumentList(documents) {
   if (!documents.length) return `<div class="empty-state">No documents yet.</div>`;
   return documents
     .map(
-      (doc) => `
+      (doc) => {
+        const fileAction = doc.previewUrl
+          ? `<a class="document-open-link" href="${escapeHtml(doc.previewUrl)}" target="_blank" rel="noopener">Open file</a>`
+          : doc.storagePath
+            ? `<span class="document-pending-link">Preparing file link</span>`
+            : "";
+        return `
         <div class="document-row">
           <span>
             <strong>${escapeHtml(doc.name)}</strong>
             <small>${escapeHtml(doc.type)} / ${escapeHtml(doc.uploadedBy)} / ${escapeHtml(doc.visibility)}</small>
             <small>${escapeHtml(formatFileSize(doc.size))}</small>
           </span>
-          <em>${escapeHtml(doc.status)}</em>
+          <span class="document-row-actions">
+            ${fileAction}
+            <em>${escapeHtml(doc.status)}</em>
+          </span>
         </div>
-      `,
+      `;
+      },
     )
     .join("");
 }

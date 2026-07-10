@@ -213,8 +213,8 @@
       version: doc.version,
       size: doc.size_bytes,
       storagePath: doc.storage_file_id || "",
-      previewUrl: doc.storage_url || "",
-      stored: Boolean(doc.storage_file_id || doc.storage_url),
+      previewUrl: doc.storage_url || doc.preview_url || "",
+      stored: Boolean(doc.storage_file_id || doc.storage_url || doc.preview_url),
     };
   }
 
