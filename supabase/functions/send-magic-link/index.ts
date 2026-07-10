@@ -34,18 +34,18 @@ function escapeHtml(value: string) {
 }
 
 function serviceRoleKey() {
-  const legacyKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-  if (legacyKey) return legacyKey;
-
   const secretKeys = Deno.env.get("SUPABASE_SECRET_KEYS");
-  if (!secretKeys) return null;
-
-  try {
-    const parsed = JSON.parse(secretKeys);
-    return Object.values(parsed).find((value) => typeof value === "string") as string | undefined;
-  } catch {
-    return null;
+  if (secretKeys) {
+    try {
+      const parsed = JSON.parse(secretKeys);
+      const key = Object.values(parsed).find((value) => typeof value === "string") as string | undefined;
+      if (key) return key;
+    } catch {
+      // Fall back to the legacy secret name below.
+    }
   }
+
+  return Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
 }
 
 serve(async (req) => {
