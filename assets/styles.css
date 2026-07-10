@@ -53,6 +53,7 @@ body.customer-portal-mode .customer-layout {
 
 body {
   margin: 0;
+  width: 100%;
   min-height: 100vh;
   background: linear-gradient(180deg, #fafbf7 0%, var(--bg) 58%, #e9eeee 100%);
   color: var(--ink);
@@ -60,6 +61,7 @@ body {
   display: grid;
   place-items: center;
   padding: 28px 14px;
+  overflow-x: hidden;
 }
 
 body.service-portal-signed-in #authPanel {
@@ -93,11 +95,13 @@ h1 {
   font-size: 2.25rem;
   line-height: 0.98;
   letter-spacing: 0;
+  overflow-wrap: anywhere;
 }
 
 h2 {
   font-size: 1.3rem;
   letter-spacing: 0;
+  overflow-wrap: anywhere;
 }
 
 h3 {
@@ -108,10 +112,11 @@ h3 {
 .app-shell {
   display: grid;
   grid-template-columns: 1fr;
-  width: min(100%, 430px);
+  width: min(calc(100vw - 28px), 430px);
   max-height: min(860px, calc(100vh - 56px));
   min-height: min(820px, calc(100vh - 56px));
-  overflow: auto;
+  overflow-x: hidden;
+  overflow-y: auto;
   border: 10px solid #10181b;
   border-radius: 38px;
   background: #f7f8f4;
@@ -377,11 +382,13 @@ main {
 .choice-button,
 .icon-button,
 .text-button {
+  min-width: 0;
   min-height: 42px;
   border-radius: 8px;
   border: 1px solid transparent;
   padding: 0 14px;
   font-weight: 850;
+  white-space: normal;
 }
 
 .topbar-actions .primary-button,
@@ -476,6 +483,7 @@ main {
 }
 
 .panel {
+  min-width: 0;
   background: var(--panel);
   border: 1px solid var(--line);
   border-radius: 8px;
@@ -501,6 +509,7 @@ main {
 
 .job-row {
   width: 100%;
+  min-width: 0;
   border: 1px solid var(--line);
   border-radius: 8px;
   background: #ffffff;
@@ -522,6 +531,8 @@ main {
 .job-row strong,
 .job-row small {
   display: block;
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .job-row small {
