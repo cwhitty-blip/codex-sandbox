@@ -832,6 +832,34 @@ function renderCustomerDocumentList(documents) {
     .join("");
 }
 
+function renderCustomerUploadList(documents) {
+  if (!documents.length) return `<div class="empty-state">No insurance claim files uploaded yet.</div>`;
+  return `
+    <div class="document-list uploaded-document-list">
+      ${documents
+        .map((doc) => {
+          const openLink = doc.previewUrl
+            ? `<a class="document-open-link" href="${escapeHtml(doc.previewUrl)}" target="_blank" rel="noopener">Open file</a>`
+            : "";
+          return `
+            <div class="document-row">
+              <span>
+                <strong>${escapeHtml(doc.name)}</strong>
+                <small>${escapeHtml(doc.type)} / Uploaded ${formatDateTime(doc.createdAt)}</small>
+                <small>${escapeHtml(formatFileSize(doc.size))}</small>
+              </span>
+              <span class="document-row-actions">
+                ${openLink}
+                <em>${escapeHtml(doc.status)}</em>
+              </span>
+            </div>
+          `;
+        })
+        .join("")}
+    </div>
+  `;
+}
+
 function customerTimelineFor(job) {
   const items = ["Customer portal opened"];
   if (estimateFor(job)) items.push("Estimate ready for review");
@@ -879,8 +907,9 @@ function renderCustomerPortal() {
     return;
   }
   const customerVisibleDocs = job.documents.filter((doc) => doc.visibility === "Customer Visible");
+  const customerUploads = job.documents.filter((doc) => doc.uploadedBy === "Customer");
   const estimate = estimateFor(job);
-  const receivedUploads = job.documents.filter((doc) => doc.uploadedBy === "Customer").length;
+  const receivedUploads = customerUploads.length;
   els.customerPortal.innerHTML = `
     <div class="customer-hero">
       <div>
@@ -901,6 +930,8 @@ function renderCustomerPortal() {
       <div class="customer-upload-actions">
         <button class="ghost-button" data-action="customer-upload" data-doc-type="Insurance Claim" type="button">Upload insurance claim</button>
       </div>
+      <div id="customerUploadStatus"></div>
+      ${renderCustomerUploadList(customerUploads)}
       <p class="fine-print">The contractor will be notified when a claim document is uploaded.</p>
     </section>
     <section class="plain-section estimate-acceptance">
@@ -1210,21 +1241,40 @@ function fileToBase64(file) {
 
 async function uploadPortalDocument(file, docType) {
   const contentBase64 = await fileToBase64(file);
-  await loadCustomerPortal(portalMode.token, {
-    action: "upload",
-    fileName: file.name,
-    mimeType: file.type || "application/octet-stream",
-    size: file.size,
-    contentBase64,
-    documentType: docType,
+  const { data, error } = await backend.client.functions.invoke("customer-portal", {
+    body: {
+      token: portalMode.token,
+      action: "upload",
+      fileName: file.name,
+      mimeType: file.type || "application/octet-stream",
+      size: file.size,
+      contentBase64,
+      documentType: docType,
+    },
   });
+  if (error || !data?.job) throw error || new Error("Upload failed");
+  applyPortalJob(data.job);
+  render();
+  activateCustomerPortalView();
+}
+
+async function uploadPortalDocuments(files, docType) {
+  const status = document.getElementById("customerUploadStatus");
+  if (status) {
+    status.innerHTML = `<div class="empty-state">Uploading ${files.length} file${files.length === 1 ? "" : "s"}...</div>`;
+  }
+  await Promise.all(Array.from(files).map((file) => uploadPortalDocument(file, docType)));
+  const updatedStatus = document.getElementById("customerUploadStatus");
+  if (updatedStatus) {
+    updatedStatus.innerHTML = `<div class="empty-state">Upload complete.</div>`;
+  }
 }
 
 async function addDocuments(files, uploadedBy, docType = "Other") {
   const job = uploadedBy === "Customer" ? customerJob() : selectedJob();
   if (!job || !files.length) return;
   if (portalMode.active && uploadedBy === "Customer") {
-    await Promise.all(Array.from(files).map((file) => uploadPortalDocument(file, docType)));
+    await uploadPortalDocuments(Array.from(files), docType);
     return;
   }
   if (docType === "Estimate") {
@@ -1556,6 +1606,11 @@ function bindEvents() {
   els.documentPicker.addEventListener("change", () => {
     addDocuments(els.documentPicker.files, els.documentPicker.dataset.uploadedBy, els.documentPicker.dataset.docType).catch((error) => {
       console.warn("Document upload failed", error);
+      if (portalMode.active) {
+        const status = document.getElementById("customerUploadStatus");
+        if (status) status.innerHTML = `<div class="empty-state">Upload failed. Please try again, or send the file to the contractor directly.</div>`;
+        return;
+      }
       const job = selectedJob();
       if (job) job.timeline.push("Document upload failed");
       render();
