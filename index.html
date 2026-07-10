@@ -4,7 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Service Job Portal</title>
-    <link rel="stylesheet" href="assets/styles.css?v=accounts-v1" />
+    <link rel="stylesheet" href="assets/styles.css?v=accounts-v6" />
     <style>
       .brand {
         position: relative;
@@ -33,6 +33,10 @@
 
       .nav-tabs {
         grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      body.service-portal-signed-in #authPanel {
+        display: none !important;
       }
 
       .estimate-acceptance {
@@ -160,7 +164,7 @@
         <div class="sidebar-metric">
           <span class="eyebrow">Today</span>
           <strong id="activeJobCount">0 active jobs</strong>
-          <p id="billingProviderSummary">No billing provider connected</p>
+          <p id="billingProviderSummary">Private beta</p>
         </div>
       </aside>
 
@@ -168,30 +172,27 @@
         <section id="authPanel" class="auth-panel">
           <div>
             <p class="eyebrow">Contractor account</p>
-            <strong id="authStatus">Demo mode</strong>
+            <strong id="authStatus">Account setup</strong>
             <small id="backendStatus">Create an account or sign in to save jobs and send customer links.</small>
           </div>
           <form id="authForm" class="auth-form">
             <input id="authEmail" type="email" placeholder="Contractor email" autocomplete="email" />
             <input id="authPassword" type="password" placeholder="Password" autocomplete="current-password" />
-            <input id="authCompany" type="text" placeholder="Company name" />
-            <input id="authPromoCode" type="text" placeholder="Promo code, optional" autocomplete="off" />
+            <input id="authCompany" type="hidden" value="" />
+            <input id="authPromoCode" type="hidden" value="" />
             <div class="auth-actions">
-              <button id="authSubmit" class="primary-button" name="authMode" value="signin" type="submit">Sign in</button>
-              <button id="authCreate" class="ghost-button" name="authMode" value="signup" type="submit">Create account</button>
+              <button id="authSubmit" class="primary-button" name="authMode" value="signin" type="button">Sign in</button>
+              <button id="authCreate" class="ghost-button" name="authMode" value="signup" type="button">Create account</button>
             </div>
           </form>
-          <button id="signOut" class="ghost-button" type="button" hidden>Sign out</button>
+          <button id="forgotPassword" class="text-button" type="button">Forgot password?</button>
+          <button id="signOut" class="ghost-button" type="button" hidden aria-hidden="true">Sign out</button>
         </section>
 
         <header class="topbar">
           <div>
             <p class="eyebrow">Operations</p>
             <h1 id="viewTitle">Jobs</h1>
-          </div>
-          <div class="topbar-actions">
-            <button id="resetDemo" class="ghost-button" type="button">Reset Demo</button>
-            <button id="startJob" class="primary-button" type="button">Start a job</button>
           </div>
         </header>
 
@@ -214,7 +215,6 @@
                   <p class="eyebrow">Pipeline</p>
                   <h2>Active jobs</h2>
                 </div>
-                <select id="industryFilter" aria-label="Filter by industry"></select>
               </div>
               <div id="jobList" class="job-list"></div>
             </div>
@@ -222,7 +222,7 @@
             <div class="panel detail-panel">
               <div class="panel-header">
                 <div>
-                  <p class="eyebrow" id="detailIndustry">Job</p>
+                  <p class="eyebrow">Job</p>
                   <h2 id="detailTitle">Select a job</h2>
                 </div>
                 <span id="detailStatus" class="status-pill">Ready</span>
@@ -234,7 +234,12 @@
 
         <section id="customerView" class="view">
           <section class="customer-layout">
-            <div id="customerAccessSummary" class="access-summary"></div>
+            <div class="customer-selector">
+              <p class="eyebrow">Customer preview</p>
+              <h2>Choose a job</h2>
+              <div id="customerJobList" class="job-list customer-job-list"></div>
+            </div>
+            <div id="customerAccessSummary" class="access-summary" hidden></div>
             <div id="customerPortal" class="customer-portal"></div>
           </section>
         </section>
@@ -244,27 +249,27 @@
             <div class="panel billing-plan-panel">
               <div class="panel-header">
                 <div>
-                  <p class="eyebrow">Subscription</p>
-                  <h2>Plan and trial</h2>
+                  <p class="eyebrow">Beta access</p>
+                  <h2>Private beta</h2>
                 </div>
-                <span id="subscriptionStatus" class="status-pill">Trial</span>
+                <span id="subscriptionStatus" class="status-pill">Beta</span>
               </div>
               <div id="subscriptionSummary" class="subscription-summary"></div>
-              <form id="promoForm" class="field-form">
+              <form id="promoForm" class="field-form" hidden>
                 <input id="promoCode" type="text" placeholder="Promo code, e.g. 20off" />
                 <button class="primary-button" type="submit">Apply promo</button>
               </form>
-              <button id="checkoutButton" class="ghost-button" type="button">Set up payment</button>
+              <button id="checkoutButton" class="ghost-button" type="button" hidden>Set up payment</button>
               <p class="fine-print">
-                Payment collection is the next backend bridge. Use Stripe Checkout for cards, trials, invoices, and promo-code enforcement.
+                Billing is intentionally off for the private beta. Stripe checkout and promo codes should be added only after the customer portal works end to end.
               </p>
             </div>
 
             <div class="panel">
               <div class="panel-header">
                 <div>
-                  <p class="eyebrow">Billing</p>
-                  <h2>Provider connection</h2>
+                  <p class="eyebrow">Future billing</p>
+                  <h2>Billing preference</h2>
                 </div>
                 <span id="billingStatus" class="status-pill">Not connected</span>
               </div>
@@ -275,7 +280,7 @@
                 </label>
                 <label>
                   Account or company ID
-                  <input id="billingAccount" type="text" placeholder="Optional for demo" />
+                  <input id="billingAccount" type="text" placeholder="Account name or email" />
                 </label>
                 <label>
                   Sync preference
@@ -285,11 +290,10 @@
                     <option>Customers, invoices, and payments</option>
                   </select>
                 </label>
-                <button class="primary-button" type="submit">Save billing setup</button>
+                <button class="primary-button" type="submit">Save preference</button>
               </form>
               <p class="fine-print">
-                This prototype stores provider preferences locally. A production build should use
-                provider-specific OAuth or API-key adapters with encrypted tenant credentials.
+                This only records which billing tool the contractor prefers. It does not connect to that provider yet.
               </p>
             </div>
 
@@ -332,10 +336,6 @@
 
         <input id="jobId" type="hidden" />
         <div class="form-grid">
-          <label>
-            Industry
-            <select id="jobIndustry"></select>
-          </label>
           <label>
             Job name
             <input id="jobName" required type="text" />
@@ -394,10 +394,36 @@
       </form>
     </dialog>
 
+    <dialog id="estimateChangesDialog">
+      <form id="estimateChangesForm" method="dialog" class="dialog-form">
+        <div class="dialog-header">
+          <div>
+            <p class="eyebrow">Estimate response</p>
+            <h2>Requested changes</h2>
+          </div>
+          <button id="closeEstimateChangesDialog" class="icon-button" type="button" aria-label="Close">X</button>
+        </div>
+
+        <input id="estimateChangesDocId" type="hidden" />
+        <label>
+          What changes are needed?
+          <textarea id="estimateChangesText" rows="5" required placeholder="Describe the changes you want the contractor to review."></textarea>
+        </label>
+
+        <div class="dialog-actions">
+          <span></span>
+          <button id="cancelEstimateChangesDialog" class="ghost-button" type="button">Cancel</button>
+          <button class="primary-button" type="submit">Submit changes</button>
+        </div>
+      </form>
+    </dialog>
+
     <input id="documentPicker" class="hidden-file" multiple type="file" />
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="assets/config.js?v=accounts-v1"></script>
-    <script src="assets/app.js?v=accounts-v1"></script>
-    <script src="assets/live.js?v=accounts-v1"></script>
+    <script src="assets/config.js?v=accounts-v2"></script>
+    <script src="assets/app.js?v=accounts-v13"></script>
+    <script src="assets/live.js?v=accounts-v16"></script>
+    <script src="assets/authfix.js?v=accounts-v17"></script>
+    <script src="assets/public-auth-guard.js?v=accounts-v8"></script>
   </body>
 </html>

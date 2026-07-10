@@ -1,43 +1,5 @@
 const STORAGE_KEY = "serviceJobPortal.v1";
-
-const industries = [
-  {
-    id: "roofing",
-    label: "Roofing",
-    materialLabel: "Material status",
-    dateLabel: "Projected install date",
-  },
-  {
-    id: "plumbing",
-    label: "Plumbing",
-    materialLabel: "Parts status",
-    dateLabel: "Projected service date",
-  },
-  {
-    id: "hvac",
-    label: "HVAC",
-    materialLabel: "Equipment status",
-    dateLabel: "Projected service date",
-  },
-  {
-    id: "electrical",
-    label: "Electrical",
-    materialLabel: "Parts status",
-    dateLabel: "Projected service date",
-  },
-  {
-    id: "tiling",
-    label: "Tiling",
-    materialLabel: "Material status",
-    dateLabel: "Projected install date",
-  },
-  {
-    id: "general",
-    label: "General Service",
-    materialLabel: "Material or parts status",
-    dateLabel: "Projected service date",
-  },
-];
+const DOCUMENT_BUCKET = "job-documents";
 
 const billingProviders = [
   "QuickBooks Online",
@@ -67,7 +29,7 @@ function createId() {
 const demoState = {
   settings: {
     billingProvider: "QuickBooks Online",
-    billingAccount: "Demo Roofing Co.",
+    billingAccount: "Demo Service Co.",
     billingSync: "Invoices and payment status",
     billingConnected: true,
     subscriptionStatus: "trialing",
@@ -92,8 +54,8 @@ const demoState = {
   jobs: [
     {
       id: createId(),
-      industry: "roofing",
-      name: "Garcia roof replacement",
+      industry: "general",
+      name: "Garcia service project",
       customerName: "Elena Garcia",
       customerEmail: "elena.garcia@example.com",
       customerPhone: "555-0174",
@@ -126,13 +88,14 @@ const demoState = {
       ],
       estimateAcceptedAt: null,
       acceptedEstimate: null,
+      estimateDecision: null,
       viewedEstimateId: null,
       magicLinkLastSent: "2026-07-03T17:20:00.000Z",
     },
     {
       id: createId(),
-      industry: "hvac",
-      name: "Miller condenser replacement",
+      industry: "general",
+      name: "Miller service project",
       customerName: "Jordan Miller",
       customerEmail: "jordan.miller@example.com",
       customerPhone: "555-0190",
@@ -148,13 +111,14 @@ const demoState = {
       timeline: ["Job started", "Equipment arrived", "Service date scheduled"],
       estimateAcceptedAt: null,
       acceptedEstimate: null,
+      estimateDecision: null,
       viewedEstimateId: null,
       magicLinkLastSent: null,
     },
   ],
 };
 
-let state = loadState();
+let state = backendConfigured() ? normalizeState(structuredClone(demoState)) : loadState();
 let selectedJobId = state.jobs[0]?.id || null;
 if (!state.portalAccess.jobId && selectedJobId) {
   state.portalAccess.jobId = selectedJobId;
@@ -167,6 +131,11 @@ const backend = {
   company: null,
   live: false,
   loading: false,
+};
+
+const portalMode = {
+  active: false,
+  token: "",
 };
 
 const els = {
@@ -184,13 +153,12 @@ const els = {
   startJob: document.getElementById("startJob"),
   quickStartJob: document.getElementById("quickStartJob"),
   quickUpdateJob: document.getElementById("quickUpdateJob"),
-  industryFilter: document.getElementById("industryFilter"),
   jobList: document.getElementById("jobList"),
-  detailIndustry: document.getElementById("detailIndustry"),
   detailTitle: document.getElementById("detailTitle"),
   detailStatus: document.getElementById("detailStatus"),
   jobDetail: document.getElementById("jobDetail"),
   customerAccessSummary: document.getElementById("customerAccessSummary"),
+  customerJobList: document.getElementById("customerJobList"),
   customerPortal: document.getElementById("customerPortal"),
   billingStatus: document.getElementById("billingStatus"),
   billingForm: document.getElementById("billingForm"),
@@ -208,7 +176,6 @@ const els = {
   jobDialogMode: document.getElementById("jobDialogMode"),
   jobDialogTitle: document.getElementById("jobDialogTitle"),
   jobId: document.getElementById("jobId"),
-  jobIndustry: document.getElementById("jobIndustry"),
   jobName: document.getElementById("jobName"),
   customerName: document.getElementById("customerName"),
   customerEmail: document.getElementById("customerEmail"),
@@ -224,6 +191,12 @@ const els = {
   deleteJob: document.getElementById("deleteJob"),
   closeJobDialog: document.getElementById("closeJobDialog"),
   cancelJobDialog: document.getElementById("cancelJobDialog"),
+  estimateChangesDialog: document.getElementById("estimateChangesDialog"),
+  estimateChangesForm: document.getElementById("estimateChangesForm"),
+  estimateChangesDocId: document.getElementById("estimateChangesDocId"),
+  estimateChangesText: document.getElementById("estimateChangesText"),
+  closeEstimateChangesDialog: document.getElementById("closeEstimateChangesDialog"),
+  cancelEstimateChangesDialog: document.getElementById("cancelEstimateChangesDialog"),
   documentPicker: document.getElementById("documentPicker"),
   authPanel: document.getElementById("authPanel"),
   authForm: document.getElementById("authForm"),
@@ -269,6 +242,7 @@ function normalizeState(nextState) {
     job.customValues = job.customValues || {};
     job.estimateAcceptedAt = job.estimateAcceptedAt || null;
     job.acceptedEstimate = job.acceptedEstimate || null;
+    job.estimateDecision = job.estimateDecision || null;
     job.viewedEstimateId = job.viewedEstimateId || null;
     job.magicLinkLastSent = job.magicLinkLastSent || null;
     const acceptedFallback = estimateFor(job);
@@ -288,6 +262,10 @@ function normalizeState(nextState) {
 }
 
 function saveState() {
+  if (backend?.live || portalMode.active) {
+    localStorage.removeItem(STORAGE_KEY);
+    return;
+  }
   localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
 }
 
@@ -296,10 +274,27 @@ function backendConfigured() {
   return Boolean(config?.supabaseUrl && config?.supabasePublishableKey && window.supabase?.createClient);
 }
 
+function publicError(error, fallback = "Could not complete. Please try again.") {
+  const message = String(error?.message || error || "");
+  if (/already|exists|registered/i.test(message)) return "That email may already have an account.";
+  if (/invalid login|credentials/i.test(message)) return "Email or password did not match.";
+  if (/rate limit/i.test(message)) return "Too many attempts. Please wait a few minutes and try again.";
+  if (/network|fetch|timeout/i.test(message)) return "Connection issue. Please try again.";
+  return fallback;
+}
+
 function renderAuth() {
+  if (portalMode.active) {
+    document.body.classList.add("customer-portal-mode");
+    els.authPanel.hidden = true;
+    els.authForm.hidden = true;
+    els.signOut.hidden = true;
+    return;
+  }
+
   if (!backendConfigured()) {
-    els.authStatus.textContent = "Demo mode";
-    els.backendStatus.textContent = "Supabase is not configured for this build.";
+    els.authStatus.textContent = "Account setup";
+    els.backendStatus.textContent = "Account services are not available for this build.";
     els.authForm.hidden = true;
     els.signOut.hidden = true;
     return;
@@ -307,22 +302,26 @@ function renderAuth() {
 
   if (backend.loading) {
     els.authStatus.textContent = "Connecting";
-    els.backendStatus.textContent = "Checking Supabase session...";
+    els.backendStatus.textContent = "Checking your session...";
     els.authForm.hidden = true;
     els.signOut.hidden = true;
     return;
   }
 
   if (backend.live) {
+    document.body.classList.add("service-portal-signed-in");
     els.authStatus.textContent = backend.company?.name || "Live workspace";
-    els.backendStatus.textContent = `Signed in as ${backend.user.email}. Jobs are syncing to Supabase.`;
+    els.backendStatus.textContent = `Signed in as ${backend.user.email}. Jobs are syncing.`;
+    els.authPanel.hidden = true;
     els.authForm.hidden = true;
-    els.signOut.hidden = false;
+    els.signOut.hidden = true;
     return;
   }
 
+  els.authPanel.hidden = false;
+  document.body.classList.remove("service-portal-signed-in");
   els.authStatus.textContent = "Contractor sign in";
-  els.backendStatus.textContent = "Create an account for a 7-day trial, or sign in with your contractor password.";
+  els.backendStatus.textContent = "Create an account for the private beta, or sign in with your contractor password.";
   els.authForm.hidden = false;
   els.signOut.hidden = true;
 }
@@ -334,9 +333,22 @@ async function initBackend() {
   }
 
   const config = window.SERVICE_PORTAL_CONFIG;
-  backend.client = window.supabase.createClient(config.supabaseUrl, config.supabasePublishableKey);
+  backend.client = window.supabase.createClient(config.supabaseUrl, config.supabasePublishableKey, {
+    auth: {
+      persistSession: true,
+      autoRefreshToken: true,
+      detectSessionInUrl: true,
+    },
+  });
   backend.loading = true;
   renderAuth();
+
+  const portalToken = portalTokenFromUrl();
+  if (portalToken) {
+    backend.loading = false;
+    await loadCustomerPortal(portalToken);
+    return;
+  }
 
   const { data } = await backend.client.auth.getSession();
   await handleSession(data.session);
@@ -347,6 +359,8 @@ async function initBackend() {
       backend.user = null;
       backend.company = null;
       backend.live = false;
+      localStorage.removeItem(STORAGE_KEY);
+      document.body.classList.remove("service-portal-signed-in");
       renderAuth();
       render();
     }
@@ -359,6 +373,8 @@ async function handleSession(session) {
   backend.live = false;
   if (!backend.user) {
     backend.loading = false;
+    localStorage.removeItem(STORAGE_KEY);
+    document.body.classList.remove("service-portal-signed-in");
     renderAuth();
     return;
   }
@@ -367,8 +383,18 @@ async function handleSession(session) {
     await ensureCompany();
     await loadLiveState();
     backend.live = true;
+    localStorage.removeItem(STORAGE_KEY);
+    document.body.classList.add("service-portal-signed-in");
   } catch (error) {
-    els.backendStatus.textContent = error.message || "Supabase could not load.";
+    console.warn("Live workspace setup failed.", error);
+    backend.company = null;
+    backend.live = false;
+    document.body.classList.remove("service-portal-signed-in");
+    els.authPanel.hidden = false;
+    els.authForm.hidden = false;
+    els.signOut.hidden = true;
+    els.authStatus.textContent = "Setup needed";
+    els.backendStatus.textContent = "Could not load the workspace. Please try again.";
   } finally {
     backend.loading = false;
     renderAuth();
@@ -397,12 +423,16 @@ function mapDbDocument(doc) {
     createdAt: doc.created_at,
     version: doc.version,
     size: doc.size_bytes,
+    storagePath: doc.storage_file_id || "",
+    previewUrl: doc.storage_url || doc.preview_url || "",
     stored: Boolean(doc.storage_file_id || doc.storage_url),
   };
 }
 
 function mapDbJob(job) {
   const customer = Array.isArray(job.customers) ? job.customers[0] : job.customers;
+  const latestDecision = [...(job.estimate_acceptances || [])]
+    .sort((a, b) => new Date(b.decided_at || b.accepted_at || 0) - new Date(a.decided_at || a.accepted_at || 0))[0];
   return {
     id: job.id,
     customerId: job.customer_id,
@@ -420,9 +450,22 @@ function mapDbJob(job) {
     internalNotes: job.internal_notes || "",
     customValues: job.custom_values || {},
     documents: (job.documents || []).map(mapDbDocument),
-    timeline: ["Loaded from Supabase"],
-    estimateAcceptedAt: null,
-    acceptedEstimate: null,
+    timeline: ["Loaded from workspace"],
+    estimateAcceptedAt: latestDecision?.decision_status === "accept" ? latestDecision.accepted_at : null,
+    acceptedEstimate: latestDecision?.decision_status === "accept" ? {
+      id: latestDecision.document_id,
+      name: "",
+      version: 1,
+      acceptedAt: latestDecision.accepted_at,
+    } : null,
+    estimateDecision: latestDecision && latestDecision.decision_status !== "accept" ? {
+      documentId: latestDecision.document_id,
+      name: "",
+      version: 1,
+      status: latestDecision.decision_status,
+      notes: latestDecision.notes || "",
+      decidedAt: latestDecision.decided_at || latestDecision.accepted_at,
+    } : null,
     viewedEstimateId: null,
     magicLinkLastSent: null,
   };
@@ -436,7 +479,7 @@ async function loadLiveState() {
       backend.client.from("custom_fields").select("*").eq("company_id", companyId).order("created_at"),
       backend.client
         .from("jobs")
-        .select("*, customers(*), documents(*)")
+        .select("*, customers(*), documents(*), estimate_acceptances(*)")
         .eq("company_id", companyId)
         .order("created_at", { ascending: false }),
     ]);
@@ -465,8 +508,62 @@ async function loadLiveState() {
     })),
   };
   state.jobs = (jobs || []).map(mapDbJob);
+  await hydrateDocumentUrls();
   selectedJobId = state.jobs[0]?.id || null;
   state.portalAccess.jobId = selectedJobId;
+}
+
+async function hydrateDocumentUrls() {
+  if (!backend.client) return;
+  const documents = state.jobs.flatMap((job) => job.documents || []).filter((doc) => doc.storagePath);
+  await Promise.all(documents.map(async (doc) => {
+    const { data, error } = await backend.client.storage.from(DOCUMENT_BUCKET).createSignedUrl(doc.storagePath, 60 * 60);
+    if (!error && data?.signedUrl) {
+      doc.previewUrl = data.signedUrl;
+      doc.stored = true;
+    }
+  }));
+}
+
+function portalTokenFromUrl() {
+  return new URLSearchParams(window.location.search).get("portal") || "";
+}
+
+function activateCustomerPortalView() {
+  document.body.classList.add("customer-portal-mode");
+  els.tabs.forEach((item) => item.classList.toggle("active", item.dataset.view === "customer"));
+  Object.entries(els.views).forEach(([view, node]) => node.classList.toggle("active", view === "customer"));
+  els.viewTitle.textContent = "Customer View";
+}
+
+function applyPortalJob(jobData) {
+  const job = mapDbJob(jobData);
+  state.jobs = [job];
+  selectedJobId = job.id;
+  state.portalAccess = {
+    token: portalMode.token,
+    jobId: job.id,
+    channel: "email",
+    lastSentTo: job.customerEmail,
+    createdAt: new Date().toISOString(),
+  };
+}
+
+async function loadCustomerPortal(token, actionPayload = { action: "payload" }) {
+  portalMode.active = true;
+  portalMode.token = token;
+  activateCustomerPortalView();
+  els.customerPortal.innerHTML = `<div class="empty-state">Loading your project...</div>`;
+  const { data, error } = await backend.client.functions.invoke("customer-portal", {
+    body: { token, ...actionPayload },
+  });
+  if (error || !data?.job) {
+    els.customerPortal.innerHTML = `<div class="empty-state">This portal link is invalid or expired. Please ask the contractor to send a new link.</div>`;
+    return;
+  }
+  applyPortalJob(data.job);
+  render();
+  activateCustomerPortalView();
 }
 
 function dbJobPayload(job, customerId) {
@@ -484,10 +581,6 @@ function dbJobPayload(job, customerId) {
     internal_notes: job.internalNotes,
     custom_values: job.customValues,
   };
-}
-
-function industryFor(id) {
-  return industries.find((industry) => industry.id === id) || industries.at(-1);
 }
 
 function selectedJob() {
@@ -508,6 +601,8 @@ function estimateFor(job) {
 
 function estimateStatus(job) {
   if (!estimateFor(job)) return "No estimate";
+  if (job.estimateDecision?.status === "changes") return "Changes requested";
+  if (job.estimateDecision?.status === "reject") return "Not accepted";
   return job.acceptedEstimate?.id === estimateFor(job).id ? "Accepted" : "Needs acceptance";
 }
 
@@ -557,8 +652,6 @@ function populateSelect(select, options, valueKey = null, labelKey = null) {
 }
 
 function initStaticControls() {
-  populateSelect(els.industryFilter, [{ id: "all", label: "All industries" }, ...industries], "id", "label");
-  populateSelect(els.jobIndustry, industries, "id", "label");
   populateSelect(els.jobStatus, jobStatuses);
   populateSelect(els.materialStatus, materialStatuses);
   populateSelect(els.billingProvider, billingProviders);
@@ -578,31 +671,27 @@ function render() {
 function renderMetrics() {
   const active = state.jobs.filter((job) => job.jobStatus !== "Complete").length;
   els.activeJobCount.textContent = `${active} active ${active === 1 ? "job" : "jobs"}`;
-  els.billingProviderSummary.textContent = state.settings.billingConnected
-    ? `${state.settings.billingProvider} connected`
-    : "No billing provider connected";
+  els.billingProviderSummary.textContent = "Private beta";
 }
 
 function renderJobs() {
-  const filter = els.industryFilter.value || "all";
-  const jobs = filter === "all" ? state.jobs : state.jobs.filter((job) => job.industry === filter);
+  const jobs = state.jobs;
   els.jobList.innerHTML = jobs
-    .map((job) => {
-      const industry = industryFor(job.industry);
-      return `
+    .map(
+      (job) => `
         <button class="job-row ${job.id === selectedJobId ? "active" : ""}" data-job-id="${job.id}" type="button">
           <span>
             <strong>${escapeHtml(job.name)}</strong>
-            <small>${escapeHtml(job.customerName)} / ${escapeHtml(industry.label)}</small>
+            <small>${escapeHtml(job.customerName)}</small>
           </span>
           <em>${escapeHtml(job.jobStatus)}</em>
         </button>
-      `;
-    })
+      `,
+    )
     .join("");
 
   if (!jobs.length) {
-    els.jobList.innerHTML = `<div class="empty-state">No jobs match this industry filter.</div>`;
+    els.jobList.innerHTML = `<div class="empty-state">No jobs yet.</div>`;
   }
 }
 
@@ -610,33 +699,30 @@ function renderJobDetail() {
   const job = selectedJob();
   if (!job) {
     els.detailTitle.textContent = "No jobs yet";
-    els.detailIndustry.textContent = "Job";
     els.detailStatus.textContent = "Empty";
     els.jobDetail.innerHTML = "Start a job to create the first customer portal.";
     return;
   }
 
-  const industry = industryFor(job.industry);
   const estimate = estimateFor(job);
   const visibleDocs = job.documents.filter((doc) => doc.visibility === "Customer Visible").length;
   const customerDocs = job.documents.filter((doc) => doc.uploadedBy === "Customer").length;
   els.detailTitle.textContent = job.name;
-  els.detailIndustry.textContent = industry.label;
   els.detailStatus.textContent = job.jobStatus;
   els.jobDetail.classList.remove("empty-state");
   els.jobDetail.innerHTML = `
     <div class="detail-actions">
-      <button class="primary-button" data-action="edit-job" type="button">Update a job</button>
-      <button class="ghost-button" data-action="send-email" type="button">Send magic email</button>
-      <button class="ghost-button" data-action="send-sms" type="button">Send magic text</button>
+      <button class="primary-button" data-action="edit-job" type="button">Edit selected job</button>
+      <button class="ghost-button" data-action="send-email" type="button">Send customer email</button>
+      <button class="ghost-button" data-action="send-sms" type="button">Send customer text</button>
       <button class="ghost-button" data-action="copy-portal-link" type="button">Copy link</button>
       <button class="ghost-button" data-action="upload-estimate" type="button">Upload estimate</button>
       <button class="ghost-button" data-action="upload-staff-doc" type="button">Add shared file</button>
     </div>
     <div class="stat-grid">
       <div><span>Customer</span><strong>${escapeHtml(job.customerName)}</strong></div>
-      <div><span>${escapeHtml(industry.dateLabel)}</span><strong>${formatDate(job.projectedDate)}</strong></div>
-      <div><span>${escapeHtml(industry.materialLabel)}</span><strong>${escapeHtml(job.materialStatus)}</strong></div>
+      <div><span>Projected service date</span><strong>${formatDate(job.projectedDate)}</strong></div>
+      <div><span>Material or parts status</span><strong>${escapeHtml(job.materialStatus)}</strong></div>
       <div><span>Estimate</span><strong>${escapeHtml(estimateStatus(job))}</strong></div>
     </div>
     <section class="plain-section estimate-summary">
@@ -658,7 +744,7 @@ function renderJobDetail() {
     <section class="plain-section">
       <h3>Documents</h3>
       <div class="document-list">${renderDocumentList(job.documents)}</div>
-      <p class="fine-print">${visibleDocs} customer-visible document${visibleDocs === 1 ? "" : "s"}. ${customerDocs} customer upload${customerDocs === 1 ? "" : "s"} marked new until reviewed. Prototype uploads store file names and metadata only.</p>
+      <p class="fine-print">${visibleDocs} shared document${visibleDocs === 1 ? "" : "s"}. ${customerDocs} customer upload${customerDocs === 1 ? "" : "s"} awaiting review.</p>
     </section>
     <section class="plain-section internal-note">
       <h3>Internal notes</h3>
@@ -667,9 +753,7 @@ function renderJobDetail() {
     <section class="plain-section">
       <h3>Activity</h3>
       <ol class="timeline">${job.timeline.map((event) => `<li>${escapeHtml(event)}</li>`).join("")}</ol>
-      <p class="fine-print">Last magic link: ${formatDateTime(job.magicLinkLastSent)}</p>
-      <p class="fine-print">Scoped portal: ${escapeHtml(state.portalAccess.jobId === job.id ? portalUrl(state.portalAccess.token) : "No active customer link for this job")}</p>
-      <p class="fine-print">Demo delivery: email/text buttons create a reviewable link. Production should send through a mail provider and SMS provider such as Twilio only after cost controls are configured.</p>
+      <p class="fine-print">Last customer link: ${formatDateTime(job.magicLinkLastSent)}</p>
     </section>
   `;
 }
@@ -678,7 +762,7 @@ function renderContractorEstimateStatus(job, estimate) {
   if (!estimate) {
     return `
       <p>No estimate has been uploaded for this customer yet.</p>
-      <button class="ghost-button" data-action="upload-estimate" type="button">Upload estimate</button>
+      <p class="fine-print">Use the Upload estimate action above when the estimate is ready.</p>
     `;
   }
   return `
@@ -711,7 +795,7 @@ function renderDocumentList(documents) {
           <span>
             <strong>${escapeHtml(doc.name)}</strong>
             <small>${escapeHtml(doc.type)} / ${escapeHtml(doc.uploadedBy)} / ${escapeHtml(doc.visibility)}</small>
-            <small>${escapeHtml(formatFileSize(doc.size))} / ${doc.stored ? "Stored" : "Prototype reference only"}</small>
+            <small>${escapeHtml(formatFileSize(doc.size))}</small>
           </span>
           <em>${escapeHtml(doc.status)}</em>
         </div>
@@ -720,20 +804,62 @@ function renderDocumentList(documents) {
     .join("");
 }
 
+function renderCustomerDocumentList(documents) {
+  if (!documents.length) return `<div class="empty-state">No documents have been shared yet.</div>`;
+  return documents
+    .map(
+      (doc) => `
+        <div class="document-row">
+          <span>
+            <strong>${escapeHtml(doc.name)}</strong>
+            <small>${escapeHtml(doc.type)} / Shared ${formatDateTime(doc.createdAt)}</small>
+            <small>${escapeHtml(formatFileSize(doc.size))}</small>
+          </span>
+          <em>${escapeHtml(doc.status === "Reviewed" ? "Ready" : doc.status)}</em>
+        </div>
+      `,
+    )
+    .join("");
+}
+
+function customerTimelineFor(job) {
+  const items = ["Customer portal opened"];
+  if (estimateFor(job)) items.push("Estimate ready for review");
+  if (job.estimateDecision?.status === "changes") items.push("Estimate accepted with requested changes");
+  if (job.estimateDecision?.status === "reject") items.push("Estimate not accepted");
+  if (job.acceptedEstimate || job.estimateAcceptedAt) items.push("Estimate accepted");
+  if (job.documents.some((doc) => doc.uploadedBy === "Customer")) items.push("Insurance claim uploaded");
+  if (job.projectedDate) items.push(`Projected service date: ${formatDate(job.projectedDate)}`);
+  return items;
+}
+
 function renderCustomerAccessSummary() {
-  const job = customerJob();
-  if (!job) {
-    els.customerAccessSummary.innerHTML = `
-      <strong>No active magic link</strong>
-      <small>Send a magic email or text from a contractor job to preview one customer's portal.</small>
-    `;
+  renderCustomerJobSelector();
+  els.customerAccessSummary.hidden = true;
+  els.customerAccessSummary.innerHTML = "";
+}
+
+function renderCustomerJobSelector() {
+  if (!els.customerJobList) return;
+  if (portalMode.active) {
+    els.customerJobList.innerHTML = "";
     return;
   }
-  els.customerAccessSummary.innerHTML = `
-    <strong>${escapeHtml(job.customerName)} / ${escapeHtml(job.name)}</strong>
-    <small>Scoped magic link: ${escapeHtml(portalUrl(state.portalAccess.token))}</small>
-    <small>Sent by ${escapeHtml(state.portalAccess.channel || "email")} to ${escapeHtml(state.portalAccess.lastSentTo || "customer")}.</small>
-  `;
+  els.customerJobList.innerHTML = state.jobs.length
+    ? state.jobs
+        .map(
+          (job) => `
+            <button class="job-row ${job.id === state.portalAccess.jobId ? "active" : ""}" data-customer-job-id="${escapeHtml(job.id)}" type="button">
+              <span>
+                <strong>${escapeHtml(job.name)}</strong>
+                <small>${escapeHtml(job.customerName)}</small>
+              </span>
+              <em>${escapeHtml(job.jobStatus)}</em>
+            </button>
+          `,
+        )
+        .join("")
+    : `<div class="empty-state">No jobs yet.</div>`;
 }
 
 function renderCustomerPortal() {
@@ -742,22 +868,21 @@ function renderCustomerPortal() {
     els.customerPortal.innerHTML = `<div class="empty-state">No customer portal to preview yet.</div>`;
     return;
   }
-  const industry = industryFor(job.industry);
   const customerVisibleDocs = job.documents.filter((doc) => doc.visibility === "Customer Visible");
   const estimate = estimateFor(job);
   const receivedUploads = job.documents.filter((doc) => doc.uploadedBy === "Customer").length;
   els.customerPortal.innerHTML = `
     <div class="customer-hero">
       <div>
-        <p class="eyebrow">${escapeHtml(industry.label)} portal</p>
+        <p class="eyebrow">Customer portal</p>
         <h2>${escapeHtml(job.name)}</h2>
         <p>${escapeHtml(job.serviceAddress)}</p>
       </div>
       <span class="status-pill">${escapeHtml(job.jobStatus)}</span>
     </div>
     <div class="stat-grid">
-      <div><span>${escapeHtml(industry.materialLabel)}</span><strong>${escapeHtml(job.materialStatus)}</strong></div>
-      <div><span>${escapeHtml(industry.dateLabel)}</span><strong>${formatDate(job.projectedDate)}</strong></div>
+      <div><span>Material or parts status</span><strong>${escapeHtml(job.materialStatus)}</strong></div>
+      <div><span>Projected service date</span><strong>${formatDate(job.projectedDate)}</strong></div>
       <div><span>Uploads received</span><strong>${receivedUploads}</strong></div>
     </div>
     <section class="plain-section">
@@ -766,7 +891,7 @@ function renderCustomerPortal() {
       <div class="customer-upload-actions">
         <button class="ghost-button" data-action="customer-upload" data-doc-type="Insurance Claim" type="button">Upload insurance claim</button>
       </div>
-      <p class="fine-print">Prototype upload records the file name for review. A production portal should store the file securely and notify the contractor.</p>
+      <p class="fine-print">The contractor will be notified when a claim document is uploaded.</p>
     </section>
     <section class="plain-section estimate-acceptance">
       <h3>Estimate</h3>
@@ -774,11 +899,11 @@ function renderCustomerPortal() {
     </section>
     <section class="plain-section">
       <h3>Shared documents</h3>
-      <div class="document-list">${renderDocumentList(customerVisibleDocs)}</div>
+      <div class="document-list">${renderCustomerDocumentList(customerVisibleDocs)}</div>
     </section>
     <section class="plain-section">
       <h3>Timeline</h3>
-      <ol class="timeline">${job.timeline.slice(-4).map((event) => `<li>${escapeHtml(event)}</li>`).join("")}</ol>
+      <ol class="timeline">${customerTimelineFor(job).map((event) => `<li>${escapeHtml(event)}</li>`).join("")}</ol>
     </section>
   `;
 }
@@ -795,7 +920,21 @@ function renderEstimateAcceptance(job, estimate) {
       </div>
     `;
   }
+  if (job.estimateDecision?.documentId === estimate.id) {
+    const label = job.estimateDecision.status === "changes"
+      ? "Accepted with requested changes"
+      : "Not accepted";
+    return `
+      <div class="acceptance-confirmed estimate-decision-${escapeHtml(job.estimateDecision.status)}">
+        <strong>${escapeHtml(label)}</strong>
+        <span>${formatDateTime(job.estimateDecision.decidedAt)}</span>
+      </div>
+      ${job.estimateDecision.notes ? `<p>${escapeHtml(job.estimateDecision.notes)}</p>` : ""}
+    `;
+  }
   const viewed = job.viewedEstimateId === estimate.id;
+  const isPdf = /pdf/i.test(estimate.mimeType || estimate.name);
+  const pdfPreviewUrl = isPdf ? estimate.previewUrl || (!backend.live ? "assets/mock-estimate.pdf" : "") : "";
   return `
     <p>${escapeHtml(estimate.name)} version ${escapeHtml(estimate.version || 1)} is ready for review.</p>
     <button class="ghost-button" data-action="view-estimate" data-doc-id="${escapeHtml(estimate.id)}" type="button">View estimate</button>
@@ -805,14 +944,22 @@ function renderEstimateAcceptance(job, estimate) {
           <div class="estimate-preview">
             <strong>${escapeHtml(estimate.name)}</strong>
             <small>Version ${escapeHtml(estimate.version || 1)} / Shared ${formatDateTime(estimate.createdAt)}</small>
-            <small>Demo preview opened. A production app would render or download the uploaded estimate here.</small>
+            ${
+              pdfPreviewUrl
+                ? `<iframe class="estimate-pdf-frame" src="${escapeHtml(pdfPreviewUrl)}" title="${escapeHtml(estimate.name)} preview"></iframe>`
+                : estimate.previewUrl
+                  ? `<a class="ghost-button" href="${escapeHtml(estimate.previewUrl)}" target="_blank" rel="noopener">Open uploaded file</a>`
+                  : `<small>Preview unavailable. Please contact the contractor for the estimate file.</small>`
+            }
           </div>
         `
         : `<p class="fine-print">Open the estimate before accepting it.</p>`
     }
-    <div class="accept-row">
-      <button class="accept-button" data-action="accept-estimate" data-doc-id="${escapeHtml(estimate.id)}" type="button" ${viewed ? "" : "disabled"}>✓ I accept this estimate</button>
-      <small>Acceptance records this estimate's document ID, name, and version.</small>
+    <div class="estimate-decision-actions">
+      <button class="accept-button" data-action="estimate-decision" data-decision="accept" data-doc-id="${escapeHtml(estimate.id)}" type="button" ${viewed ? "" : "disabled"}>I accept</button>
+      <button class="ghost-button" data-action="estimate-decision" data-decision="changes" data-doc-id="${escapeHtml(estimate.id)}" type="button" ${viewed ? "" : "disabled"}>Accept with changes</button>
+      <button class="danger-button" data-action="estimate-decision" data-decision="reject" data-doc-id="${escapeHtml(estimate.id)}" type="button" ${viewed ? "" : "disabled"}>Do not accept</button>
+      <small>Your response will be saved with this estimate version.</small>
     </div>
   `;
 }
@@ -821,7 +968,7 @@ function renderSettings() {
   els.billingProvider.value = state.settings.billingProvider;
   els.billingAccount.value = state.settings.billingAccount || "";
   els.billingSync.value = state.settings.billingSync;
-  els.billingStatus.textContent = state.settings.billingConnected ? "Connected" : "Not connected";
+  els.billingStatus.textContent = state.settings.billingConnected ? "Preference saved" : "Not connected";
   renderSubscriptionSettings();
   els.fieldCount.textContent = String(state.settings.customFields.length);
   els.customFieldList.innerHTML = state.settings.customFields.length
@@ -861,18 +1008,14 @@ function trialDaysLeft() {
 }
 
 function renderSubscriptionSettings() {
-  const status = state.settings.subscriptionStatus || "trialing";
-  const percent = Number(state.settings.promoPercentOff || 0);
-  const price = Number(state.settings.planPriceCents || monthlyPlanCents);
-  const discounted = Math.round(price * (100 - percent) / 100);
-  els.subscriptionStatus.textContent = status === "active" ? "Active" : status === "past_due" ? "Payment needed" : "Trial";
+  els.subscriptionStatus.textContent = "Beta";
   els.promoCode.value = state.settings.promoCode || "";
   els.subscriptionSummary.innerHTML = `
     <span>
-      <strong>${status === "trialing" ? `${trialDaysLeft()} trial ${trialDaysLeft() === 1 ? "day" : "days"} left` : "Monthly plan"}</strong>
-      <small>7 days free, then <span class="subscription-price">${formatMoney(discounted)}</span> / month.</small>
+      <strong>Free private beta</strong>
+      <small>No payment is collected in this version.</small>
     </span>
-    <small>${percent ? `${percent}% promo applied (${escapeHtml(state.settings.promoCode)}). Standard price is ${formatMoney(price)} / month.` : "No promo code applied."}</small>
+    <small>Stripe billing, trials, and promo codes should be connected after the customer portal is fully operational.</small>
   `;
 }
 
@@ -907,7 +1050,6 @@ function openJobDialog(job = null) {
   els.jobDialogTitle.textContent = isEdit ? "Update a job" : "Start a job";
   els.deleteJob.hidden = !isEdit;
   els.jobId.value = job?.id || "";
-  els.jobIndustry.value = job?.industry || "general";
   els.jobName.value = job?.name || "";
   els.customerName.value = job?.customerName || "";
   els.customerEmail.value = job?.customerEmail || "";
@@ -932,7 +1074,7 @@ async function saveJobFromForm() {
   });
   const payload = {
     id,
-    industry: els.jobIndustry.value,
+    industry: existing?.industry || "general",
     name: els.jobName.value,
     customerName: els.customerName.value,
     customerEmail: els.customerEmail.value,
@@ -949,6 +1091,7 @@ async function saveJobFromForm() {
     timeline: existing?.timeline || ["Job started"],
     estimateAcceptedAt: existing?.estimateAcceptedAt || null,
     acceptedEstimate: existing?.acceptedEstimate || null,
+    estimateDecision: existing?.estimateDecision || null,
     viewedEstimateId: existing?.viewedEstimateId || null,
     magicLinkLastSent: existing?.magicLinkLastSent || null,
   };
@@ -1001,7 +1144,8 @@ async function sendMagicLink(channel) {
       body: { jobId: job.id },
     });
     if (error) {
-      job.timeline.push(`Magic email failed: ${error.message}`);
+      console.warn("Magic email failed", error);
+      job.timeline.push("Customer email could not be sent");
     } else {
       job.magicLinkLastSent = new Date().toISOString();
       job.timeline.push(`Magic email sent to ${job.customerEmail}`);
@@ -1025,18 +1169,71 @@ function activatePortalAccess(job, channel = "email") {
   };
 }
 
+function safeStorageName(name) {
+  return name.replace(/[^a-zA-Z0-9._-]+/g, "-").replace(/^-+|-+$/g, "") || "document";
+}
+
+async function uploadLiveDocumentFile(job, file) {
+  const storagePath = `${backend.company.id}/${job.id}/${createId()}-${safeStorageName(file.name)}`;
+  const { error } = await backend.client.storage
+    .from(DOCUMENT_BUCKET)
+    .upload(storagePath, file, {
+      contentType: file.type || "application/octet-stream",
+      upsert: false,
+    });
+  if (error) throw error;
+  const { data } = await backend.client.storage.from(DOCUMENT_BUCKET).createSignedUrl(storagePath, 60 * 60);
+  return {
+    storagePath,
+    previewUrl: data?.signedUrl || "",
+  };
+}
+
+function fileToBase64(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result || "").split(",")[1] || "");
+    reader.onerror = () => reject(reader.error || new Error("Could not read file"));
+    reader.readAsDataURL(file);
+  });
+}
+
+async function uploadPortalDocument(file, docType) {
+  const contentBase64 = await fileToBase64(file);
+  await loadCustomerPortal(portalMode.token, {
+    action: "upload",
+    fileName: file.name,
+    mimeType: file.type || "application/octet-stream",
+    size: file.size,
+    contentBase64,
+    documentType: docType,
+  });
+}
+
 async function addDocuments(files, uploadedBy, docType = "Other") {
   const job = uploadedBy === "Customer" ? customerJob() : selectedJob();
   if (!job || !files.length) return;
+  if (portalMode.active && uploadedBy === "Customer") {
+    await Promise.all(Array.from(files).map((file) => uploadPortalDocument(file, docType)));
+    return;
+  }
   if (docType === "Estimate") {
     job.estimateAcceptedAt = null;
     job.acceptedEstimate = null;
+    job.estimateDecision = null;
     job.viewedEstimateId = null;
   }
   let estimateVersion = docType === "Estimate" ? nextEstimateVersion(job) : null;
-  const docs = Array.from(files).map((file) => ({
+  const sourceFiles = Array.from(files);
+  const uploadedFiles = backend.live
+    ? await Promise.all(sourceFiles.map((file) => uploadLiveDocumentFile(job, file)))
+    : sourceFiles.map(() => ({ storagePath: "", previewUrl: "" }));
+  const docs = sourceFiles.map((file, index) => ({
       id: createId(),
       name: file.name,
+      mimeType: file.type || "",
+      previewUrl: uploadedFiles[index].previewUrl || (typeof URL !== "undefined" ? URL.createObjectURL(file) : ""),
+      storagePath: uploadedFiles[index].storagePath,
       type: docType,
       uploadedBy,
       visibility: uploadedBy === "Customer" ? "Staff Only" : "Customer Visible",
@@ -1044,10 +1241,10 @@ async function addDocuments(files, uploadedBy, docType = "Other") {
       createdAt: new Date().toISOString(),
       version: docType === "Estimate" ? estimateVersion++ : null,
       size: file.size,
-      stored: false,
+      stored: Boolean(uploadedFiles[index].storagePath),
     }));
 
-  if (backend.live && uploadedBy !== "Customer") {
+  if (backend.live) {
     const { error } = await backend.client.from("documents").insert(
       docs.map((doc) => ({
         company_id: backend.company.id,
@@ -1057,6 +1254,9 @@ async function addDocuments(files, uploadedBy, docType = "Other") {
         uploaded_by: doc.uploadedBy,
         visibility: doc.visibility,
         status: doc.status,
+        storage_provider: "supabase",
+        storage_file_id: doc.storagePath,
+        storage_url: null,
         version: doc.version,
         size_bytes: doc.size,
       })),
@@ -1081,6 +1281,10 @@ async function addDocuments(files, uploadedBy, docType = "Other") {
 async function copyPortalLink() {
   const job = selectedJob();
   if (!job) return;
+  if (backend.live) {
+    els.backendStatus.textContent = "Use Send customer email for a secure customer link.";
+    return;
+  }
   if (state.portalAccess.jobId !== job.id) {
     activatePortalAccess(job);
     job.timeline.push("Magic link created for manual delivery");
@@ -1107,12 +1311,24 @@ async function acceptEstimate(docId) {
   const job = customerJob();
   const estimate = estimateFor(job);
   if (!job || !estimate || estimate.id !== docId || job.viewedEstimateId !== docId) return;
+  if (portalMode.active) {
+    await loadCustomerPortal(portalMode.token, {
+      action: "decision",
+      documentId: docId,
+      decision: "accept",
+      notes: "",
+    });
+    return;
+  }
   if (backend.live) {
     const { error } = await backend.client.from("estimate_acceptances").insert({
       company_id: backend.company.id,
       job_id: job.id,
       document_id: estimate.id,
       customer_id: job.customerId,
+      decision_status: "accept",
+      notes: null,
+      decided_at: new Date().toISOString(),
       user_agent: navigator.userAgent,
     });
     if (error) throw error;
@@ -1124,8 +1340,70 @@ async function acceptEstimate(docId) {
     version: estimate.version || 1,
     acceptedAt: job.estimateAcceptedAt,
   };
+  job.estimateDecision = null;
   job.jobStatus = "Ready to Schedule";
   job.timeline.push(`Customer accepted estimate version ${estimate.version || 1}`);
+  render();
+}
+
+function openEstimateChangesDialog(docId) {
+  els.estimateChangesDocId.value = docId;
+  els.estimateChangesText.value = "";
+  els.estimateChangesDialog.showModal();
+  els.estimateChangesText.focus();
+}
+
+async function recordEstimateDecision(docId, decision, notes = "") {
+  const job = customerJob();
+  const estimate = estimateFor(job);
+  if (!job || !estimate || estimate.id !== docId || job.viewedEstimateId !== docId) return;
+  if (decision === "accept") {
+    await acceptEstimate(docId);
+    return;
+  }
+  const decidedAt = new Date().toISOString();
+  if (portalMode.active) {
+    await loadCustomerPortal(portalMode.token, {
+      action: "decision",
+      documentId: docId,
+      decision,
+      notes: notes.trim(),
+    });
+    return;
+  }
+  if (backend.live) {
+    const { error } = await backend.client.from("estimate_acceptances").insert({
+      company_id: backend.company.id,
+      job_id: job.id,
+      document_id: estimate.id,
+      customer_id: job.customerId,
+      decision_status: decision,
+      notes: notes.trim() || null,
+      decided_at: decidedAt,
+      accepted_at: decidedAt,
+      user_agent: navigator.userAgent,
+    });
+    if (error) throw error;
+  }
+  job.estimateDecision = {
+    documentId: estimate.id,
+    name: estimate.name,
+    version: estimate.version || 1,
+    status: decision,
+    notes: notes.trim(),
+    decidedAt,
+  };
+  job.estimateAcceptedAt = null;
+  job.acceptedEstimate = null;
+  job.jobStatus = decision === "changes" ? "Changes Requested" : "Estimate Not Accepted";
+  job.timeline.push(
+    decision === "changes"
+      ? `Customer accepted estimate version ${estimate.version || 1} with requested changes`
+      : `Customer did not accept estimate version ${estimate.version || 1}`,
+  );
+  if (notes.trim()) {
+    job.timeline.push(`Customer note: ${notes.trim()}`);
+  }
   render();
 }
 
@@ -1143,6 +1421,19 @@ function bindEvents() {
     });
   });
   els.settingsGear.addEventListener("click", () => setView("settings"));
+
+  els.customerJobList?.addEventListener("click", (event) => {
+    const button = event.target.closest("[data-customer-job-id]");
+    if (!button) return;
+    const job = state.jobs.find((item) => item.id === button.dataset.customerJobId);
+    if (!job) return;
+    state.portalAccess.jobId = job.id;
+    state.portalAccess.token = state.portalAccess.token || `${job.id.slice(0, 8)}-${Date.now().toString(36)}`;
+    state.portalAccess.lastSentTo = job.customerEmail;
+    state.portalAccess.channel = state.portalAccess.channel || "email";
+    state.portalAccess.createdAt = state.portalAccess.createdAt || new Date().toISOString();
+    render();
+  });
 
   els.authForm.addEventListener("submit", async (event) => {
     event.preventDefault();
@@ -1178,9 +1469,9 @@ function bindEvents() {
     els.authSubmit.disabled = false;
     els.authCreate.disabled = false;
     els.backendStatus.textContent = error
-      ? error.message
+      ? publicError(error, "Could not complete sign in.")
       : mode === "signup"
-        ? "Account created. If Supabase asks for email confirmation, check your inbox once."
+        ? "Account created. Check your inbox if email confirmation is requested."
         : "Signed in.";
   });
 
@@ -1189,11 +1480,10 @@ function bindEvents() {
     await backend.client.auth.signOut();
   });
 
-  els.startJob.addEventListener("click", () => openJobDialog());
+  els.startJob?.addEventListener("click", () => openJobDialog());
   els.quickStartJob.addEventListener("click", () => openJobDialog());
   els.quickUpdateJob.addEventListener("click", () => openJobDialog(selectedJob()));
-  els.industryFilter.addEventListener("change", renderJobs);
-  els.resetDemo.addEventListener("click", () => {
+  els.resetDemo?.addEventListener("click", () => {
     state = normalizeState(structuredClone(demoState));
     selectedJobId = state.jobs[0]?.id || null;
     state.portalAccess.jobId = selectedJobId;
@@ -1210,11 +1500,13 @@ function bindEvents() {
     const action = event.target.dataset.action;
     if (action === "edit-job") openJobDialog(selectedJob());
     if (action === "send-email") sendMagicLink("email").catch((error) => {
-      selectedJob().timeline.push(`Magic email failed: ${error.message}`);
+      console.warn("Magic email failed", error);
+      selectedJob().timeline.push("Customer email could not be sent");
       render();
     });
     if (action === "send-sms") sendMagicLink("text").catch((error) => {
-      selectedJob().timeline.push(`Magic text failed: ${error.message}`);
+      console.warn("Magic text failed", error);
+      selectedJob().timeline.push("Customer text could not be sent");
       render();
     });
     if (action === "copy-portal-link") copyPortalLink();
@@ -1231,8 +1523,14 @@ function bindEvents() {
   });
 
   els.customerPortal.addEventListener("click", (event) => {
-    if (event.target.dataset.action === "accept-estimate") {
-      acceptEstimate(event.target.dataset.docId);
+    if (event.target.dataset.action === "estimate-decision") {
+      if (event.target.dataset.decision === "changes") {
+        openEstimateChangesDialog(event.target.dataset.docId);
+        return;
+      }
+      recordEstimateDecision(event.target.dataset.docId, event.target.dataset.decision).catch(() => {
+        els.customerPortal.insertAdjacentHTML("afterbegin", `<div class="empty-state">Could not save the response. Please try again.</div>`);
+      });
       return;
     }
     if (event.target.dataset.action === "view-estimate") {
@@ -1247,8 +1545,9 @@ function bindEvents() {
 
   els.documentPicker.addEventListener("change", () => {
     addDocuments(els.documentPicker.files, els.documentPicker.dataset.uploadedBy, els.documentPicker.dataset.docType).catch((error) => {
+      console.warn("Document upload failed", error);
       const job = selectedJob();
-      if (job) job.timeline.push(`Document upload failed: ${error.message}`);
+      if (job) job.timeline.push("Document upload failed");
       render();
     });
     els.documentPicker.value = "";
@@ -1266,7 +1565,8 @@ function bindEvents() {
         })
         .eq("id", backend.company.id);
       if (error) {
-        els.backendStatus.textContent = error.message;
+        console.warn("Billing preference failed", error);
+        els.backendStatus.textContent = "Could not save billing preference.";
         return;
       }
       await loadLiveState();
@@ -1285,7 +1585,7 @@ function bindEvents() {
     const code = normalizePromoCode(els.promoCode.value);
     const percent = promoPercentFor(code);
     if (code && !percent) {
-      alert("That promo code is not active yet. Try 20off or 30off.");
+      alert("That promo code is not active yet.");
       return;
     }
     if (backend.live) {
@@ -1294,7 +1594,8 @@ function bindEvents() {
         .update({ promo_code: code || null, promo_percent_off: percent })
         .eq("id", backend.company.id);
       if (error) {
-        alert(error.message);
+        console.warn("Promo save failed", error);
+        alert("Could not save the promo code.");
         return;
       }
       await loadLiveState();
@@ -1306,7 +1607,7 @@ function bindEvents() {
   });
 
   els.checkoutButton.addEventListener("click", () => {
-    alert("Next step: connect Stripe Checkout. The app already knows the trial, price, and promo code to send to Stripe.");
+    alert("Billing is off for the private beta. Add Stripe checkout after the customer portal is fully operational.");
   });
 
   els.fieldForm.addEventListener("submit", async (event) => {
@@ -1327,7 +1628,8 @@ function bindEvents() {
         options: field.options,
       });
       if (error) {
-        els.backendStatus.textContent = error.message;
+        console.warn("Custom field save failed", error);
+        els.backendStatus.textContent = "Could not save the field.";
         return;
       }
       els.fieldForm.reset();
@@ -1351,7 +1653,8 @@ function bindEvents() {
     if (backend.live) {
       const { error } = await backend.client.from("custom_fields").delete().eq("id", button.dataset.fieldId);
       if (error) {
-        els.backendStatus.textContent = error.message;
+        console.warn("Custom field delete failed", error);
+        els.backendStatus.textContent = "Could not remove the field.";
         return;
       }
       await loadLiveState();
@@ -1369,19 +1672,31 @@ function bindEvents() {
       els.jobDialog.close();
       render();
     } catch (error) {
-      els.backendStatus.textContent = error.message;
+      console.warn("Job save failed", error);
+      els.backendStatus.textContent = "Could not save the job.";
     }
   });
 
   els.closeJobDialog.addEventListener("click", () => els.jobDialog.close());
   els.cancelJobDialog.addEventListener("click", () => els.jobDialog.close());
 
+  els.closeEstimateChangesDialog.addEventListener("click", () => els.estimateChangesDialog.close());
+  els.cancelEstimateChangesDialog.addEventListener("click", () => els.estimateChangesDialog.close());
+  els.estimateChangesForm.addEventListener("submit", (event) => {
+    event.preventDefault();
+    recordEstimateDecision(els.estimateChangesDocId.value, "changes", els.estimateChangesText.value).catch(() => {
+      els.customerPortal.insertAdjacentHTML("afterbegin", `<div class="empty-state">Could not save the response. Please try again.</div>`);
+    });
+    els.estimateChangesDialog.close();
+  });
+
   els.deleteJob.addEventListener("click", async () => {
     const id = els.jobId.value;
     if (backend.live) {
       const { error } = await backend.client.from("jobs").delete().eq("id", id);
       if (error) {
-        els.backendStatus.textContent = error.message;
+        console.warn("Job delete failed", error);
+        els.backendStatus.textContent = "Could not delete the job.";
         return;
       }
       els.jobDialog.close();

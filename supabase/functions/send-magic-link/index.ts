@@ -24,6 +24,15 @@ function jsonResponse(body: unknown, status = 200) {
   });
 }
 
+function escapeHtml(value: string) {
+  return value
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#39;");
+}
+
 function serviceRoleKey() {
   const legacyKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
   if (legacyKey) return legacyKey;
@@ -119,10 +128,12 @@ serve(async (req) => {
   });
 
   if (insertError) {
-    return jsonResponse({ error: insertError.message }, 500);
+    return jsonResponse({ error: "Could not create customer link" }, 500);
   }
 
   const subject = `${job.name || "Your project"} portal link`;
+  const customerName = escapeHtml(customer.name || "there");
+  const safePortalLink = escapeHtml(portalLink);
   const emailResult = await fetch("https://api.resend.com/emails", {
     method: "POST",
     headers: {
@@ -134,17 +145,16 @@ serve(async (req) => {
       to: customer.email,
       subject,
       html: `
-        <p>Hi ${customer.name || "there"},</p>
+        <p>Hi ${customerName},</p>
         <p>Your secure project portal is ready.</p>
-        <p><a href="${portalLink}">Open your project portal</a></p>
+        <p><a href="${safePortalLink}">Open your project portal</a></p>
         <p>This link expires in 7 days.</p>
       `,
     }),
   });
 
   if (!emailResult.ok) {
-    const detail = await emailResult.text();
-    return jsonResponse({ error: "Email could not be sent", detail }, 502);
+    return jsonResponse({ error: "Email could not be sent" }, 502);
   }
 
   return jsonResponse({ ok: true, expiresAt });

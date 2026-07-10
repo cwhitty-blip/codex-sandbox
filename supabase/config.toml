@@ -2,3 +2,6 @@ project_id = "nzwygirmuolgwwvtjexw"
 
 [functions.send-magic-link]
 verify_jwt = true
+
+[functions.customer-portal]
+verify_jwt = false

@@ -107,10 +107,30 @@ create table if not exists public.estimate_acceptances (
   job_id uuid not null references public.jobs(id) on delete cascade,
   document_id uuid not null references public.documents(id) on delete cascade,
   customer_id uuid not null references public.customers(id) on delete cascade,
+  decision_status text not null default 'accept',
+  notes text,
+  decided_at timestamptz not null default now(),
   accepted_at timestamptz not null default now(),
   accepted_from_ip text,
-  user_agent text
+  user_agent text,
+  constraint estimate_acceptances_decision_status_check
+    check (decision_status in ('accept', 'changes', 'reject'))
 );
+
+alter table public.estimate_acceptances add column if not exists decision_status text not null default 'accept';
+alter table public.estimate_acceptances add column if not exists notes text;
+alter table public.estimate_acceptances add column if not exists decided_at timestamptz not null default now();
+do $$
+begin
+  if not exists (
+    select 1 from pg_constraint where conname = 'estimate_acceptances_decision_status_check'
+  ) then
+    alter table public.estimate_acceptances
+      add constraint estimate_acceptances_decision_status_check
+      check (decision_status in ('accept', 'changes', 'reject'));
+  end if;
+end;
+$$;
 
 create or replace function public.is_company_member(target_company_id uuid)
 returns boolean
@@ -133,6 +153,64 @@ as $$
 begin
   new.updated_at = now();
   return new;
+end;
+$$;
+
+create or replace function public.customer_belongs_to_company(target_customer_id uuid, target_company_id uuid)
+returns boolean
+language sql
+security definer
+set search_path = public
+as $$
+  select exists (
+    select 1
+    from public.customers
+    where id = target_customer_id
+      and company_id = target_company_id
+  );
+$$;
+
+create or replace function public.job_belongs_to_company(target_job_id uuid, target_company_id uuid)
+returns boolean
+language sql
+security definer
+set search_path = public
+as $$
+  select exists (
+    select 1
+    from public.jobs
+    where id = target_job_id
+      and company_id = target_company_id
+  );
+$$;
+
+create or replace function public.document_belongs_to_job_and_company(target_document_id uuid, target_job_id uuid, target_company_id uuid)
+returns boolean
+language sql
+security definer
+set search_path = public
+as $$
+  select exists (
+    select 1
+    from public.documents
+    where id = target_document_id
+      and job_id = target_job_id
+      and company_id = target_company_id
+  );
+$$;
+
+create or replace function public.company_id_from_storage_path(object_name text)
+returns uuid
+language plpgsql
+immutable
+as $$
+declare
+  raw_company_id text := (storage.foldername(object_name))[1];
+begin
+  return raw_company_id::uuid;
+exception
+  when others then
+    return null;
 end;
 $$;
 
@@ -189,6 +267,10 @@ alter table public.documents enable row level security;
 alter table public.magic_links enable row level security;
 alter table public.estimate_acceptances enable row level security;
 
+insert into storage.buckets (id, name, public)
+values ('job-documents', 'job-documents', false)
+on conflict (id) do nothing;
+
 drop policy if exists "Members can read companies" on public.companies;
 create policy "Members can read companies"
 on public.companies for select
@@ -196,10 +278,6 @@ to authenticated
 using (public.is_company_member(id));
 
 drop policy if exists "Authenticated users can create companies" on public.companies;
-create policy "Authenticated users can create companies"
-on public.companies for insert
-to authenticated
-with check (true);
 
 drop policy if exists "Members can update companies" on public.companies;
 create policy "Members can update companies"
@@ -208,6 +286,9 @@ to authenticated
 using (public.is_company_member(id))
 with check (public.is_company_member(id));
 
+revoke update on public.companies from authenticated;
+grant update (billing_provider, billing_account, billing_sync) on public.companies to authenticated;
+
 drop policy if exists "Users can read their memberships" on public.company_members;
 create policy "Users can read their memberships"
 on public.company_members for select
@@ -215,10 +296,7 @@ to authenticated
 using (user_id = auth.uid() or public.is_company_member(company_id));
 
 drop policy if exists "Users can create their own memberships" on public.company_members;
-create policy "Users can create their own memberships"
-on public.company_members for insert
-to authenticated
-with check (user_id = auth.uid());
+drop policy if exists "Service function creates memberships" on public.company_members;
 
 drop policy if exists "Members can read customers" on public.customers;
 create policy "Members can read customers"
@@ -249,14 +327,20 @@ drop policy if exists "Members can create jobs" on public.jobs;
 create policy "Members can create jobs"
 on public.jobs for insert
 to authenticated
-with check (public.is_company_member(company_id));
+with check (
+  public.is_company_member(company_id)
+  and public.customer_belongs_to_company(customer_id, company_id)
+);
 
 drop policy if exists "Members can update jobs" on public.jobs;
 create policy "Members can update jobs"
 on public.jobs for update
 to authenticated
 using (public.is_company_member(company_id))
-with check (public.is_company_member(company_id));
+with check (
+  public.is_company_member(company_id)
+  and public.customer_belongs_to_company(customer_id, company_id)
+);
 
 drop policy if exists "Members can delete jobs" on public.jobs;
 create policy "Members can delete jobs"
@@ -276,7 +360,50 @@ create policy "Members can manage documents"
 on public.documents for all
 to authenticated
 using (public.is_company_member(company_id))
-with check (public.is_company_member(company_id));
+with check (
+  public.is_company_member(company_id)
+  and public.job_belongs_to_company(job_id, company_id)
+);
+
+drop policy if exists "Members can read job document files" on storage.objects;
+create policy "Members can read job document files"
+on storage.objects for select
+to authenticated
+using (
+  bucket_id = 'job-documents'
+  and public.is_company_member(public.company_id_from_storage_path(name))
+);
+
+drop policy if exists "Members can upload job document files" on storage.objects;
+create policy "Members can upload job document files"
+on storage.objects for insert
+to authenticated
+with check (
+  bucket_id = 'job-documents'
+  and public.is_company_member(public.company_id_from_storage_path(name))
+);
+
+drop policy if exists "Members can update job document files" on storage.objects;
+create policy "Members can update job document files"
+on storage.objects for update
+to authenticated
+using (
+  bucket_id = 'job-documents'
+  and public.is_company_member(public.company_id_from_storage_path(name))
+)
+with check (
+  bucket_id = 'job-documents'
+  and public.is_company_member(public.company_id_from_storage_path(name))
+);
+
+drop policy if exists "Members can delete job document files" on storage.objects;
+create policy "Members can delete job document files"
+on storage.objects for delete
+to authenticated
+using (
+  bucket_id = 'job-documents'
+  and public.is_company_member(public.company_id_from_storage_path(name))
+);
 
 drop policy if exists "Members can read magic links" on public.magic_links;
 create policy "Members can read magic links"
@@ -289,6 +416,29 @@ create policy "Members can read estimate acceptances"
 on public.estimate_acceptances for select
 to authenticated
 using (public.is_company_member(company_id));
+
+drop policy if exists "Members can create estimate acceptances" on public.estimate_acceptances;
+create policy "Members can create estimate acceptances"
+on public.estimate_acceptances for insert
+to authenticated
+with check (
+  public.is_company_member(company_id)
+  and public.customer_belongs_to_company(customer_id, company_id)
+  and public.job_belongs_to_company(job_id, company_id)
+  and public.document_belongs_to_job_and_company(document_id, job_id, company_id)
+);
+
+drop policy if exists "Members can update estimate acceptances" on public.estimate_acceptances;
+create policy "Members can update estimate acceptances"
+on public.estimate_acceptances for update
+to authenticated
+using (public.is_company_member(company_id))
+with check (
+  public.is_company_member(company_id)
+  and public.customer_belongs_to_company(customer_id, company_id)
+  and public.job_belongs_to_company(job_id, company_id)
+  and public.document_belongs_to_job_and_company(document_id, job_id, company_id)
+);
 
 drop trigger if exists touch_jobs_updated_at on public.jobs;
 create trigger touch_jobs_updated_at

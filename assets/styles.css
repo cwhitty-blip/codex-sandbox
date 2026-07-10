@@ -14,6 +14,39 @@
   --shadow: 0 18px 44px rgba(29, 46, 52, 0.11);
 }
 
+body.customer-portal-mode {
+  padding: 0;
+  place-items: stretch;
+}
+
+body.customer-portal-mode .app-shell {
+  width: 100%;
+  max-width: none;
+  min-height: 100vh;
+  max-height: none;
+  border: 0;
+  border-radius: 0;
+  grid-template-columns: 1fr;
+}
+
+body.customer-portal-mode .app-statusbar,
+body.customer-portal-mode .sidebar,
+body.customer-portal-mode .topbar,
+body.customer-portal-mode #authPanel,
+body.customer-portal-mode .customer-selector {
+  display: none !important;
+}
+
+body.customer-portal-mode main {
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 24px 16px;
+}
+
+body.customer-portal-mode .customer-layout {
+  display: block;
+}
+
 * {
   box-sizing: border-box;
 }
@@ -27,6 +60,10 @@ body {
   display: grid;
   place-items: center;
   padding: 28px 14px;
+}
+
+body.service-portal-signed-in #authPanel {
+  display: none !important;
 }
 
 button,
@@ -338,7 +375,8 @@ main {
 .ghost-button,
 .danger-button,
 .choice-button,
-.icon-button {
+.icon-button,
+.text-button {
   min-height: 42px;
   border-radius: 8px;
   border: 1px solid transparent;
@@ -364,6 +402,15 @@ main {
   background: #ffffff;
   border-color: var(--line);
   color: var(--ink);
+}
+
+.text-button {
+  justify-self: start;
+  min-height: auto;
+  padding: 4px 0;
+  background: transparent;
+  color: var(--accent);
+  text-align: left;
 }
 
 .danger-button {
@@ -645,6 +692,14 @@ main {
   font-weight: 800;
 }
 
+.customer-selector h2 {
+  margin: -4px 0 4px;
+}
+
+.customer-job-list {
+  margin-top: 2px;
+}
+
 .access-summary,
 .estimate-preview {
   border: 1px solid rgba(23, 106, 122, 0.18);
@@ -664,6 +719,15 @@ main {
 .access-summary small,
 .estimate-preview small {
   margin-top: 5px;
+}
+
+.estimate-pdf-frame {
+  width: 100%;
+  min-height: 520px;
+  margin-top: 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #f7f9f8;
 }
 
 .customer-portal {
@@ -746,9 +810,22 @@ main {
   cursor: not-allowed;
 }
 
-.accept-row {
+.accept-row,
+.estimate-decision-actions {
   display: grid;
   gap: 8px;
+}
+
+.estimate-decision-actions {
+  gap: 10px;
+}
+
+.estimate-decision-actions small {
+  color: var(--muted);
+}
+
+.estimate-decision-actions .danger-button {
+  min-height: 52px;
 }
 
 .acceptance-confirmed {
@@ -766,6 +843,12 @@ main {
 .acceptance-confirmed span {
   color: var(--muted);
   font-size: 0.82rem;
+}
+
+.estimate-decision-reject {
+  border-color: rgba(156, 54, 54, 0.35);
+  background: #fff3f1;
+  color: var(--danger);
 }
 
 .stacked-form {
