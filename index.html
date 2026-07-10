@@ -249,8 +249,8 @@
             <div class="panel billing-plan-panel">
               <div class="panel-header">
                 <div>
-                  <p class="eyebrow">Beta access</p>
-                  <h2>Private beta</h2>
+                  <p class="eyebrow">Access</p>
+                  <h2>Workspace access</h2>
                 </div>
                 <span id="subscriptionStatus" class="status-pill">Beta</span>
               </div>
@@ -261,8 +261,18 @@
               </form>
               <button id="checkoutButton" class="ghost-button" type="button" hidden>Set up payment</button>
               <p class="fine-print">
-                Billing is intentionally off for the private beta. Stripe checkout and promo codes should be added only after the customer portal works end to end.
+                Billing is intentionally off for this early access build. Stripe checkout and promo codes should be added after the customer portal works end to end.
               </p>
+            </div>
+
+            <div class="panel">
+              <div class="panel-header">
+                <div>
+                  <p class="eyebrow">Readiness</p>
+                  <h2>Beta checklist</h2>
+                </div>
+              </div>
+              <div id="betaChecklist" class="custom-field-list"></div>
             </div>
 
             <div class="panel">
@@ -421,8 +431,8 @@
     <input id="documentPicker" class="hidden-file" multiple type="file" />
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="assets/config.js?v=accounts-v2"></script>
-    <script src="assets/app.js?v=accounts-v16"></script>
-    <script src="assets/live.js?v=accounts-v18"></script>
+    <script src="assets/app.js?v=accounts-v17"></script>
+    <script src="assets/live.js?v=accounts-v19"></script>
     <script src="assets/authfix.js?v=accounts-v17"></script>
     <script src="assets/public-auth-guard.js?v=accounts-v8"></script>
   </body>

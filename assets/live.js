@@ -121,7 +121,7 @@
     }
     authEls.panel.hidden = false;
     document.body.classList.remove("service-portal-signed-in");
-    setStatus("Contractor sign in", "Create an account for the private beta, or sign in with your contractor password.");
+    setStatus("Contractor sign in", "Create an account for early access, or sign in with your contractor password.");
     authEls.form.hidden = false;
     authEls.forgot.hidden = false;
     if (authEls.recoveryForm) authEls.recoveryForm.hidden = true;
@@ -185,14 +185,14 @@
 
   function renderSubscription() {
     if (!billingEls.summary) return;
-    billingEls.status.textContent = "Beta";
+    billingEls.status.textContent = "Early access";
     billingEls.promoCode.value = state.settings.promoCode || "";
     billingEls.summary.innerHTML = `
       <span>
-        <strong>Free private beta</strong>
+        <strong>Free early access</strong>
         <small>No payment is collected in this version.</small>
       </span>
-      <small>Stripe billing, trials, and promo codes should be connected after the customer portal is fully operational.</small>
+      <small>Stripe billing, trials, and promo codes should be connected after the customer portal is ready for paid users.</small>
     `;
   }
 
@@ -415,7 +415,7 @@
     renderLive();
   }
 
-  async function sendLiveMagicEmail(event) {
+  async function sendLiveCustomerEmail(event) {
     if (!backend.live || event.target.dataset.action !== "send-email") return;
     event.preventDefault();
     event.stopImmediatePropagation();
@@ -424,10 +424,10 @@
     const { error } = await backend.client.functions.invoke("send-magic-link", { body: { jobId: job.id } });
     job.magicLinkLastSent = new Date().toISOString();
     if (error) {
-      console.warn("Magic email failed", error);
+      console.warn("Customer email failed", error);
       job.timeline.push("Customer email could not be sent");
     } else {
-      job.timeline.push(`Magic email sent to ${job.customerEmail}`);
+      job.timeline.push(`Customer access email sent to ${job.customerEmail}`);
     }
     renderLive();
   }
@@ -718,10 +718,10 @@
   billingEls.checkout.addEventListener("click", (event) => {
     event.preventDefault();
     event.stopImmediatePropagation();
-    window.alert("Billing is off for the private beta. Add Stripe checkout after the customer portal is fully operational.");
+    window.alert("Billing is off during early access. Add Stripe checkout after the customer portal is ready for paid users.");
   }, true);
   els.jobForm.addEventListener("submit", catchAsync(saveLiveJob), true);
-  els.jobDetail.addEventListener("click", catchAsync(sendLiveMagicEmail), true);
+  els.jobDetail.addEventListener("click", catchAsync(sendLiveCustomerEmail), true);
   els.billingForm.addEventListener("submit", catchAsync(saveLiveBilling), true);
   els.fieldForm.addEventListener("submit", catchAsync(addLiveField), true);
   els.customFieldList.addEventListener("click", catchAsync(removeLiveField), true);

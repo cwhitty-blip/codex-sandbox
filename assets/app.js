@@ -83,7 +83,7 @@ const demoState = {
       ],
       timeline: [
         "Job started",
-        "Magic link sent to customer",
+        "Customer access email sent",
         "Estimate shared with customer",
       ],
       estimateAcceptedAt: null,
@@ -161,6 +161,7 @@ const els = {
   customerJobList: document.getElementById("customerJobList"),
   customerPortal: document.getElementById("customerPortal"),
   billingStatus: document.getElementById("billingStatus"),
+  betaChecklist: document.getElementById("betaChecklist"),
   billingForm: document.getElementById("billingForm"),
   billingProvider: document.getElementById("billingProvider"),
   billingAccount: document.getElementById("billingAccount"),
@@ -321,7 +322,7 @@ function renderAuth() {
   els.authPanel.hidden = false;
   document.body.classList.remove("service-portal-signed-in");
   els.authStatus.textContent = "Contractor sign in";
-  els.backendStatus.textContent = "Create an account for the private beta, or sign in with your contractor password.";
+  els.backendStatus.textContent = "Create an account for early access, or sign in with your contractor password.";
   els.authForm.hidden = false;
   els.signOut.hidden = true;
 }
@@ -633,7 +634,7 @@ function formatFileSize(bytes) {
 }
 
 function portalUrl(token) {
-  return `service-portal.app/magic/${token || "not-sent"}`;
+  return `service-portal.app/?portal=${token || "not-sent"}`;
 }
 
 function nextEstimateVersion(job) {
@@ -671,7 +672,7 @@ function render() {
 function renderMetrics() {
   const active = state.jobs.filter((job) => job.jobStatus !== "Complete").length;
   els.activeJobCount.textContent = `${active} active ${active === 1 ? "job" : "jobs"}`;
-  els.billingProviderSummary.textContent = "Private beta";
+  els.billingProviderSummary.textContent = "Early access";
 }
 
 function renderJobs() {
@@ -716,7 +717,6 @@ function renderJobDetail() {
     <div class="detail-actions">
       <button class="primary-button" data-action="edit-job" type="button">Edit selected job</button>
       <button class="ghost-button" data-action="send-email" type="button">Send customer email</button>
-      <button class="ghost-button" data-action="send-sms" type="button">Send customer text</button>
       <button class="ghost-button" data-action="copy-portal-link" type="button">Copy link</button>
       <button class="ghost-button" data-action="upload-estimate" type="button">Upload estimate</button>
       <button class="ghost-button" data-action="upload-staff-doc" type="button">Add shared file</button>
@@ -755,7 +755,7 @@ function renderJobDetail() {
     <section class="plain-section">
       <h3>Activity</h3>
       <ol class="timeline">${job.timeline.map((event) => `<li>${escapeHtml(event)}</li>`).join("")}</ol>
-      <p class="fine-print">Last customer link: ${formatDateTime(job.magicLinkLastSent)}</p>
+      <p class="fine-print">Last customer email: ${formatDateTime(job.magicLinkLastSent)}</p>
     </section>
   `;
 }
@@ -784,6 +784,9 @@ function renderContractorEstimateStatus(job, estimate) {
 function renderDocumentOpenAction(doc, label = "Open file") {
   if (doc.previewUrl) {
     return `<a class="document-open-link" href="${escapeHtml(doc.previewUrl)}" target="_blank" rel="noopener">${escapeHtml(label)}</a>`;
+  }
+  if (!backend.live && doc.type === "Estimate" && /pdf/i.test(doc.mimeType || doc.name)) {
+    return `<a class="document-open-link" href="assets/mock-estimate.pdf" target="_blank" rel="noopener">${escapeHtml(label)}</a>`;
   }
   if (doc.storagePath) {
     return `<span class="document-pending-link">Preparing file link</span>`;
@@ -1026,6 +1029,7 @@ function renderSettings() {
   els.billingSync.value = state.settings.billingSync;
   els.billingStatus.textContent = state.settings.billingConnected ? "Preference saved" : "Not connected";
   renderSubscriptionSettings();
+  renderBetaChecklist();
   els.fieldCount.textContent = String(state.settings.customFields.length);
   els.customFieldList.innerHTML = state.settings.customFields.length
     ? state.settings.customFields
@@ -1064,15 +1068,56 @@ function trialDaysLeft() {
 }
 
 function renderSubscriptionSettings() {
-  els.subscriptionStatus.textContent = "Beta";
+  els.subscriptionStatus.textContent = "Early access";
   els.promoCode.value = state.settings.promoCode || "";
   els.subscriptionSummary.innerHTML = `
     <span>
-      <strong>Free private beta</strong>
+      <strong>Free early access</strong>
       <small>No payment is collected in this version.</small>
     </span>
-    <small>Stripe billing, trials, and promo codes should be connected after the customer portal is fully operational.</small>
+    <small>Stripe billing, trials, and promo codes should be connected after the customer portal is ready for paid users.</small>
   `;
+}
+
+function renderBetaChecklist() {
+  if (!els.betaChecklist) return;
+  const jobs = state.jobs || [];
+  const activeDocs = jobs.flatMap((job) => job.documents || []).filter((doc) => doc.status !== "Archived");
+  const checks = [
+    {
+      label: "At least one job created",
+      done: jobs.length > 0,
+      detail: `${jobs.length} job${jobs.length === 1 ? "" : "s"} in this workspace`,
+    },
+    {
+      label: "Customer emails added",
+      done: jobs.length > 0 && jobs.every((job) => Boolean(job.customerEmail)),
+      detail: jobs.some((job) => !job.customerEmail) ? "Add an email before sending access" : "Ready to send customer access",
+    },
+    {
+      label: "Estimate uploaded",
+      done: activeDocs.some((doc) => doc.type === "Estimate"),
+      detail: "Needed before customers can review pricing",
+    },
+    {
+      label: "Customer upload tested",
+      done: activeDocs.some((doc) => doc.uploadedBy === "Customer"),
+      detail: "Insurance claim upload should appear for the contractor",
+    },
+    {
+      label: "Duplicate cleanup ready",
+      done: true,
+      detail: "Exact duplicate uploads are skipped; old duplicates can be archived",
+    },
+  ];
+  els.betaChecklist.innerHTML = checks.map((check) => `
+    <div class="custom-field-row checklist-row ${check.done ? "complete" : ""}">
+      <span>
+        <strong>${check.done ? "Ready" : "Needs check"}: ${escapeHtml(check.label)}</strong>
+        <small>${escapeHtml(check.detail)}</small>
+      </span>
+    </div>
+  `).join("");
 }
 
 function renderCustomFieldInputs(job = null) {
@@ -1192,25 +1237,25 @@ async function saveJobFromForm() {
   render();
 }
 
-async function sendMagicLink(channel) {
+async function sendCustomerAccessEmail() {
   const job = selectedJob();
   if (!job) return;
-  if (backend.live && channel === "email") {
+  if (backend.live) {
     const { error } = await backend.client.functions.invoke("send-magic-link", {
       body: { jobId: job.id },
     });
     if (error) {
-      console.warn("Magic email failed", error);
+      console.warn("Customer email failed", error);
       job.timeline.push("Customer email could not be sent");
     } else {
       job.magicLinkLastSent = new Date().toISOString();
-      job.timeline.push(`Magic email sent to ${job.customerEmail}`);
+      job.timeline.push(`Customer access email sent to ${job.customerEmail}`);
     }
     render();
     return;
   }
-  activatePortalAccess(job, channel);
-  job.timeline.push(`Magic link sent by ${channel} to ${channel === "email" ? job.customerEmail : job.customerPhone || "customer phone"}`);
+  activatePortalAccess(job, "email");
+  job.timeline.push(`Customer access email prepared for ${job.customerEmail}`);
   render();
 }
 
@@ -1377,19 +1422,19 @@ async function copyPortalLink() {
   const job = selectedJob();
   if (!job) return;
   if (backend.live) {
-    els.backendStatus.textContent = "Use Send customer email for a secure customer link.";
+    els.backendStatus.textContent = "Use Send customer email for a secure customer access link.";
     return;
   }
   if (state.portalAccess.jobId !== job.id) {
     activatePortalAccess(job);
-    job.timeline.push("Magic link created for manual delivery");
+    job.timeline.push("Customer access link created for manual delivery");
   }
   const link = portalUrl(state.portalAccess.token);
   try {
     await navigator.clipboard.writeText(link);
-    job.timeline.push("Magic link copied for manual delivery");
+    job.timeline.push("Customer access link copied for manual delivery");
   } catch {
-    job.timeline.push(`Magic link ready to copy: ${link}`);
+    job.timeline.push(`Customer access link ready to copy: ${link}`);
   }
   render();
 }
@@ -1612,14 +1657,9 @@ function bindEvents() {
     if (!actionTarget) return;
     const action = actionTarget.dataset.action;
     if (action === "edit-job") openJobDialog(selectedJob());
-    if (action === "send-email") sendMagicLink("email").catch((error) => {
-      console.warn("Magic email failed", error);
+    if (action === "send-email") sendCustomerAccessEmail().catch((error) => {
+      console.warn("Customer email failed", error);
       selectedJob().timeline.push("Customer email could not be sent");
-      render();
-    });
-    if (action === "send-sms") sendMagicLink("text").catch((error) => {
-      console.warn("Magic text failed", error);
-      selectedJob().timeline.push("Customer text could not be sent");
       render();
     });
     if (action === "copy-portal-link") copyPortalLink();
@@ -1731,7 +1771,7 @@ function bindEvents() {
   });
 
   els.checkoutButton.addEventListener("click", () => {
-    alert("Billing is off for the private beta. Add Stripe checkout after the customer portal is fully operational.");
+    alert("Billing is off during early access. Add Stripe checkout after the customer portal is ready for paid users.");
   });
 
   els.fieldForm.addEventListener("submit", async (event) => {

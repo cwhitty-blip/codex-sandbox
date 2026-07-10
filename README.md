@@ -1,6 +1,6 @@
 # Service Job Portal
 
-Standalone prototype for a SaaS customer portal that can fit roofing, plumbing, HVAC, electrical, tiling, and other service businesses.
+Standalone early-access build for a SaaS customer portal that can fit roofing, plumbing, HVAC, electrical, tiling, and other service businesses.
 
 ## Open
 
@@ -8,7 +8,7 @@ Open `index.html` in a browser. The app stores demo data in local storage.
 
 ## Beta Backend Direction
 
-The app can stay on GitHub Pages as the visible front door. Supabase should handle the database, login records, and magic-link records. Resend should send the magic-link emails from a Supabase Edge Function so the Resend API key never appears in browser code.
+The app can stay on GitHub Pages as the visible front door. Supabase should handle the database, login records, and secure customer access records. Resend should send customer access emails from a Supabase Edge Function so the Resend API key never appears in browser code.
 
 Use `.env.example` as the local checklist, but do not commit real API keys.
 
@@ -23,13 +23,13 @@ Use `.env.example` as the local checklist, but do not commit real API keys.
    Supabase provides `SUPABASE_URL` and `SUPABASE_SECRET_KEYS` by default.
 4. Deploy `supabase/functions/send-magic-link`.
 
-The frontend has a demo fallback, but once the schema and function are deployed it can create/sign in contractor accounts, create a company workspace, save jobs/custom fields/billing settings to Supabase, and send customer magic-link emails through Resend.
+The frontend has a local fallback, but once the schema and function are deployed it can create/sign in contractor accounts, create a company workspace, save jobs/custom fields/billing settings to Supabase, and send customer access emails through Resend.
 
 ### Subscription Direction
 
 Contractors start with a 7-day trial, then the intended plan is `$12.99/month`. The schema stores subscription status, trial dates, and simple promo codes such as `20off` and `30off`.
 
-The prototype does not collect cards directly. The next production bridge should use Stripe Checkout or Stripe Billing so Stripe handles cards, receipts, trial conversion, subscription cancellation, and promo enforcement.
+This build does not collect cards directly. The next production bridge should use Stripe Checkout or Stripe Billing so Stripe handles cards, receipts, trial conversion, subscription cancellation, and promo enforcement.
 
 ## Included MVP Flows
 
@@ -39,6 +39,6 @@ The prototype does not collect cards directly. The next production bridge should
 - Contractor account sign-up/sign-in with a 7-day trial model
 - Simple promo-code tracking for future Stripe checkout
 - Custom job field builder
-- Customer magic-link send simulation by email or SMS
-- Customer portal preview limited to status visibility and document uploads
+- Customer access email flow through Resend
+- Customer portal for status visibility, estimate responses, and document uploads
 - Insurance claim and general document upload tracking
