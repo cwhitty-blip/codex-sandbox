@@ -4,7 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Service Job Portal</title>
-    <link rel="stylesheet" href="assets/styles.css?v=accounts-v9" />
+    <link rel="stylesheet" href="assets/styles.css?v=accounts-v10" />
     <style>
       .brand {
         position: relative;
@@ -51,9 +51,10 @@
       }
 
       .estimate-status-card {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
+        display: grid;
+        grid-template-columns: minmax(0, 1fr);
+        align-items: start;
+        justify-content: stretch;
         gap: 10px;
         border: 1px solid rgba(23, 106, 122, 0.18);
         border-radius: 8px;
