@@ -1274,7 +1274,7 @@ function renderSubscriptionSettings() {
       <strong>Free early access</strong>
       <small>No payment is collected in this version.</small>
     </span>
-    <small>Stripe billing, trials, and promo codes should be connected after the customer portal is ready for paid users.</small>
+    <small>Wave subscription infrastructure is prepared but remains disabled during early access.</small>
   `;
 }
 
@@ -2029,7 +2029,7 @@ function bindEvents() {
   });
 
   els.checkoutButton.addEventListener("click", () => {
-    alert("Billing is off during early access. Add Stripe checkout after the customer portal is ready for paid users.");
+    alert("Billing is off during early access. Wave checkout will be enabled only when the product is ready to launch.");
   });
 
   els.fieldForm.addEventListener("submit", async (event) => {

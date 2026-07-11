@@ -8,3 +8,6 @@ verify_jwt = false
 
 [functions.workspace-settings]
 verify_jwt = true
+
+[functions.wave-webhook]
+verify_jwt = false

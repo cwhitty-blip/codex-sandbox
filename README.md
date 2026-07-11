@@ -19,15 +19,15 @@ GitHub Pages serves the frontend. Supabase handles contractor authentication, te
    - `APP_BASE_URL`
    - `FROM_EMAIL`
    Supabase provides `SUPABASE_URL` and `SUPABASE_SECRET_KEYS` by default.
-4. Deploy `supabase/functions/send-magic-link`, `supabase/functions/customer-portal`, and `supabase/functions/workspace-settings`.
+4. Deploy `supabase/functions/send-magic-link`, `supabase/functions/customer-portal`, `supabase/functions/workspace-settings`, and the dormant `supabase/functions/wave-webhook` endpoint.
 
 The publishable Supabase key in `assets/config.js` is intended for browser use. Database row-level security protects company records. Secret Supabase and Resend keys belong only in Edge Function secrets.
 
 ### Subscription Direction
 
-Contractors start with a 7-day trial, then the intended plan is `$12.99/month`. The schema stores subscription status, trial dates, and simple promo codes such as `20off` and `30off`.
+The intended plan is seven free days followed by `$12.99/month` through Wave. Billing remains explicitly disabled during early access.
 
-This build does not collect cards directly. The next production bridge should use Stripe Checkout or Stripe Billing so Stripe handles cards, receipts, trial conversion, subscription cancellation, and promo enforcement.
+This build does not collect cards directly. Wave will host the recurring checkout and payment collection. Supabase has a provider-neutral subscription record and an idempotent Wave webhook receiver, but the endpoint does nothing until `WAVE_BILLING_ENABLED` is deliberately set to `true` at launch. See `docs/wave-billing-foundation-2026-07-11.md`.
 
 ## Included MVP Flows
 
