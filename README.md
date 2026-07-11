@@ -1,29 +1,27 @@
 # Service Job Portal
 
-Standalone early-access build for a SaaS customer portal that can fit roofing, plumbing, HVAC, electrical, tiling, and other service businesses.
+Early-access SaaS customer portal for service businesses. Contractors manage jobs and documents; customers use a time-limited email link to review estimates and upload insurance files.
 
 ## Open
 
-Open `index.html` in a browser. The app stores demo data in local storage.
+Open `index.html` for a quick local view, or serve the folder over HTTP for full Supabase authentication. The deployed build is hosted on GitHub Pages.
 
-## Beta Backend Direction
+## Architecture
 
-The app can stay on GitHub Pages as the visible front door. Supabase should handle the database, login records, and secure customer access records. Resend should send customer access emails from a Supabase Edge Function so the Resend API key never appears in browser code.
-
-Use `.env.example` as the local checklist, but do not commit real API keys.
+GitHub Pages serves the frontend. Supabase handles contractor authentication, tenant-separated database records, private document storage, and customer portal functions. Resend sends customer access emails from a Supabase Edge Function so its API key never appears in browser code.
 
 ### Supabase Setup
 
 1. Create a Supabase project.
-2. Run `supabase/schema.sql` in the Supabase SQL editor.
+2. Apply the migrations in `supabase/migrations`, or run `supabase/schema.sql` for a new project.
 3. Add these Edge Function secrets inside Supabase:
    - `RESEND_API_KEY`
    - `APP_BASE_URL`
    - `FROM_EMAIL`
    Supabase provides `SUPABASE_URL` and `SUPABASE_SECRET_KEYS` by default.
-4. Deploy `supabase/functions/send-magic-link`.
+4. Deploy `supabase/functions/send-magic-link`, `supabase/functions/customer-portal`, and `supabase/functions/workspace-settings`.
 
-The frontend has a local fallback, but once the schema and function are deployed it can create/sign in contractor accounts, create a company workspace, save jobs/custom fields/billing settings to Supabase, and send customer access emails through Resend.
+The publishable Supabase key in `assets/config.js` is intended for browser use. Database row-level security protects company records. Secret Supabase and Resend keys belong only in Edge Function secrets.
 
 ### Subscription Direction
 
@@ -35,10 +33,15 @@ This build does not collect cards directly. The next production bridge should us
 
 - Contractor dashboard with `Start a job` and `Update a job`
 - Generic service-industry job records
-- Billing provider selection and simulated connection state
+- Billing provider preference for a future integration
 - Contractor account sign-up/sign-in with a 7-day trial model
-- Simple promo-code tracking for future Stripe checkout
+- Company profile and custom job field setup
 - Custom job field builder
 - Customer access email flow through Resend
 - Customer portal for status visibility, estimate responses, and document uploads
 - Insurance claim and general document upload tracking
+- Exact-duplicate prevention plus archive and restore
+
+## Release Checks
+
+Before inviting a beta user, verify contractor sign-in, company setup, job creation, estimate upload, customer email delivery, estimate response, customer insurance upload, file opening, duplicate prevention, and archive/restore. Customer links expire after seven days, and sending a newer link invalidates the older one.

@@ -4,7 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Service Job Portal</title>
-    <link rel="stylesheet" href="assets/styles.css?v=accounts-v8" />
+    <link rel="stylesheet" href="assets/styles.css?v=accounts-v9" />
     <style>
       .brand {
         position: relative;
@@ -185,6 +185,10 @@
               <button id="authCreate" class="ghost-button" name="authMode" value="signup" type="button">Create account</button>
             </div>
           </form>
+          <form id="recoveryForm" class="auth-form" hidden>
+            <input id="recoveryPassword" type="password" placeholder="New password" autocomplete="new-password" />
+            <button id="recoverySubmit" class="primary-button" type="submit">Save new password</button>
+          </form>
           <button id="forgotPassword" class="text-button" type="button">Forgot password?</button>
           <button id="signOut" class="ghost-button" type="button" hidden aria-hidden="true">Sign out</button>
         </section>
@@ -246,6 +250,27 @@
 
         <section id="settingsView" class="view">
           <section class="settings-grid">
+            <div class="panel workspace-panel">
+              <div class="panel-header">
+                <div>
+                  <p class="eyebrow">Workspace</p>
+                  <h2>Company profile</h2>
+                </div>
+                <span id="workspaceStatus" class="status-pill">Ready</span>
+              </div>
+              <form id="workspaceForm" class="stacked-form">
+                <label>
+                  Company name
+                  <input id="workspaceName" type="text" maxlength="120" placeholder="Your service company" required />
+                </label>
+                <label>
+                  Account email
+                  <input id="workspaceEmail" type="email" disabled />
+                </label>
+                <button class="primary-button" type="submit">Save company profile</button>
+              </form>
+            </div>
+
             <div class="panel billing-plan-panel">
               <div class="panel-header">
                 <div>
@@ -417,7 +442,7 @@
         <input id="estimateChangesDocId" type="hidden" />
         <label>
           What changes are needed?
-          <textarea id="estimateChangesText" rows="5" required placeholder="Describe the changes you want the contractor to review."></textarea>
+          <textarea id="estimateChangesText" rows="5" maxlength="2000" required placeholder="Describe the changes you want the contractor to review."></textarea>
         </label>
 
         <div class="dialog-actions">
@@ -428,12 +453,9 @@
       </form>
     </dialog>
 
-    <input id="documentPicker" class="hidden-file" multiple type="file" />
+    <input id="documentPicker" class="hidden-file" multiple type="file" accept="application/pdf,image/jpeg,image/png,image/webp,image/heic,image/heif" aria-hidden="true" tabindex="-1" />
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="assets/config.js?v=accounts-v2"></script>
-    <script src="assets/app.js?v=accounts-v17"></script>
-    <script src="assets/live.js?v=accounts-v19"></script>
-    <script src="assets/authfix.js?v=accounts-v17"></script>
-    <script src="assets/public-auth-guard.js?v=accounts-v8"></script>
+    <script src="assets/app.js?v=accounts-v20"></script>
   </body>
 </html>

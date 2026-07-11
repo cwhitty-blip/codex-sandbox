@@ -80,7 +80,7 @@ create table if not exists public.documents (
   uploaded_by text not null,
   visibility text not null default 'Staff Only',
   status text not null default 'New',
-  storage_provider text not null default 'google_drive',
+  storage_provider text not null default 'supabase',
   storage_file_id text,
   storage_url text,
   version integer,
@@ -287,7 +287,11 @@ using (public.is_company_member(id))
 with check (public.is_company_member(id));
 
 revoke update on public.companies from authenticated;
-grant update (billing_provider, billing_account, billing_sync) on public.companies to authenticated;
+grant update (name, billing_provider, billing_account, billing_sync) on public.companies to authenticated;
+
+create unique index if not exists magic_links_token_hash_idx on public.magic_links(token_hash);
+create index if not exists magic_links_job_created_idx on public.magic_links(job_id, created_at desc);
+create index if not exists documents_job_created_idx on public.documents(job_id, created_at desc);
 
 drop policy if exists "Users can read their memberships" on public.company_members;
 create policy "Users can read their memberships"

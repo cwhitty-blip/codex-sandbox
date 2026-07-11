@@ -1,15 +1,24 @@
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.4";
 
-type MagicLinkRequest = {
-  jobId: string;
-};
+type CustomerAccessRequest = { jobId: string };
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-  "Access-Control-Allow-Methods": "POST, OPTIONS",
-};
+function corsHeaders(req: Request) {
+  const configuredBase = Deno.env.get("APP_BASE_URL") || "";
+  const configuredOrigin = configuredBase ? new URL(configuredBase).origin : "";
+  const requestOrigin = req.headers.get("origin") || "";
+  const localOrigin = /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/i.test(requestOrigin);
+  const allowedOrigin = requestOrigin && (requestOrigin === configuredOrigin || localOrigin)
+    ? requestOrigin
+    : configuredOrigin;
+  return {
+    "Access-Control-Allow-Origin": allowedOrigin,
+    "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+    "Access-Control-Allow-Methods": "POST, OPTIONS",
+    "Cache-Control": "no-store",
+    "Vary": "Origin",
+  };
+}
 
 async function sha256(value: string) {
   const bytes = new TextEncoder().encode(value);
@@ -17,10 +26,10 @@ async function sha256(value: string) {
   return Array.from(new Uint8Array(hash)).map((byte) => byte.toString(16).padStart(2, "0")).join("");
 }
 
-function jsonResponse(body: unknown, status = 200) {
+function jsonResponse(req: Request, body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
     status,
-    headers: { ...corsHeaders, "content-type": "application/json" },
+    headers: { ...corsHeaders(req), "content-type": "application/json" },
   });
 }
 
@@ -38,63 +47,53 @@ function serviceRoleKey() {
   if (secretKeys) {
     try {
       const parsed = JSON.parse(secretKeys);
-      const key = Object.values(parsed).find((value) => typeof value === "string") as string | undefined;
+      const values = Object.values(parsed).filter((value): value is string => typeof value === "string");
+      const key = values.find((value) => value.startsWith("sb_secret_")) || values[0];
       if (key) return key;
     } catch {
       // Fall back to the legacy secret name below.
     }
   }
-
   return Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
 }
 
 serve(async (req) => {
-  if (req.method === "OPTIONS") {
-    return new Response(null, { status: 204, headers: corsHeaders });
-  }
-
-  if (req.method !== "POST") {
-    return jsonResponse({ error: "Method not allowed" }, 405);
-  }
+  if (req.method === "OPTIONS") return new Response(null, { status: 204, headers: corsHeaders(req) });
+  if (req.method !== "POST") return jsonResponse(req, { error: "Method not allowed" }, 405);
 
   const resendApiKey = Deno.env.get("RESEND_API_KEY");
   const supabaseUrl = Deno.env.get("SUPABASE_URL");
   const serviceKey = serviceRoleKey();
   const appBaseUrl = Deno.env.get("APP_BASE_URL");
   const fromEmail = Deno.env.get("FROM_EMAIL") || "Service Portal <onboarding@resend.dev>";
-
   if (!resendApiKey || !supabaseUrl || !serviceKey || !appBaseUrl) {
-    return jsonResponse({ error: "Server is missing required environment variables" }, 500);
+    return jsonResponse(req, { error: "Server is missing required environment variables" }, 500);
   }
 
   const authHeader = req.headers.get("Authorization");
-  if (!authHeader) {
-    return jsonResponse({ error: "Unauthorized" }, 401);
-  }
+  if (!authHeader) return jsonResponse(req, { error: "Unauthorized" }, 401);
 
-  const payload = (await req.json()) as MagicLinkRequest;
-  if (!payload.jobId) {
-    return jsonResponse({ error: "jobId is required" }, 400);
+  let payload: CustomerAccessRequest;
+  try {
+    payload = (await req.json()) as CustomerAccessRequest;
+  } catch {
+    return jsonResponse(req, { error: "Request is invalid" }, 400);
   }
+  if (!payload.jobId) return jsonResponse(req, { error: "jobId is required" }, 400);
 
   const supabase = createClient(supabaseUrl, serviceKey);
   const supabaseForAuth = createClient(supabaseUrl, serviceKey, {
     global: { headers: { Authorization: authHeader } },
   });
   const { data: authData, error: authError } = await supabaseForAuth.auth.getUser();
-  if (authError || !authData.user) {
-    return jsonResponse({ error: "Unauthorized" }, 401);
-  }
+  if (authError || !authData.user) return jsonResponse(req, { error: "Unauthorized" }, 401);
 
   const { data: job, error: jobError } = await supabase
     .from("jobs")
     .select("id, company_id, customer_id, name, customers(name, email)")
     .eq("id", payload.jobId)
     .single();
-
-  if (jobError || !job) {
-    return jsonResponse({ error: "Job not found" }, 404);
-  }
+  if (jobError || !job) return jsonResponse(req, { error: "Job not found" }, 404);
 
   const { data: member, error: memberError } = await supabase
     .from("company_members")
@@ -102,22 +101,28 @@ serve(async (req) => {
     .eq("company_id", job.company_id)
     .eq("user_id", authData.user.id)
     .single();
-
-  if (memberError || !member) {
-    return jsonResponse({ error: "You do not have access to this job" }, 403);
-  }
+  if (memberError || !member) return jsonResponse(req, { error: "You do not have access to this job" }, 403);
 
   const customer = Array.isArray(job.customers) ? job.customers[0] : job.customers;
-  if (!customer?.email) {
-    return jsonResponse({ error: "Customer email not found for this job" }, 400);
-  }
+  if (!customer?.email) return jsonResponse(req, { error: "Customer email not found for this job" }, 400);
+
+  const oneMinuteAgo = new Date(Date.now() - 60_000).toISOString();
+  const { data: recentLink } = await supabase
+    .from("magic_links")
+    .select("id")
+    .eq("job_id", job.id)
+    .gte("created_at", oneMinuteAgo)
+    .limit(1)
+    .maybeSingle();
+  if (recentLink) return jsonResponse(req, { error: "Please wait one minute before sending another customer email" }, 429);
 
   const token = crypto.randomUUID() + crypto.randomUUID().replaceAll("-", "");
   const tokenHash = await sha256(token);
+  const now = new Date().toISOString();
   const expiresAt = new Date(Date.now() + 1000 * 60 * 60 * 24 * 7).toISOString();
   const portalLink = `${appBaseUrl.replace(/\/$/, "")}/?portal=${encodeURIComponent(token)}`;
 
-  const { error: insertError } = await supabase.from("magic_links").insert({
+  const { data: newLink, error: insertError } = await supabase.from("magic_links").insert({
     job_id: job.id,
     customer_id: job.customer_id,
     company_id: job.company_id,
@@ -125,11 +130,8 @@ serve(async (req) => {
     sent_to: customer.email,
     channel: "email",
     expires_at: expiresAt,
-  });
-
-  if (insertError) {
-    return jsonResponse({ error: "Could not create customer link" }, 500);
-  }
+  }).select("id").single();
+  if (insertError || !newLink) return jsonResponse(req, { error: "Could not create customer link" }, 500);
 
   const subject = `${job.name || "Your project"} portal link`;
   const customerName = escapeHtml(customer.name || "there");
@@ -148,14 +150,22 @@ serve(async (req) => {
         <p>Hi ${customerName},</p>
         <p>Your secure project portal is ready.</p>
         <p><a href="${safePortalLink}">Open your project portal</a></p>
-        <p>This link expires in 7 days.</p>
+        <p>This link expires in 7 days. A newer email will replace this link.</p>
       `,
     }),
   });
 
   if (!emailResult.ok) {
-    return jsonResponse({ error: "Email could not be sent" }, 502);
+    await supabase.from("magic_links").delete().eq("id", newLink.id);
+    return jsonResponse(req, { error: "Email could not be sent" }, 502);
   }
 
-  return jsonResponse({ ok: true, expiresAt });
+  await supabase
+    .from("magic_links")
+    .update({ expires_at: now })
+    .eq("job_id", job.id)
+    .neq("id", newLink.id)
+    .gt("expires_at", now);
+
+  return jsonResponse(req, { ok: true, expiresAt });
 });

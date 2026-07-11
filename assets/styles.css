@@ -51,6 +51,10 @@ body.customer-portal-mode .customer-layout {
   box-sizing: border-box;
 }
 
+[hidden] {
+  display: none !important;
+}
+
 body {
   margin: 0;
   width: 100%;
@@ -66,6 +70,23 @@ body {
 
 body.service-portal-signed-in #authPanel {
   display: none !important;
+}
+
+body.contractor-locked .sidebar .settings-gear,
+body.contractor-locked .sidebar .nav-tabs,
+body.contractor-locked .sidebar-metric,
+body.contractor-locked .topbar,
+body.contractor-locked .view {
+  display: none !important;
+}
+
+body.contractor-locked main {
+  display: grid;
+  align-content: start;
+}
+
+body.contractor-locked #authPanel {
+  margin-bottom: 0;
 }
 
 button,
@@ -327,6 +348,10 @@ main {
 }
 
 .billing-plan-panel {
+  grid-column: 1 / -1;
+}
+
+.workspace-panel {
   grid-column: 1 / -1;
 }
 
@@ -658,6 +683,29 @@ main {
   font-size: 0.86rem;
   font-weight: 800;
   white-space: nowrap;
+}
+
+.archive-tools {
+  display: grid;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.customer-response-note {
+  margin-top: 10px;
+  border-left: 3px solid var(--accent-2);
+  padding: 10px 12px;
+  background: #fff8f1;
+  color: var(--ink);
+}
+
+.action-feedback {
+  border: 1px solid rgba(23, 106, 122, 0.22);
+  border-radius: 8px;
+  padding: 10px 12px;
+  background: #eef8f9;
+  color: var(--accent);
+  font-weight: 800;
 }
 
 .timeline {

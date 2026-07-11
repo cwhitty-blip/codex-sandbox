@@ -1,5 +1,14 @@
 const STORAGE_KEY = "serviceJobPortal.v1";
 const DOCUMENT_BUCKET = "job-documents";
+const MAX_DOCUMENT_BYTES = 10 * 1024 * 1024;
+const ALLOWED_DOCUMENT_TYPES = new Set([
+  "application/pdf",
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+  "image/heic",
+  "image/heif",
+]);
 
 const billingProviders = [
   "QuickBooks Online",
@@ -118,8 +127,11 @@ const demoState = {
   ],
 };
 
-let state = backendConfigured() ? normalizeState(structuredClone(demoState)) : loadState();
+let state = backendConfigured()
+  ? normalizeState({ settings: { customFields: [] }, portalAccess: {}, jobs: [] })
+  : loadState();
 let selectedJobId = state.jobs[0]?.id || null;
+const archivedDocumentJobs = new Set();
 if (!state.portalAccess.jobId && selectedJobId) {
   state.portalAccess.jobId = selectedJobId;
 }
@@ -131,6 +143,9 @@ const backend = {
   company: null,
   live: false,
   loading: false,
+  authMode: "signin",
+  authBusy: false,
+  recovery: false,
 };
 
 const portalMode = {
@@ -209,7 +224,15 @@ const els = {
   authCreate: document.getElementById("authCreate"),
   authStatus: document.getElementById("authStatus"),
   backendStatus: document.getElementById("backendStatus"),
+  forgotPassword: document.getElementById("forgotPassword"),
+  recoveryForm: document.getElementById("recoveryForm"),
+  recoveryPassword: document.getElementById("recoveryPassword"),
+  recoverySubmit: document.getElementById("recoverySubmit"),
   signOut: document.getElementById("signOut"),
+  workspaceForm: document.getElementById("workspaceForm"),
+  workspaceName: document.getElementById("workspaceName"),
+  workspaceEmail: document.getElementById("workspaceEmail"),
+  workspaceStatus: document.getElementById("workspaceStatus"),
   subscriptionStatus: document.getElementById("subscriptionStatus"),
   subscriptionSummary: document.getElementById("subscriptionSummary"),
   promoForm: document.getElementById("promoForm"),
@@ -284,9 +307,21 @@ function publicError(error, fallback = "Could not complete. Please try again.") 
   return fallback;
 }
 
+function isRecoveryRequest() {
+  const locationText = `${window.location.search}${window.location.hash}`;
+  const hasAuthCode = new URLSearchParams(window.location.search).has("code");
+  return /type=recovery|password_recovery/i.test(locationText)
+    || (hasAuthCode && window.localStorage.getItem("servicePortalPasswordResetPending") === "true");
+}
+
+function setContractorLock(locked) {
+  document.body.classList.toggle("contractor-locked", locked && !portalMode.active);
+}
+
 function renderAuth() {
   if (portalMode.active) {
     document.body.classList.add("customer-portal-mode");
+    setContractorLock(false);
     els.authPanel.hidden = true;
     els.authForm.hidden = true;
     els.signOut.hidden = true;
@@ -294,6 +329,7 @@ function renderAuth() {
   }
 
   if (!backendConfigured()) {
+    setContractorLock(false);
     els.authStatus.textContent = "Account setup";
     els.backendStatus.textContent = "Account services are not available for this build.";
     els.authForm.hidden = true;
@@ -302,6 +338,7 @@ function renderAuth() {
   }
 
   if (backend.loading) {
+    setContractorLock(true);
     els.authStatus.textContent = "Connecting";
     els.backendStatus.textContent = "Checking your session...";
     els.authForm.hidden = true;
@@ -310,6 +347,7 @@ function renderAuth() {
   }
 
   if (backend.live) {
+    setContractorLock(false);
     document.body.classList.add("service-portal-signed-in");
     els.authStatus.textContent = backend.company?.name || "Live workspace";
     els.backendStatus.textContent = `Signed in as ${backend.user.email}. Jobs are syncing.`;
@@ -319,11 +357,33 @@ function renderAuth() {
     return;
   }
 
+  setContractorLock(true);
   els.authPanel.hidden = false;
   document.body.classList.remove("service-portal-signed-in");
-  els.authStatus.textContent = "Contractor sign in";
-  els.backendStatus.textContent = "Create an account for early access, or sign in with your contractor password.";
-  els.authForm.hidden = false;
+  els.authForm.hidden = backend.recovery;
+  els.recoveryForm.hidden = !backend.recovery;
+  els.forgotPassword.hidden = backend.recovery || backend.authMode === "signup";
+  els.authSubmit.disabled = backend.authBusy;
+  els.authCreate.disabled = backend.authBusy;
+  els.recoverySubmit.disabled = backend.authBusy;
+  if (backend.recovery) {
+    els.authStatus.textContent = "Choose a new password";
+    els.backendStatus.textContent = "Enter a new password for your contractor account.";
+  } else if (backend.authMode === "signup") {
+    els.authStatus.textContent = "Create contractor account";
+    els.backendStatus.textContent = "Enter your email and choose a password.";
+    els.authSubmit.textContent = "Create account";
+    els.authSubmit.value = "signup";
+    els.authCreate.textContent = "Back to sign in";
+    els.authPassword.autocomplete = "new-password";
+  } else {
+    els.authStatus.textContent = "Contractor sign in";
+    els.backendStatus.textContent = "Enter your contractor email and password.";
+    els.authSubmit.textContent = "Sign in";
+    els.authSubmit.value = "signin";
+    els.authCreate.textContent = "Create account";
+    els.authPassword.autocomplete = "current-password";
+  }
   els.signOut.hidden = true;
 }
 
@@ -342,6 +402,7 @@ async function initBackend() {
     },
   });
   backend.loading = true;
+  backend.recovery = isRecoveryRequest();
   renderAuth();
 
   const portalToken = portalTokenFromUrl();
@@ -352,9 +413,26 @@ async function initBackend() {
   }
 
   const { data } = await backend.client.auth.getSession();
-  await handleSession(data.session);
+  if (backend.recovery) {
+    backend.session = data.session || null;
+    backend.user = data.session?.user || null;
+    backend.loading = false;
+    renderAuth();
+  } else {
+    await handleSession(data.session);
+  }
   backend.client.auth.onAuthStateChange((event, session) => {
-    if (event === "SIGNED_IN" || event === "TOKEN_REFRESHED") handleSession(session);
+    if (event === "PASSWORD_RECOVERY") {
+      backend.recovery = true;
+      backend.session = session || null;
+      backend.user = session?.user || null;
+      backend.loading = false;
+      renderAuth();
+      return;
+    }
+    if ((event === "SIGNED_IN" || event === "TOKEN_REFRESHED") && !backend.recovery && !backend.authBusy) {
+      handleSession(session);
+    }
     if (event === "SIGNED_OUT") {
       backend.session = null;
       backend.user = null;
@@ -366,6 +444,96 @@ async function initBackend() {
       render();
     }
   });
+}
+
+async function performAuth(mode = backend.authMode) {
+  if (!backend.client || backend.authBusy) return;
+  const email = els.authEmail.value.trim();
+  const password = els.authPassword.value;
+  if (!email || !password) {
+    els.backendStatus.textContent = "Enter your email and password.";
+    return;
+  }
+  if (password.length < 6) {
+    els.backendStatus.textContent = "Use at least 6 characters for the password.";
+    return;
+  }
+
+  backend.authBusy = true;
+  renderAuth();
+  els.backendStatus.textContent = mode === "signup" ? "Creating your account..." : "Signing in...";
+  const result = mode === "signup"
+    ? await backend.client.auth.signUp({
+        email,
+        password,
+        options: {
+          emailRedirectTo: window.SERVICE_PORTAL_CONFIG?.appBaseUrl || window.location.origin,
+        },
+      })
+    : await backend.client.auth.signInWithPassword({ email, password });
+  backend.authBusy = false;
+
+  if (result.error) {
+    renderAuth();
+    els.backendStatus.textContent = publicError(
+      result.error,
+      mode === "signup" ? "Could not create the account." : "Could not complete sign in.",
+    );
+    return;
+  }
+
+  if (mode === "signup" && !result.data.session) {
+    backend.authMode = "signin";
+    renderAuth();
+    els.backendStatus.textContent = "Account created. Check your email once to confirm it, then sign in.";
+    return;
+  }
+
+  await handleSession(result.data.session);
+}
+
+async function sendPasswordReset() {
+  if (!backend.client || backend.authBusy) return;
+  const email = els.authEmail.value.trim();
+  if (!email) {
+    els.backendStatus.textContent = "Enter your contractor email first.";
+    return;
+  }
+  backend.authBusy = true;
+  renderAuth();
+  els.backendStatus.textContent = "Sending password reset email...";
+  const redirectTo = window.SERVICE_PORTAL_CONFIG?.appBaseUrl || window.location.href.split("#")[0];
+  const { error } = await backend.client.auth.resetPasswordForEmail(email, { redirectTo });
+  backend.authBusy = false;
+  if (!error) window.localStorage.setItem("servicePortalPasswordResetPending", "true");
+  renderAuth();
+  els.backendStatus.textContent = error
+    ? publicError(error, "Could not send the reset email.")
+    : "Reset email sent. Open the link in that email.";
+}
+
+async function saveRecoveryPassword() {
+  if (!backend.client || backend.authBusy) return;
+  const password = els.recoveryPassword.value;
+  if (password.length < 6) {
+    els.backendStatus.textContent = "Use at least 6 characters for the password.";
+    return;
+  }
+  backend.authBusy = true;
+  renderAuth();
+  els.backendStatus.textContent = "Saving your new password...";
+  const { error } = await backend.client.auth.updateUser({ password });
+  backend.authBusy = false;
+  if (error) {
+    renderAuth();
+    els.backendStatus.textContent = publicError(error, "Could not save the new password.");
+    return;
+  }
+  backend.recovery = false;
+  window.localStorage.removeItem("servicePortalPasswordResetPending");
+  window.history.replaceState({}, document.title, window.location.pathname);
+  els.recoveryPassword.value = "";
+  await handleSession(backend.session);
 }
 
 async function handleSession(session) {
@@ -707,6 +875,7 @@ function renderJobDetail() {
 
   const estimate = estimateFor(job);
   const activeDocuments = job.documents.filter((doc) => doc.status !== "Archived");
+  const archivedDocuments = job.documents.filter((doc) => doc.status === "Archived");
   const visibleDocs = activeDocuments.filter((doc) => doc.visibility === "Customer Visible").length;
   const customerDocs = activeDocuments.filter((doc) => doc.uploadedBy === "Customer").length;
   const archivedDocs = job.documents.length - activeDocuments.length;
@@ -721,6 +890,7 @@ function renderJobDetail() {
       <button class="ghost-button" data-action="upload-estimate" type="button">Upload estimate</button>
       <button class="ghost-button" data-action="upload-staff-doc" type="button">Add shared file</button>
     </div>
+    ${job.actionMessage ? `<div class="action-feedback" role="status">${escapeHtml(job.actionMessage)}</div>` : ""}
     <div class="stat-grid">
       <div><span>Customer</span><strong>${escapeHtml(job.customerName)}</strong></div>
       <div><span>Projected service date</span><strong>${formatDate(job.projectedDate)}</strong></div>
@@ -747,6 +917,14 @@ function renderJobDetail() {
       <h3>Documents</h3>
       <div class="document-list">${renderDocumentList(activeDocuments)}</div>
       <p class="fine-print">${visibleDocs} shared document${visibleDocs === 1 ? "" : "s"}. ${customerDocs} customer upload${customerDocs === 1 ? "" : "s"} awaiting review.${archivedDocs ? ` ${archivedDocs} archived.` : ""}</p>
+      ${archivedDocuments.length ? `
+        <div class="archive-tools">
+          <button class="text-button" data-action="toggle-archived" type="button">
+            ${archivedDocumentJobs.has(job.id) ? "Hide" : "Show"} archived files (${archivedDocuments.length})
+          </button>
+          ${archivedDocumentJobs.has(job.id) ? `<div class="document-list">${renderDocumentList(archivedDocuments, true)}</div>` : ""}
+        </div>
+      ` : ""}
     </section>
     <section class="plain-section internal-note">
       <h3>Internal notes</h3>
@@ -767,6 +945,14 @@ function renderContractorEstimateStatus(job, estimate) {
       <p class="fine-print">Use the Upload estimate action above when the estimate is ready.</p>
     `;
   }
+  const decision = job.estimateDecision;
+  const decisionLabel = decision?.status === "changes"
+    ? "Customer requested changes"
+    : decision?.status === "reject"
+      ? "Customer did not accept"
+      : job.acceptedEstimate
+        ? "Customer accepted"
+        : "";
   return `
     <div class="estimate-status-card">
       <span>
@@ -778,6 +964,13 @@ function renderContractorEstimateStatus(job, estimate) {
         <em>${escapeHtml(estimateStatus(job))}</em>
       </span>
     </div>
+    ${decisionLabel ? `
+      <div class="customer-response-note">
+        <strong>${escapeHtml(decisionLabel)}</strong>
+        ${decision?.notes ? `<p>${escapeHtml(decision.notes)}</p>` : ""}
+        <small>${formatDateTime(decision?.decidedAt || job.acceptedEstimate?.acceptedAt)}</small>
+      </div>
+    ` : ""}
   `;
 }
 
@@ -804,7 +997,7 @@ function renderCustomValueReadout(job) {
     .join("");
 }
 
-function renderDocumentList(documents) {
+function renderDocumentList(documents, archived = false) {
   if (!documents.length) return `<div class="empty-state">No documents yet.</div>`;
   return documents
     .map(
@@ -820,7 +1013,7 @@ function renderDocumentList(documents) {
           <span class="document-row-actions">
             ${fileAction}
             <em>${escapeHtml(doc.status)}</em>
-            <button class="text-button document-archive-button" data-action="archive-document" data-doc-id="${escapeHtml(doc.id)}" type="button">Archive</button>
+            <button class="text-button document-archive-button" data-action="${archived ? "restore-document" : "archive-document"}" data-doc-id="${escapeHtml(doc.id)}" type="button">${archived ? "Restore" : "Archive"}</button>
           </span>
         </div>
       `;
@@ -840,7 +1033,10 @@ function renderCustomerDocumentList(documents) {
             <small>${escapeHtml(doc.type)} / Shared ${formatDateTime(doc.createdAt)}</small>
             <small>${escapeHtml(formatFileSize(doc.size))}</small>
           </span>
-          <em>${escapeHtml(doc.status === "Reviewed" ? "Ready" : doc.status)}</em>
+          <span class="document-row-actions">
+            ${renderDocumentOpenAction(doc)}
+            <em>${escapeHtml(doc.status === "Reviewed" ? "Ready" : doc.status)}</em>
+          </span>
         </div>
       `,
     )
@@ -922,7 +1118,7 @@ function renderCustomerPortal() {
     return;
   }
   const activeDocuments = job.documents.filter((doc) => doc.status !== "Archived");
-  const customerVisibleDocs = activeDocuments.filter((doc) => doc.visibility === "Customer Visible");
+  const customerVisibleDocs = activeDocuments.filter((doc) => doc.visibility === "Customer Visible" && doc.type !== "Estimate");
   const customerUploads = activeDocuments.filter((doc) => doc.uploadedBy === "Customer");
   const estimate = estimateFor(job);
   const receivedUploads = customerUploads.length;
@@ -1024,6 +1220,9 @@ function renderEstimateAcceptance(job, estimate) {
 }
 
 function renderSettings() {
+  els.workspaceName.value = backend.company?.name || "";
+  els.workspaceEmail.value = backend.user?.email || "";
+  els.workspaceStatus.textContent = backend.live ? "Saved" : "Preview";
   els.billingProvider.value = state.settings.billingProvider;
   els.billingAccount.value = state.settings.billingAccount || "";
   els.billingSync.value = state.settings.billingSync;
@@ -1241,15 +1440,19 @@ async function sendCustomerAccessEmail() {
   const job = selectedJob();
   if (!job) return;
   if (backend.live) {
+    job.actionMessage = "Sending customer email...";
+    render();
     const { error } = await backend.client.functions.invoke("send-magic-link", {
       body: { jobId: job.id },
     });
     if (error) {
       console.warn("Customer email failed", error);
       job.timeline.push("Customer email could not be sent");
+      job.actionMessage = "Customer email could not be sent. Please wait a minute and try again.";
     } else {
       job.magicLinkLastSent = new Date().toISOString();
       job.timeline.push(`Customer access email sent to ${job.customerEmail}`);
+      job.actionMessage = `Customer email sent to ${job.customerEmail}.`;
     }
     render();
     return;
@@ -1272,6 +1475,15 @@ function activatePortalAccess(job, channel = "email") {
 
 function safeStorageName(name) {
   return name.replace(/[^a-zA-Z0-9._-]+/g, "-").replace(/^-+|-+$/g, "") || "document";
+}
+
+function documentValidationError(file) {
+  if (!file?.size) return "That file is empty.";
+  if (file.size > MAX_DOCUMENT_BYTES) return "Files must be 10 MB or smaller.";
+  if (file.type && !ALLOWED_DOCUMENT_TYPES.has(file.type)) {
+    return "Use a PDF, JPG, PNG, WebP, or HEIC file.";
+  }
+  return "";
 }
 
 function isDuplicateDocument(job, file, uploadedBy, docType) {
@@ -1331,14 +1543,22 @@ async function uploadPortalDocument(file, docType) {
 async function uploadPortalDocuments(files, docType) {
   const status = document.getElementById("customerUploadStatus");
   const job = customerJob();
-  const uniqueFiles = Array.from(files).filter((file) => !isDuplicateDocument(job, file, "Customer", docType));
+  const sourceFiles = Array.from(files);
+  const invalidFile = sourceFiles.find((file) => documentValidationError(file));
+  if (invalidFile) {
+    if (status) status.innerHTML = `<div class="empty-state">${escapeHtml(documentValidationError(invalidFile))}</div>`;
+    return;
+  }
+  const uniqueFiles = sourceFiles.filter((file) => !isDuplicateDocument(job, file, "Customer", docType));
   if (status) {
     status.innerHTML = uniqueFiles.length
       ? `<div class="empty-state">Uploading ${uniqueFiles.length} file${uniqueFiles.length === 1 ? "" : "s"}...</div>`
       : `<div class="empty-state">That file is already uploaded for this job.</div>`;
   }
   if (!uniqueFiles.length) return;
-  await Promise.all(uniqueFiles.map((file) => uploadPortalDocument(file, docType)));
+  for (const file of uniqueFiles) {
+    await uploadPortalDocument(file, docType);
+  }
   const updatedStatus = document.getElementById("customerUploadStatus");
   if (updatedStatus) {
     updatedStatus.innerHTML = `<div class="empty-state">Upload complete.</div>`;
@@ -1357,6 +1577,12 @@ async function addDocuments(files, uploadedBy, docType = "Other") {
     job.acceptedEstimate = null;
     job.estimateDecision = null;
     job.viewedEstimateId = null;
+  }
+  const invalidFile = Array.from(files).find((file) => documentValidationError(file));
+  if (invalidFile) {
+    job.timeline.push(documentValidationError(invalidFile));
+    render();
+    return;
   }
   let estimateVersion = docType === "Estimate" ? nextEstimateVersion(job) : null;
   const sourceFiles = Array.from(files).filter((file) => !isDuplicateDocument(job, file, uploadedBy, docType));
@@ -1439,19 +1665,20 @@ async function copyPortalLink() {
   render();
 }
 
-async function archiveDocument(docId) {
+async function setDocumentArchived(docId, archived) {
   const job = selectedJob();
   const doc = job?.documents.find((item) => item.id === docId);
   if (!job || !doc) return;
+  const nextStatus = archived ? "Archived" : doc.type === "Estimate" || doc.uploadedBy === "Contractor" ? "Reviewed" : "New";
   if (backend.live) {
-    const { error } = await backend.client.from("documents").update({ status: "Archived" }).eq("id", docId);
+    const { error } = await backend.client.from("documents").update({ status: nextStatus }).eq("id", docId);
     if (error) throw error;
     await loadLiveState();
     render();
     return;
   }
-  doc.status = "Archived";
-  job.timeline.push(`Archived ${doc.name}`);
+  doc.status = nextStatus;
+  job.timeline.push(`${archived ? "Archived" : "Restored"} ${doc.name}`);
   render();
 }
 
@@ -1591,44 +1818,44 @@ function bindEvents() {
     render();
   });
 
-  els.authForm.addEventListener("submit", async (event) => {
+  els.authForm.addEventListener("submit", (event) => {
     event.preventDefault();
-    if (!backend.client) return;
-    const email = els.authEmail.value.trim();
-    const password = els.authPassword.value;
-    if (!email || !password) {
-      els.backendStatus.textContent = "Enter your email and password.";
-      return;
-    }
-    if (password.length < 6) {
-      els.backendStatus.textContent = "Use at least 6 characters for the password.";
-      return;
-    }
-    const mode = event.submitter?.value || "signin";
-    els.authSubmit.disabled = true;
-    els.authCreate.disabled = true;
-    els.backendStatus.textContent = mode === "signup" ? "Creating your account..." : "Signing in...";
-    const promoCode = normalizePromoCode(els.authPromoCode.value);
-    const { error } = mode === "signup"
-      ? await backend.client.auth.signUp({
-          email,
-          password,
-          options: {
-            emailRedirectTo: window.location.href.split("#")[0],
-            data: {
-              company_name: els.authCompany.value.trim(),
-              promo_code: promoCode,
-            },
-          },
-        })
-      : await backend.client.auth.signInWithPassword({ email, password });
-    els.authSubmit.disabled = false;
-    els.authCreate.disabled = false;
-    els.backendStatus.textContent = error
-      ? publicError(error, "Could not complete sign in.")
-      : mode === "signup"
-        ? "Account created. Check your inbox if email confirmation is requested."
-        : "Signed in.";
+    performAuth().catch((error) => {
+      backend.authBusy = false;
+      renderAuth();
+      els.backendStatus.textContent = publicError(error, "Could not complete sign in.");
+    });
+  });
+
+  els.authSubmit.addEventListener("click", () => {
+    performAuth().catch((error) => {
+      backend.authBusy = false;
+      renderAuth();
+      els.backendStatus.textContent = publicError(error, "Could not complete sign in.");
+    });
+  });
+
+  els.authCreate.addEventListener("click", () => {
+    if (backend.authBusy) return;
+    backend.authMode = backend.authMode === "signup" ? "signin" : "signup";
+    renderAuth();
+  });
+
+  els.forgotPassword.addEventListener("click", () => {
+    sendPasswordReset().catch((error) => {
+      backend.authBusy = false;
+      renderAuth();
+      els.backendStatus.textContent = publicError(error, "Could not send the reset email.");
+    });
+  });
+
+  els.recoveryForm.addEventListener("submit", (event) => {
+    event.preventDefault();
+    saveRecoveryPassword().catch((error) => {
+      backend.authBusy = false;
+      renderAuth();
+      els.backendStatus.textContent = publicError(error, "Could not save the new password.");
+    });
   });
 
   els.signOut.addEventListener("click", async () => {
@@ -1663,10 +1890,21 @@ function bindEvents() {
       render();
     });
     if (action === "copy-portal-link") copyPortalLink();
-    if (action === "archive-document") archiveDocument(actionTarget.dataset.docId).catch((error) => {
+    if (action === "toggle-archived") {
+      const job = selectedJob();
+      if (job) {
+        if (archivedDocumentJobs.has(job.id)) archivedDocumentJobs.delete(job.id);
+        else archivedDocumentJobs.add(job.id);
+        render();
+      }
+    }
+    if (action === "archive-document" || action === "restore-document") setDocumentArchived(
+      actionTarget.dataset.docId,
+      action === "archive-document",
+    ).catch((error) => {
       console.warn("Document archive failed", error);
       const job = selectedJob();
-      if (job) job.timeline.push("Document could not be archived");
+      if (job) job.timeline.push("Document status could not be changed");
       render();
     });
     if (action === "upload-estimate") {
@@ -1715,6 +1953,26 @@ function bindEvents() {
       render();
     });
     els.documentPicker.value = "";
+  });
+
+  els.workspaceForm.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const name = els.workspaceName.value.trim();
+    if (!name) return;
+    if (!backend.live) {
+      els.workspaceStatus.textContent = "Sign in required";
+      return;
+    }
+    els.workspaceStatus.textContent = "Saving";
+    const { data, error } = await backend.client.functions.invoke("workspace-settings", { body: { name } });
+    if (error || !data?.company) {
+      console.warn("Workspace profile save failed", error);
+      els.workspaceStatus.textContent = "Could not save";
+      return;
+    }
+    backend.company.name = data.company.name;
+    els.workspaceStatus.textContent = "Saved";
+    render();
   });
 
   els.billingForm.addEventListener("submit", async (event) => {
