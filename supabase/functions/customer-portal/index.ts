@@ -116,6 +116,7 @@ async function customerSafeJob(supabase: ReturnType<typeof createClient>, job: R
     job_status: job.job_status,
     material_status: job.material_status,
     projected_date: job.projected_date,
+    invoice_url: job.invoice_url,
     customers: customer ? { name: (customer as Record<string, unknown>).name } : null,
     documents: await signedDocuments(supabase, documents),
     estimate_acceptances: decisions,
@@ -145,7 +146,7 @@ serve(async (req) => {
   const tokenHash = await sha256(payload.token);
   const { data: link, error: linkError } = await supabase
     .from("magic_links")
-    .select("*, jobs(id,name,service_address,job_status,material_status,projected_date,customers(name),documents(id,name,document_type,uploaded_by,visibility,status,storage_file_id,storage_url,version,size_bytes,created_at),estimate_acceptances(document_id,decision_status,notes,decided_at,accepted_at))")
+    .select("*, jobs(id,name,service_address,job_status,material_status,projected_date,invoice_url,customers(name),documents(id,name,document_type,uploaded_by,visibility,status,storage_file_id,storage_url,version,size_bytes,created_at),estimate_acceptances(document_id,decision_status,notes,decided_at,accepted_at))")
     .eq("token_hash", tokenHash)
     .gt("expires_at", new Date().toISOString())
     .single();
@@ -158,6 +159,9 @@ serve(async (req) => {
 
   if (action === "decision") {
     if (!payload.documentId || !payload.decision) return jsonResponse(req, { error: "Decision is incomplete" }, 400);
+    if (!["accept", "changes", "reject"].includes(payload.decision)) {
+      return jsonResponse(req, { error: "Decision is invalid" }, 400);
+    }
     const visibleEstimate = ((job.documents || []) as Array<Record<string, unknown>>).find((doc) =>
       doc.id === payload.documentId
       && doc.document_type === "Estimate"
@@ -167,18 +171,32 @@ serve(async (req) => {
     if (!visibleEstimate) return jsonResponse(req, { error: "Estimate not found" }, 404);
     if (payload.notes && payload.notes.length > 2000) return jsonResponse(req, { error: "Response is too long" }, 400);
     const decidedAt = new Date().toISOString();
-    const { error } = await supabase.from("estimate_acceptances").insert({
-      company_id: link.company_id,
-      job_id: link.job_id,
-      customer_id: link.customer_id,
-      document_id: payload.documentId,
-      decision_status: payload.decision,
-      notes: payload.notes?.trim() || null,
-      decided_at: decidedAt,
-      accepted_at: decidedAt,
-      user_agent: req.headers.get("user-agent")?.slice(0, 500) || null,
-    });
+    const { data: acceptance, error } = await supabase
+      .from("estimate_acceptances")
+      .insert({
+        company_id: link.company_id,
+        job_id: link.job_id,
+        customer_id: link.customer_id,
+        document_id: payload.documentId,
+        decision_status: payload.decision,
+        notes: payload.notes?.trim() || null,
+        decided_at: decidedAt,
+        accepted_at: decidedAt,
+        user_agent: req.headers.get("user-agent")?.slice(0, 500) || null,
+      })
+      .select("id")
+      .single();
     if (error) return jsonResponse(req, { error: "Could not save response" }, 500);
+    const nextStatus = payload.decision === "accept"
+      ? "Ready to Schedule"
+      : payload.decision === "changes"
+        ? "Waiting on Customer"
+        : "On Hold";
+    const { error: jobError } = await supabase.from("jobs").update({ job_status: nextStatus }).eq("id", link.job_id);
+    if (jobError) {
+      if (acceptance?.id) await supabase.from("estimate_acceptances").delete().eq("id", acceptance.id);
+      return jsonResponse(req, { error: "Could not update job" }, 500);
+    }
   }
 
   if (action === "upload") {
@@ -234,7 +252,7 @@ serve(async (req) => {
 
   const { data: refreshed, error: refreshError } = await supabase
     .from("jobs")
-    .select("id,name,service_address,job_status,material_status,projected_date,customers(name),documents(id,name,document_type,uploaded_by,visibility,status,storage_file_id,storage_url,version,size_bytes,created_at),estimate_acceptances(document_id,decision_status,notes,decided_at,accepted_at)")
+    .select("id,name,service_address,job_status,material_status,projected_date,invoice_url,customers(name),documents(id,name,document_type,uploaded_by,visibility,status,storage_file_id,storage_url,version,size_bytes,created_at),estimate_acceptances(document_id,decision_status,notes,decided_at,accepted_at)")
     .eq("id", link.job_id)
     .single();
 

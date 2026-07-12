@@ -619,7 +619,7 @@ function mapDbJob(job) {
     internalNotes: job.internal_notes || "",
     customValues: job.custom_values || {},
     documents: (job.documents || []).map(mapDbDocument),
-    timeline: ["Loaded from workspace"],
+    timeline: [],
     estimateAcceptedAt: latestDecision?.decision_status === "accept" ? latestDecision.accepted_at : null,
     acceptedEstimate: latestDecision?.decision_status === "accept" ? {
       id: latestDecision.document_id,
@@ -784,6 +784,16 @@ function escapeHtml(value) {
     .replaceAll("'", "&#039;");
 }
 
+function safeExternalUrl(value) {
+  if (!value) return "";
+  try {
+    const url = new URL(value);
+    return url.protocol === "https:" || url.protocol === "http:" ? url.href : "";
+  } catch {
+    return "";
+  }
+}
+
 function formatDate(value) {
   if (!value) return "Not scheduled";
   const date = new Date(`${value}T12:00:00`);
@@ -799,10 +809,6 @@ function formatFileSize(bytes) {
   if (!bytes) return "Size unavailable";
   if (bytes < 1024 * 1024) return `${Math.max(1, Math.round(bytes / 1024))} KB`;
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-}
-
-function portalUrl(token) {
-  return `service-portal.app/?portal=${token || "not-sent"}`;
 }
 
 function nextEstimateVersion(job) {
@@ -879,6 +885,8 @@ function renderJobDetail() {
   const visibleDocs = activeDocuments.filter((doc) => doc.visibility === "Customer Visible").length;
   const customerDocs = activeDocuments.filter((doc) => doc.uploadedBy === "Customer").length;
   const archivedDocs = job.documents.length - activeDocuments.length;
+  const invoiceUrl = safeExternalUrl(job.invoiceUrl);
+  const billingProvider = state.settings.billingConnected ? state.settings.billingProvider : "Billing not configured";
   els.detailTitle.textContent = job.name;
   els.detailStatus.textContent = job.jobStatus;
   els.jobDetail.classList.remove("empty-state");
@@ -886,7 +894,6 @@ function renderJobDetail() {
     <div class="detail-actions">
       <button class="primary-button" data-action="edit-job" type="button">Edit selected job</button>
       <button class="ghost-button" data-action="send-email" type="button">Send customer email</button>
-      <button class="ghost-button" data-action="copy-portal-link" type="button">Copy link</button>
       <button class="ghost-button" data-action="upload-estimate" type="button">Upload estimate</button>
       <button class="ghost-button" data-action="upload-staff-doc" type="button">Add shared file</button>
     </div>
@@ -907,7 +914,7 @@ function renderJobDetail() {
     </section>
     <section class="plain-section">
       <h3>Billing</h3>
-      <p>${state.settings.billingProvider} / ${job.invoiceUrl ? `<a href="${escapeHtml(job.invoiceUrl)}" target="_blank" rel="noreferrer">Invoice link</a>` : "No invoice linked"}</p>
+      <p>${escapeHtml(billingProvider)} / ${invoiceUrl ? `<a href="${escapeHtml(invoiceUrl)}" target="_blank" rel="noopener noreferrer">Invoice link</a>` : "No invoice linked"}</p>
     </section>
     <section class="plain-section">
       <h3>Custom fields</h3>
@@ -930,11 +937,12 @@ function renderJobDetail() {
       <h3>Internal notes</h3>
       <p>${escapeHtml(job.internalNotes || "No staff-only notes yet.")}</p>
     </section>
-    <section class="plain-section">
-      <h3>Activity</h3>
-      <ol class="timeline">${job.timeline.map((event) => `<li>${escapeHtml(event)}</li>`).join("")}</ol>
-      <p class="fine-print">Last customer email: ${formatDateTime(job.magicLinkLastSent)}</p>
-    </section>
+    ${job.timeline.length ? `
+      <section class="plain-section">
+        <h3>Activity</h3>
+        <ol class="timeline">${job.timeline.map((event) => `<li>${escapeHtml(event)}</li>`).join("")}</ol>
+      </section>
+    ` : ""}
   `;
 }
 
@@ -975,8 +983,9 @@ function renderContractorEstimateStatus(job, estimate) {
 }
 
 function renderDocumentOpenAction(doc, label = "Open file") {
-  if (doc.previewUrl) {
-    return `<a class="document-open-link" href="${escapeHtml(doc.previewUrl)}" target="_blank" rel="noopener">${escapeHtml(label)}</a>`;
+  const previewUrl = safeExternalUrl(doc.previewUrl);
+  if (previewUrl) {
+    return `<a class="document-open-link" href="${escapeHtml(previewUrl)}" target="_blank" rel="noopener noreferrer">${escapeHtml(label)}</a>`;
   }
   if (!backend.live && doc.type === "Estimate" && /pdf/i.test(doc.mimeType || doc.name)) {
     return `<a class="document-open-link" href="assets/mock-estimate.pdf" target="_blank" rel="noopener">${escapeHtml(label)}</a>`;
@@ -1049,8 +1058,9 @@ function renderCustomerUploadList(documents) {
     <div class="document-list uploaded-document-list">
       ${documents
         .map((doc) => {
-          const openLink = doc.previewUrl
-            ? `<a class="document-open-link" href="${escapeHtml(doc.previewUrl)}" target="_blank" rel="noopener">Open file</a>`
+          const previewUrl = safeExternalUrl(doc.previewUrl);
+          const openLink = previewUrl
+            ? `<a class="document-open-link" href="${escapeHtml(previewUrl)}" target="_blank" rel="noopener noreferrer">Open file</a>`
             : "";
           return `
             <div class="document-row">
@@ -1122,6 +1132,7 @@ function renderCustomerPortal() {
   const customerUploads = activeDocuments.filter((doc) => doc.uploadedBy === "Customer");
   const estimate = estimateFor(job);
   const receivedUploads = customerUploads.length;
+  const invoiceUrl = safeExternalUrl(job.invoiceUrl);
   els.customerPortal.innerHTML = `
     <div class="customer-hero">
       <div>
@@ -1136,15 +1147,24 @@ function renderCustomerPortal() {
       <div><span>Projected service date</span><strong>${formatDate(job.projectedDate)}</strong></div>
       <div><span>Uploads received</span><strong>${receivedUploads}</strong></div>
     </div>
+    ${invoiceUrl ? `
+      <section class="plain-section">
+        <h3>Billing</h3>
+        <p>Your contractor has shared an invoice for this job.</p>
+        <a class="primary-button" href="${escapeHtml(invoiceUrl)}" target="_blank" rel="noopener noreferrer">Pay invoice</a>
+      </section>
+    ` : ""}
     <section class="plain-section">
       <h3>Insurance claim</h3>
       <p>Upload the insurance claim packet or letter for this job.</p>
-      <div class="customer-upload-actions">
-        <button class="ghost-button" data-action="customer-upload" data-doc-type="Insurance Claim" type="button">Upload insurance claim</button>
-      </div>
+      ${portalMode.active ? `
+        <div class="customer-upload-actions">
+          <button class="ghost-button" data-action="customer-upload" data-doc-type="Insurance Claim" type="button">Upload insurance claim</button>
+        </div>
+      ` : `<p class="fine-print">Upload controls appear in the secure customer portal sent by email.</p>`}
       <div id="customerUploadStatus"></div>
       ${renderCustomerUploadList(customerUploads)}
-      <p class="fine-print">The contractor will be notified when a claim document is uploaded.</p>
+      <p class="fine-print">The contractor can see uploaded claim documents in this job.</p>
     </section>
     <section class="plain-section estimate-acceptance">
       <h3>Estimate</h3>
@@ -1189,7 +1209,8 @@ function renderEstimateAcceptance(job, estimate) {
   }
   const viewed = job.viewedEstimateId === estimate.id;
   const isPdf = /pdf/i.test(estimate.mimeType || estimate.name);
-  const pdfPreviewUrl = isPdf ? estimate.previewUrl || (!backend.live ? "assets/mock-estimate.pdf" : "") : "";
+  const pdfPreviewUrl = isPdf ? safeExternalUrl(estimate.previewUrl) || (!backend.live ? "assets/mock-estimate.pdf" : "") : "";
+  const uploadedFileUrl = safeExternalUrl(estimate.previewUrl);
   return `
     <p>${escapeHtml(estimate.name)} version ${escapeHtml(estimate.version || 1)} is ready for review.</p>
     <button class="ghost-button" data-action="view-estimate" data-doc-id="${escapeHtml(estimate.id)}" type="button">View estimate</button>
@@ -1202,20 +1223,22 @@ function renderEstimateAcceptance(job, estimate) {
             ${
               pdfPreviewUrl
                 ? `<iframe class="estimate-pdf-frame" src="${escapeHtml(pdfPreviewUrl)}" title="${escapeHtml(estimate.name)} preview"></iframe>`
-                : estimate.previewUrl
-                  ? `<a class="ghost-button" href="${escapeHtml(estimate.previewUrl)}" target="_blank" rel="noopener">Open uploaded file</a>`
+                : uploadedFileUrl
+                  ? `<a class="ghost-button" href="${escapeHtml(uploadedFileUrl)}" target="_blank" rel="noopener noreferrer">Open uploaded file</a>`
                   : `<small>Preview unavailable. Please contact the contractor for the estimate file.</small>`
             }
           </div>
         `
         : `<p class="fine-print">Open the estimate before accepting it.</p>`
     }
-    <div class="estimate-decision-actions">
-      <button class="accept-button" data-action="estimate-decision" data-decision="accept" data-doc-id="${escapeHtml(estimate.id)}" type="button" ${viewed ? "" : "disabled"}>I accept</button>
-      <button class="ghost-button" data-action="estimate-decision" data-decision="changes" data-doc-id="${escapeHtml(estimate.id)}" type="button" ${viewed ? "" : "disabled"}>Accept with changes</button>
-      <button class="danger-button" data-action="estimate-decision" data-decision="reject" data-doc-id="${escapeHtml(estimate.id)}" type="button" ${viewed ? "" : "disabled"}>Do not accept</button>
-      <small>Your response will be saved with this estimate version.</small>
-    </div>
+    ${portalMode.active ? `
+      <div class="estimate-decision-actions">
+        <button class="accept-button" data-action="estimate-decision" data-decision="accept" data-doc-id="${escapeHtml(estimate.id)}" type="button" ${viewed ? "" : "disabled"}>I accept</button>
+        <button class="ghost-button" data-action="estimate-decision" data-decision="changes" data-doc-id="${escapeHtml(estimate.id)}" type="button" ${viewed ? "" : "disabled"}>Accept with changes</button>
+        <button class="danger-button" data-action="estimate-decision" data-decision="reject" data-doc-id="${escapeHtml(estimate.id)}" type="button" ${viewed ? "" : "disabled"}>Do not accept</button>
+        <small>Your response will be saved with this estimate version.</small>
+      </div>
+    ` : `<p class="fine-print">Response controls appear in the secure customer portal sent by email.</p>`}
   `;
 }
 
@@ -1644,27 +1667,6 @@ async function addDocuments(files, uploadedBy, docType = "Other") {
   render();
 }
 
-async function copyPortalLink() {
-  const job = selectedJob();
-  if (!job) return;
-  if (backend.live) {
-    els.backendStatus.textContent = "Use Send customer email for a secure customer access link.";
-    return;
-  }
-  if (state.portalAccess.jobId !== job.id) {
-    activatePortalAccess(job);
-    job.timeline.push("Customer access link created for manual delivery");
-  }
-  const link = portalUrl(state.portalAccess.token);
-  try {
-    await navigator.clipboard.writeText(link);
-    job.timeline.push("Customer access link copied for manual delivery");
-  } catch {
-    job.timeline.push(`Customer access link ready to copy: ${link}`);
-  }
-  render();
-}
-
 async function setDocumentArchived(docId, archived) {
   const job = selectedJob();
   const doc = job?.documents.find((item) => item.id === docId);
@@ -1715,6 +1717,8 @@ async function acceptEstimate(docId) {
       user_agent: navigator.userAgent,
     });
     if (error) throw error;
+    const { error: jobError } = await backend.client.from("jobs").update({ job_status: "Ready to Schedule" }).eq("id", job.id);
+    if (jobError) throw jobError;
   }
   job.estimateAcceptedAt = new Date().toISOString();
   job.acceptedEstimate = {
@@ -1767,6 +1771,9 @@ async function recordEstimateDecision(docId, decision, notes = "") {
       user_agent: navigator.userAgent,
     });
     if (error) throw error;
+    const nextStatus = decision === "changes" ? "Waiting on Customer" : "On Hold";
+    const { error: jobError } = await backend.client.from("jobs").update({ job_status: nextStatus }).eq("id", job.id);
+    if (jobError) throw jobError;
   }
   job.estimateDecision = {
     documentId: estimate.id,
@@ -1778,7 +1785,7 @@ async function recordEstimateDecision(docId, decision, notes = "") {
   };
   job.estimateAcceptedAt = null;
   job.acceptedEstimate = null;
-  job.jobStatus = decision === "changes" ? "Changes Requested" : "Estimate Not Accepted";
+  job.jobStatus = decision === "changes" ? "Waiting on Customer" : "On Hold";
   job.timeline.push(
     decision === "changes"
       ? `Customer accepted estimate version ${estimate.version || 1} with requested changes`
@@ -1889,7 +1896,6 @@ function bindEvents() {
       selectedJob().timeline.push("Customer email could not be sent");
       render();
     });
-    if (action === "copy-portal-link") copyPortalLink();
     if (action === "toggle-archived") {
       const job = selectedJob();
       if (job) {
@@ -2114,16 +2120,27 @@ function bindEvents() {
 
   els.deleteJob.addEventListener("click", async () => {
     const id = els.jobId.value;
+    const job = state.jobs.find((item) => item.id === id);
+    if (!job) return;
+    if (!window.confirm(`Delete "${job.name}" and all of its records? This cannot be undone.`)) return;
     if (backend.live) {
+      const storagePaths = job.documents.map((doc) => doc.storagePath).filter(Boolean);
       const { error } = await backend.client.from("jobs").delete().eq("id", id);
       if (error) {
         console.warn("Job delete failed", error);
         els.backendStatus.textContent = "Could not delete the job.";
         return;
       }
+      let storageWarning = false;
+      if (storagePaths.length) {
+        const { error: storageError } = await backend.client.storage.from(DOCUMENT_BUCKET).remove(storagePaths);
+        storageWarning = Boolean(storageError);
+        if (storageError) console.warn("Job files could not be removed", storageError);
+      }
       els.jobDialog.close();
       await loadLiveState();
       render();
+      if (storageWarning) window.alert("The job was deleted, but some uploaded files could not be removed. Please contact support.");
       return;
     }
     state.jobs = state.jobs.filter((job) => job.id !== id);
