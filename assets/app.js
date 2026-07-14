@@ -321,6 +321,20 @@ function publicError(error, fallback = "Could not complete. Please try again.") 
   return fallback;
 }
 
+async function edgeFunctionErrorMessage(error, fallback) {
+  const response = error?.context;
+  if (response?.json) {
+    try {
+      const readableResponse = response.clone ? response.clone() : response;
+      const body = await readableResponse.json();
+      if (body?.error) return String(body.error);
+    } catch {
+      // Fall through to the standard public error below.
+    }
+  }
+  return publicError(error, fallback);
+}
+
 function isRecoveryRequest() {
   const locationText = `${window.location.search}${window.location.hash}`;
   const hasAuthCode = new URLSearchParams(window.location.search).has("code");
@@ -1521,10 +1535,11 @@ async function sendCustomerAccessEmail() {
       body: { jobId: job.id },
     });
     if (error) {
+      const message = await edgeFunctionErrorMessage(error, "Customer email could not be sent.");
       console.warn("Customer email failed", error);
       job.timeline.push("Customer email could not be sent");
-      job.actionMessage = "Customer email could not be sent. Please wait a minute and try again.";
-      showToast("Customer email could not be sent.", "error");
+      job.actionMessage = message;
+      showToast(message, "error");
     } else {
       job.magicLinkLastSent = new Date().toISOString();
       job.timeline.push(`Customer access email sent to ${job.customerEmail}`);

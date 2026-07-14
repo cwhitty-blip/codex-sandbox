@@ -57,6 +57,31 @@ function serviceRoleKey() {
   return Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
 }
 
+function classifyResendFailure(status: number, body: string) {
+  if (status === 429) {
+    return {
+      code: "resend_rate_limited",
+      message: "Email service is temporarily busy. Please wait a minute and try again.",
+    };
+  }
+  if (/testing emails|verify(?: a| your)? domain|domain is not verified/i.test(body)) {
+    return {
+      code: "resend_sender_not_verified",
+      message: "Resend rejected the sender address. Verify a sending domain in Resend, then try again.",
+    };
+  }
+  if (/api key|invalid_api_key|unauthorized/i.test(body)) {
+    return {
+      code: "resend_api_key_invalid",
+      message: "Email service authentication failed. Update the Resend API key, then try again.",
+    };
+  }
+  return {
+    code: "resend_rejected",
+    message: "The email provider rejected the message. Check the Resend activity log and try again.",
+  };
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { status: 204, headers: corsHeaders(req) });
   if (req.method !== "POST") return jsonResponse(req, { error: "Method not allowed" }, 405);
@@ -156,8 +181,15 @@ serve(async (req) => {
   });
 
   if (!emailResult.ok) {
+    const resendBody = await emailResult.text();
+    const failure = classifyResendFailure(emailResult.status, resendBody);
+    console.error("Resend email rejected", {
+      status: emailResult.status,
+      reason: failure.code,
+      recipientDomain: customer.email.split("@")[1] || "unknown",
+    });
     await supabase.from("magic_links").delete().eq("id", newLink.id);
-    return jsonResponse(req, { error: "Email could not be sent" }, 502);
+    return jsonResponse(req, { error: failure.message, code: failure.code }, 502);
   }
 
   await supabase
