@@ -145,6 +145,7 @@ const backend = {
   loading: false,
   authMode: "signin",
   authBusy: false,
+  authFeedback: null,
   recovery: false,
 };
 
@@ -152,6 +153,8 @@ const portalMode = {
   active: false,
   token: "",
 };
+
+let toastTimer = null;
 
 const els = {
   tabs: document.querySelectorAll(".nav-tab"),
@@ -176,7 +179,6 @@ const els = {
   customerJobList: document.getElementById("customerJobList"),
   customerPortal: document.getElementById("customerPortal"),
   billingStatus: document.getElementById("billingStatus"),
-  betaChecklist: document.getElementById("betaChecklist"),
   billingForm: document.getElementById("billingForm"),
   billingProvider: document.getElementById("billingProvider"),
   billingAccount: document.getElementById("billingAccount"),
@@ -238,6 +240,7 @@ const els = {
   promoForm: document.getElementById("promoForm"),
   promoCode: document.getElementById("promoCode"),
   checkoutButton: document.getElementById("checkoutButton"),
+  toastRegion: document.getElementById("toastRegion"),
 };
 
 function loadState() {
@@ -294,8 +297,19 @@ function saveState() {
 }
 
 function backendConfigured() {
+  if (localDemoMode()) return false;
   const config = window.SERVICE_PORTAL_CONFIG;
   return Boolean(config?.supabaseUrl && config?.supabasePublishableKey && window.supabase?.createClient);
+}
+
+function localDemoMode() {
+  return ["localhost", "127.0.0.1"].includes(window.location.hostname)
+    && new URLSearchParams(window.location.search).has("demo");
+}
+
+function localAuthPreviewMode() {
+  return ["localhost", "127.0.0.1"].includes(window.location.hostname)
+    && new URLSearchParams(window.location.search).has("authPreview");
 }
 
 function publicError(error, fallback = "Could not complete. Please try again.") {
@@ -319,8 +333,18 @@ function setContractorLock(locked) {
 }
 
 function renderAuth() {
+  queueMicrotask(refreshIcons);
   if (portalMode.active) {
     document.body.classList.add("customer-portal-mode");
+    setContractorLock(false);
+    els.authPanel.hidden = true;
+    els.authForm.hidden = true;
+    els.signOut.hidden = true;
+    return;
+  }
+
+  if (localDemoMode()) {
+    document.body.classList.add("service-portal-signed-in");
     setContractorLock(false);
     els.authPanel.hidden = true;
     els.authForm.hidden = true;
@@ -372,22 +396,41 @@ function renderAuth() {
   } else if (backend.authMode === "signup") {
     els.authStatus.textContent = "Create contractor account";
     els.backendStatus.textContent = "Enter your email and choose a password.";
-    els.authSubmit.textContent = "Create account";
+    setButtonLabel(els.authSubmit, "user-plus", "Create account");
     els.authSubmit.value = "signup";
-    els.authCreate.textContent = "Back to sign in";
+    setButtonLabel(els.authCreate, "arrow-left", "Back to sign in");
     els.authPassword.autocomplete = "new-password";
   } else {
     els.authStatus.textContent = "Contractor sign in";
     els.backendStatus.textContent = "Enter your contractor email and password.";
-    els.authSubmit.textContent = "Sign in";
+    setButtonLabel(els.authSubmit, "log-in", "Sign in");
     els.authSubmit.value = "signin";
-    els.authCreate.textContent = "Create account";
+    setButtonLabel(els.authCreate, "user-plus", "Create account");
     els.authPassword.autocomplete = "current-password";
+  }
+  if (backend.authFeedback) {
+    els.authStatus.textContent = backend.authFeedback.title;
+    els.backendStatus.textContent = backend.authFeedback.message;
   }
   els.signOut.hidden = true;
 }
 
 async function initBackend() {
+  if (localAuthPreviewMode()) {
+    backend.loading = false;
+    backend.live = false;
+    backend.user = null;
+    backend.company = null;
+    renderAuth();
+    return;
+  }
+  if (localDemoMode() && new URLSearchParams(window.location.search).has("portalPreview")) {
+    portalMode.active = true;
+    portalMode.token = "local-preview";
+    activateCustomerPortalView();
+    render();
+    return;
+  }
   if (!backendConfigured()) {
     renderAuth();
     return;
@@ -438,6 +481,7 @@ async function initBackend() {
       backend.user = null;
       backend.company = null;
       backend.live = false;
+      backend.authFeedback = null;
       localStorage.removeItem(STORAGE_KEY);
       document.body.classList.remove("service-portal-signed-in");
       renderAuth();
@@ -459,6 +503,7 @@ async function performAuth(mode = backend.authMode) {
     return;
   }
 
+  backend.authFeedback = null;
   backend.authBusy = true;
   renderAuth();
   els.backendStatus.textContent = mode === "signup" ? "Creating your account..." : "Signing in...";
@@ -474,18 +519,24 @@ async function performAuth(mode = backend.authMode) {
   backend.authBusy = false;
 
   if (result.error) {
+    backend.authFeedback = {
+      title: mode === "signup" ? "Could not create account" : "Could not complete sign in",
+      message: publicError(
+        result.error,
+        mode === "signup" ? "Could not create the account." : "Could not complete sign in.",
+      ),
+    };
     renderAuth();
-    els.backendStatus.textContent = publicError(
-      result.error,
-      mode === "signup" ? "Could not create the account." : "Could not complete sign in.",
-    );
     return;
   }
 
   if (mode === "signup" && !result.data.session) {
     backend.authMode = "signin";
+    backend.authFeedback = {
+      title: "Account created",
+      message: "Check your email once to confirm it, then sign in.",
+    };
     renderAuth();
-    els.backendStatus.textContent = "Account created. Check your email once to confirm it, then sign in.";
     return;
   }
 
@@ -499,6 +550,7 @@ async function sendPasswordReset() {
     els.backendStatus.textContent = "Enter your contractor email first.";
     return;
   }
+  backend.authFeedback = null;
   backend.authBusy = true;
   renderAuth();
   els.backendStatus.textContent = "Sending password reset email...";
@@ -506,10 +558,13 @@ async function sendPasswordReset() {
   const { error } = await backend.client.auth.resetPasswordForEmail(email, { redirectTo });
   backend.authBusy = false;
   if (!error) window.localStorage.setItem("servicePortalPasswordResetPending", "true");
+  backend.authFeedback = {
+    title: error ? "Reset failed" : "Reset email sent",
+    message: error
+      ? publicError(error, "Could not send the reset email.")
+      : "Open the link in that email to choose a new password.",
+  };
   renderAuth();
-  els.backendStatus.textContent = error
-    ? publicError(error, "Could not send the reset email.")
-    : "Reset email sent. Open the link in that email.";
 }
 
 async function saveRecoveryPassword() {
@@ -552,18 +607,18 @@ async function handleSession(session) {
     await ensureCompany();
     await loadLiveState();
     backend.live = true;
+    backend.authFeedback = null;
     localStorage.removeItem(STORAGE_KEY);
     document.body.classList.add("service-portal-signed-in");
   } catch (error) {
     console.warn("Live workspace setup failed.", error);
     backend.company = null;
     backend.live = false;
+    backend.authFeedback = {
+      title: "Could not complete sign in",
+      message: "Could not finish setting up the workspace. Please try again.",
+    };
     document.body.classList.remove("service-portal-signed-in");
-    els.authPanel.hidden = false;
-    els.authForm.hidden = false;
-    els.signOut.hidden = true;
-    els.authStatus.textContent = "Setup needed";
-    els.backendStatus.textContent = "Could not load the workspace. Please try again.";
   } finally {
     backend.loading = false;
     renderAuth();
@@ -641,6 +696,8 @@ function mapDbJob(job) {
 }
 
 async function loadLiveState() {
+  const previousSelectedJobId = selectedJobId;
+  const previousPortalJobId = state.portalAccess.jobId;
   const companyId = backend.company.id;
   const [{ data: company, error: companyError }, { data: fields, error: fieldsError }, { data: jobs, error: jobsError }] =
     await Promise.all([
@@ -678,8 +735,12 @@ async function loadLiveState() {
   };
   state.jobs = (jobs || []).map(mapDbJob);
   await hydrateDocumentUrls();
-  selectedJobId = state.jobs[0]?.id || null;
-  state.portalAccess.jobId = selectedJobId;
+  selectedJobId = state.jobs.some((job) => job.id === previousSelectedJobId)
+    ? previousSelectedJobId
+    : state.jobs[0]?.id || null;
+  state.portalAccess.jobId = state.jobs.some((job) => job.id === previousPortalJobId)
+    ? previousPortalJobId
+    : selectedJobId;
 }
 
 async function hydrateDocumentUrls() {
@@ -784,6 +845,34 @@ function escapeHtml(value) {
     .replaceAll("'", "&#039;");
 }
 
+function iconMarkup(name) {
+  return `<i data-lucide="${escapeHtml(name)}" aria-hidden="true"></i>`;
+}
+
+function refreshIcons() {
+  if (window.lucide?.createIcons) window.lucide.createIcons();
+}
+
+function setButtonLabel(button, icon, label) {
+  button.innerHTML = `${iconMarkup(icon)}<span>${escapeHtml(label)}</span>`;
+}
+
+function showToast(message, tone = "info") {
+  if (!els.toastRegion) return;
+  window.clearTimeout(toastTimer);
+  const icon = tone === "success" ? "check-circle-2" : tone === "error" ? "circle-alert" : "info";
+  els.toastRegion.innerHTML = `
+    <div class="toast ${escapeHtml(tone)}">
+      ${iconMarkup(icon)}
+      <span>${escapeHtml(message)}</span>
+    </div>
+  `;
+  refreshIcons();
+  toastTimer = window.setTimeout(() => {
+    els.toastRegion.innerHTML = "";
+  }, 4200);
+}
+
 function safeExternalUrl(value) {
   if (!value) return "";
   try {
@@ -841,6 +930,7 @@ function render() {
   renderCustomerAccessSummary();
   renderCustomerPortal();
   renderSettings();
+  refreshIcons();
 }
 
 function renderMetrics() {
@@ -851,15 +941,16 @@ function renderMetrics() {
 
 function renderJobs() {
   const jobs = state.jobs;
+  els.quickUpdateJob.disabled = jobs.length === 0;
   els.jobList.innerHTML = jobs
     .map(
       (job) => `
-        <button class="job-row ${job.id === selectedJobId ? "active" : ""}" data-job-id="${job.id}" type="button">
+        <button class="job-row ${job.id === selectedJobId ? "active" : ""}" data-job-id="${job.id}" type="button" aria-pressed="${job.id === selectedJobId}">
           <span>
             <strong>${escapeHtml(job.name)}</strong>
             <small>${escapeHtml(job.customerName)}</small>
           </span>
-          <em>${escapeHtml(job.jobStatus)}</em>
+          <em class="job-status" data-status="${escapeHtml(job.jobStatus)}">${escapeHtml(job.jobStatus)}</em>
         </button>
       `,
     )
@@ -875,6 +966,8 @@ function renderJobDetail() {
   if (!job) {
     els.detailTitle.textContent = "No jobs yet";
     els.detailStatus.textContent = "Empty";
+    els.detailStatus.dataset.status = "Empty";
+    els.jobDetail.classList.add("empty-state");
     els.jobDetail.innerHTML = "Start a job to create the first customer portal.";
     return;
   }
@@ -889,15 +982,16 @@ function renderJobDetail() {
   const billingProvider = state.settings.billingConnected ? state.settings.billingProvider : "Billing not configured";
   els.detailTitle.textContent = job.name;
   els.detailStatus.textContent = job.jobStatus;
+  els.detailStatus.dataset.status = job.jobStatus;
   els.jobDetail.classList.remove("empty-state");
   els.jobDetail.innerHTML = `
     <div class="detail-actions">
-      <button class="primary-button" data-action="edit-job" type="button">Edit selected job</button>
-      <button class="ghost-button" data-action="send-email" type="button">Send customer email</button>
-      <button class="ghost-button" data-action="upload-estimate" type="button">Upload estimate</button>
-      <button class="ghost-button" data-action="upload-staff-doc" type="button">Add shared file</button>
+      <button class="primary-button" data-action="edit-job" type="button">${iconMarkup("pencil-line")}<span>Edit job</span></button>
+      <button class="ghost-button" data-action="send-email" type="button">${iconMarkup("mail")}<span>Email customer</span></button>
+      <button class="ghost-button" data-action="upload-estimate" type="button">${iconMarkup("file-up")}<span>Upload estimate</span></button>
+      <button class="ghost-button" data-action="upload-staff-doc" type="button">${iconMarkup("paperclip")}<span>Add shared file</span></button>
     </div>
-    ${job.actionMessage ? `<div class="action-feedback" role="status">${escapeHtml(job.actionMessage)}</div>` : ""}
+    ${job.actionMessage ? `<div class="action-feedback" role="status">${iconMarkup("info")}<span>${escapeHtml(job.actionMessage)}</span></div>` : ""}
     <div class="stat-grid">
       <div><span>Customer</span><strong>${escapeHtml(job.customerName)}</strong></div>
       <div><span>Projected service date</span><strong>${formatDate(job.projectedDate)}</strong></div>
@@ -927,7 +1021,7 @@ function renderJobDetail() {
       ${archivedDocuments.length ? `
         <div class="archive-tools">
           <button class="text-button" data-action="toggle-archived" type="button">
-            ${archivedDocumentJobs.has(job.id) ? "Hide" : "Show"} archived files (${archivedDocuments.length})
+            ${iconMarkup(archivedDocumentJobs.has(job.id) ? "archive-x" : "archive")}<span>${archivedDocumentJobs.has(job.id) ? "Hide" : "Show"} archived files (${archivedDocuments.length})</span>
           </button>
           ${archivedDocumentJobs.has(job.id) ? `<div class="document-list">${renderDocumentList(archivedDocuments, true)}</div>` : ""}
         </div>
@@ -985,10 +1079,10 @@ function renderContractorEstimateStatus(job, estimate) {
 function renderDocumentOpenAction(doc, label = "Open file") {
   const previewUrl = safeExternalUrl(doc.previewUrl);
   if (previewUrl) {
-    return `<a class="document-open-link" href="${escapeHtml(previewUrl)}" target="_blank" rel="noopener noreferrer">${escapeHtml(label)}</a>`;
+    return `<a class="document-open-link" href="${escapeHtml(previewUrl)}" target="_blank" rel="noopener noreferrer">${iconMarkup("external-link")}<span>${escapeHtml(label)}</span></a>`;
   }
   if (!backend.live && doc.type === "Estimate" && /pdf/i.test(doc.mimeType || doc.name)) {
-    return `<a class="document-open-link" href="assets/mock-estimate.pdf" target="_blank" rel="noopener">${escapeHtml(label)}</a>`;
+    return `<a class="document-open-link" href="assets/mock-estimate.pdf" target="_blank" rel="noopener">${iconMarkup("external-link")}<span>${escapeHtml(label)}</span></a>`;
   }
   if (doc.storagePath) {
     return `<span class="document-pending-link">Preparing file link</span>`;
@@ -1022,7 +1116,7 @@ function renderDocumentList(documents, archived = false) {
           <span class="document-row-actions">
             ${fileAction}
             <em>${escapeHtml(doc.status)}</em>
-            <button class="text-button document-archive-button" data-action="${archived ? "restore-document" : "archive-document"}" data-doc-id="${escapeHtml(doc.id)}" type="button">${archived ? "Restore" : "Archive"}</button>
+            <button class="text-button document-archive-button" data-action="${archived ? "restore-document" : "archive-document"}" data-doc-id="${escapeHtml(doc.id)}" type="button">${iconMarkup(archived ? "archive-restore" : "archive")}<span>${archived ? "Restore" : "Archive"}</span></button>
           </span>
         </div>
       `;
@@ -1060,7 +1154,7 @@ function renderCustomerUploadList(documents) {
         .map((doc) => {
           const previewUrl = safeExternalUrl(doc.previewUrl);
           const openLink = previewUrl
-            ? `<a class="document-open-link" href="${escapeHtml(previewUrl)}" target="_blank" rel="noopener noreferrer">Open file</a>`
+            ? `<a class="document-open-link" href="${escapeHtml(previewUrl)}" target="_blank" rel="noopener noreferrer">${iconMarkup("external-link")}<span>Open file</span></a>`
             : "";
           return `
             <div class="document-row">
@@ -1108,12 +1202,12 @@ function renderCustomerJobSelector() {
     ? state.jobs
         .map(
           (job) => `
-            <button class="job-row ${job.id === state.portalAccess.jobId ? "active" : ""}" data-customer-job-id="${escapeHtml(job.id)}" type="button">
+            <button class="job-row ${job.id === state.portalAccess.jobId ? "active" : ""}" data-customer-job-id="${escapeHtml(job.id)}" type="button" aria-pressed="${job.id === state.portalAccess.jobId}">
               <span>
                 <strong>${escapeHtml(job.name)}</strong>
                 <small>${escapeHtml(job.customerName)}</small>
               </span>
-              <em>${escapeHtml(job.jobStatus)}</em>
+              <em class="job-status" data-status="${escapeHtml(job.jobStatus)}">${escapeHtml(job.jobStatus)}</em>
             </button>
           `,
         )
@@ -1140,7 +1234,7 @@ function renderCustomerPortal() {
         <h2>${escapeHtml(job.name)}</h2>
         <p>${escapeHtml(job.serviceAddress)}</p>
       </div>
-      <span class="status-pill">${escapeHtml(job.jobStatus)}</span>
+      <span class="status-pill" data-status="${escapeHtml(job.jobStatus)}">${escapeHtml(job.jobStatus)}</span>
     </div>
     <div class="stat-grid">
       <div><span>Material or parts status</span><strong>${escapeHtml(job.materialStatus)}</strong></div>
@@ -1151,7 +1245,7 @@ function renderCustomerPortal() {
       <section class="plain-section">
         <h3>Billing</h3>
         <p>Your contractor has shared an invoice for this job.</p>
-        <a class="primary-button" href="${escapeHtml(invoiceUrl)}" target="_blank" rel="noopener noreferrer">Pay invoice</a>
+        <a class="primary-button" href="${escapeHtml(invoiceUrl)}" target="_blank" rel="noopener noreferrer">${iconMarkup("credit-card")}<span>Pay invoice</span></a>
       </section>
     ` : ""}
     <section class="plain-section">
@@ -1159,7 +1253,7 @@ function renderCustomerPortal() {
       <p>Upload the insurance claim packet or letter for this job.</p>
       ${portalMode.active ? `
         <div class="customer-upload-actions">
-          <button class="ghost-button" data-action="customer-upload" data-doc-type="Insurance Claim" type="button">Upload insurance claim</button>
+          <button class="ghost-button" data-action="customer-upload" data-doc-type="Insurance Claim" type="button">${iconMarkup("upload")}<span>Upload insurance claim</span></button>
         </div>
       ` : `<p class="fine-print">Upload controls appear in the secure customer portal sent by email.</p>`}
       <div id="customerUploadStatus"></div>
@@ -1213,7 +1307,7 @@ function renderEstimateAcceptance(job, estimate) {
   const uploadedFileUrl = safeExternalUrl(estimate.previewUrl);
   return `
     <p>${escapeHtml(estimate.name)} version ${escapeHtml(estimate.version || 1)} is ready for review.</p>
-    <button class="ghost-button" data-action="view-estimate" data-doc-id="${escapeHtml(estimate.id)}" type="button">View estimate</button>
+    <button class="ghost-button" data-action="view-estimate" data-doc-id="${escapeHtml(estimate.id)}" type="button">${iconMarkup("eye")}<span>View estimate</span></button>
     ${
       viewed
         ? `
@@ -1224,7 +1318,7 @@ function renderEstimateAcceptance(job, estimate) {
               pdfPreviewUrl
                 ? `<iframe class="estimate-pdf-frame" src="${escapeHtml(pdfPreviewUrl)}" title="${escapeHtml(estimate.name)} preview"></iframe>`
                 : uploadedFileUrl
-                  ? `<a class="ghost-button" href="${escapeHtml(uploadedFileUrl)}" target="_blank" rel="noopener noreferrer">Open uploaded file</a>`
+                  ? `<a class="ghost-button" href="${escapeHtml(uploadedFileUrl)}" target="_blank" rel="noopener noreferrer">${iconMarkup("external-link")}<span>Open uploaded file</span></a>`
                   : `<small>Preview unavailable. Please contact the contractor for the estimate file.</small>`
             }
           </div>
@@ -1233,9 +1327,9 @@ function renderEstimateAcceptance(job, estimate) {
     }
     ${portalMode.active ? `
       <div class="estimate-decision-actions">
-        <button class="accept-button" data-action="estimate-decision" data-decision="accept" data-doc-id="${escapeHtml(estimate.id)}" type="button" ${viewed ? "" : "disabled"}>I accept</button>
-        <button class="ghost-button" data-action="estimate-decision" data-decision="changes" data-doc-id="${escapeHtml(estimate.id)}" type="button" ${viewed ? "" : "disabled"}>Accept with changes</button>
-        <button class="danger-button" data-action="estimate-decision" data-decision="reject" data-doc-id="${escapeHtml(estimate.id)}" type="button" ${viewed ? "" : "disabled"}>Do not accept</button>
+        <button class="accept-button" data-action="estimate-decision" data-decision="accept" data-doc-id="${escapeHtml(estimate.id)}" type="button" ${viewed ? "" : "disabled"}>${iconMarkup("check")}<span>I accept</span></button>
+        <button class="ghost-button" data-action="estimate-decision" data-decision="changes" data-doc-id="${escapeHtml(estimate.id)}" type="button" ${viewed ? "" : "disabled"}>${iconMarkup("message-square-text")}<span>Accept with changes</span></button>
+        <button class="danger-button" data-action="estimate-decision" data-decision="reject" data-doc-id="${escapeHtml(estimate.id)}" type="button" ${viewed ? "" : "disabled"}>${iconMarkup("x-circle")}<span>Do not accept</span></button>
         <small>Your response will be saved with this estimate version.</small>
       </div>
     ` : `<p class="fine-print">Response controls appear in the secure customer portal sent by email.</p>`}
@@ -1251,7 +1345,6 @@ function renderSettings() {
   els.billingSync.value = state.settings.billingSync;
   els.billingStatus.textContent = state.settings.billingConnected ? "Preference saved" : "Not connected";
   renderSubscriptionSettings();
-  renderBetaChecklist();
   els.fieldCount.textContent = String(state.settings.customFields.length);
   els.customFieldList.innerHTML = state.settings.customFields.length
     ? state.settings.customFields
@@ -1262,7 +1355,7 @@ function renderSettings() {
                 <strong>${escapeHtml(field.label)}</strong>
                 <small>${escapeHtml(field.type)}${field.options.length ? ` / ${escapeHtml(field.options.join(", "))}` : ""}</small>
               </span>
-              <button class="ghost-button" data-field-id="${field.id}" type="button">Remove</button>
+              <button class="ghost-button" data-field-id="${field.id}" type="button">${iconMarkup("trash-2")}<span>Remove</span></button>
             </div>
           `,
         )
@@ -1297,49 +1390,8 @@ function renderSubscriptionSettings() {
       <strong>Free early access</strong>
       <small>No payment is collected in this version.</small>
     </span>
-    <small>Wave subscription infrastructure is prepared but remains disabled during early access.</small>
+    <small>We will give advance notice before any paid plan begins.</small>
   `;
-}
-
-function renderBetaChecklist() {
-  if (!els.betaChecklist) return;
-  const jobs = state.jobs || [];
-  const activeDocs = jobs.flatMap((job) => job.documents || []).filter((doc) => doc.status !== "Archived");
-  const checks = [
-    {
-      label: "At least one job created",
-      done: jobs.length > 0,
-      detail: `${jobs.length} job${jobs.length === 1 ? "" : "s"} in this workspace`,
-    },
-    {
-      label: "Customer emails added",
-      done: jobs.length > 0 && jobs.every((job) => Boolean(job.customerEmail)),
-      detail: jobs.some((job) => !job.customerEmail) ? "Add an email before sending access" : "Ready to send customer access",
-    },
-    {
-      label: "Estimate uploaded",
-      done: activeDocs.some((doc) => doc.type === "Estimate"),
-      detail: "Needed before customers can review pricing",
-    },
-    {
-      label: "Customer upload tested",
-      done: activeDocs.some((doc) => doc.uploadedBy === "Customer"),
-      detail: "Insurance claim upload should appear for the contractor",
-    },
-    {
-      label: "Duplicate cleanup ready",
-      done: true,
-      detail: "Exact duplicate uploads are skipped; old duplicates can be archived",
-    },
-  ];
-  els.betaChecklist.innerHTML = checks.map((check) => `
-    <div class="custom-field-row checklist-row ${check.done ? "complete" : ""}">
-      <span>
-        <strong>${check.done ? "Ready" : "Needs check"}: ${escapeHtml(check.label)}</strong>
-        <small>${escapeHtml(check.detail)}</small>
-      </span>
-    </div>
-  `).join("");
 }
 
 function renderCustomFieldInputs(job = null) {
@@ -1472,16 +1524,19 @@ async function sendCustomerAccessEmail() {
       console.warn("Customer email failed", error);
       job.timeline.push("Customer email could not be sent");
       job.actionMessage = "Customer email could not be sent. Please wait a minute and try again.";
+      showToast("Customer email could not be sent.", "error");
     } else {
       job.magicLinkLastSent = new Date().toISOString();
       job.timeline.push(`Customer access email sent to ${job.customerEmail}`);
       job.actionMessage = `Customer email sent to ${job.customerEmail}.`;
+      showToast(`Customer email sent to ${job.customerEmail}.`, "success");
     }
     render();
     return;
   }
   activatePortalAccess(job, "email");
   job.timeline.push(`Customer access email prepared for ${job.customerEmail}`);
+  showToast("Customer email prepared in preview mode.", "success");
   render();
 }
 
@@ -1604,6 +1659,7 @@ async function addDocuments(files, uploadedBy, docType = "Other") {
   const invalidFile = Array.from(files).find((file) => documentValidationError(file));
   if (invalidFile) {
     job.timeline.push(documentValidationError(invalidFile));
+    showToast(documentValidationError(invalidFile), "error");
     render();
     return;
   }
@@ -1611,6 +1667,7 @@ async function addDocuments(files, uploadedBy, docType = "Other") {
   const sourceFiles = Array.from(files).filter((file) => !isDuplicateDocument(job, file, uploadedBy, docType));
   if (!sourceFiles.length) {
     job.timeline.push("Duplicate upload skipped");
+    showToast("That file is already uploaded for this job.", "info");
     render();
     return;
   }
@@ -1652,6 +1709,7 @@ async function addDocuments(files, uploadedBy, docType = "Other") {
     );
     if (error) throw error;
     await loadLiveState();
+    showToast(`${docs.length} file${docs.length === 1 ? "" : "s"} uploaded.`, "success");
     render();
     return;
   }
@@ -1664,6 +1722,7 @@ async function addDocuments(files, uploadedBy, docType = "Other") {
   } else {
     job.timeline.push(`${uploadedBy} uploaded ${files.length} document${files.length === 1 ? "" : "s"}`);
   }
+  showToast(`${docs.length} file${docs.length === 1 ? "" : "s"} uploaded.`, "success");
   render();
 }
 
@@ -1676,11 +1735,13 @@ async function setDocumentArchived(docId, archived) {
     const { error } = await backend.client.from("documents").update({ status: nextStatus }).eq("id", docId);
     if (error) throw error;
     await loadLiveState();
+    showToast(`${archived ? "Archived" : "Restored"} ${doc.name}.`, "success");
     render();
     return;
   }
   doc.status = nextStatus;
   job.timeline.push(`${archived ? "Archived" : "Restored"} ${doc.name}`);
+  showToast(`${archived ? "Archived" : "Restored"} ${doc.name}.`, "success");
   render();
 }
 
@@ -1799,8 +1860,14 @@ async function recordEstimateDecision(docId, decision, notes = "") {
 
 function bindEvents() {
   function setView(viewName) {
-    els.tabs.forEach((item) => item.classList.toggle("active", item.dataset.view === viewName));
+    els.tabs.forEach((item) => {
+      const active = item.dataset.view === viewName;
+      item.classList.toggle("active", active);
+      if (active) item.setAttribute("aria-current", "page");
+      else item.removeAttribute("aria-current");
+    });
     els.settingsGear.classList.toggle("active", viewName === "settings");
+    els.settingsGear.setAttribute("aria-pressed", String(viewName === "settings"));
     Object.entries(els.views).forEach(([view, node]) => node.classList.toggle("active", view === viewName));
     els.viewTitle.textContent = viewName === "dashboard" ? "Jobs" : viewName === "customer" ? "Customer View" : "Setup";
   }
@@ -1844,6 +1911,7 @@ function bindEvents() {
 
   els.authCreate.addEventListener("click", () => {
     if (backend.authBusy) return;
+    backend.authFeedback = null;
     backend.authMode = backend.authMode === "signup" ? "signin" : "signup";
     renderAuth();
   });
@@ -1894,6 +1962,7 @@ function bindEvents() {
     if (action === "send-email") sendCustomerAccessEmail().catch((error) => {
       console.warn("Customer email failed", error);
       selectedJob().timeline.push("Customer email could not be sent");
+      showToast("Customer email could not be sent.", "error");
       render();
     });
     if (action === "toggle-archived") {
@@ -1911,6 +1980,7 @@ function bindEvents() {
       console.warn("Document archive failed", error);
       const job = selectedJob();
       if (job) job.timeline.push("Document status could not be changed");
+      showToast("Could not change the document status.", "error");
       render();
     });
     if (action === "upload-estimate") {
@@ -1926,23 +1996,25 @@ function bindEvents() {
   });
 
   els.customerPortal.addEventListener("click", (event) => {
-    if (event.target.dataset.action === "estimate-decision") {
-      if (event.target.dataset.decision === "changes") {
-        openEstimateChangesDialog(event.target.dataset.docId);
+    const actionTarget = event.target.closest("[data-action]");
+    if (!actionTarget) return;
+    if (actionTarget.dataset.action === "estimate-decision") {
+      if (actionTarget.dataset.decision === "changes") {
+        openEstimateChangesDialog(actionTarget.dataset.docId);
         return;
       }
-      recordEstimateDecision(event.target.dataset.docId, event.target.dataset.decision).catch(() => {
+      recordEstimateDecision(actionTarget.dataset.docId, actionTarget.dataset.decision).catch(() => {
         els.customerPortal.insertAdjacentHTML("afterbegin", `<div class="empty-state">Could not save the response. Please try again.</div>`);
       });
       return;
     }
-    if (event.target.dataset.action === "view-estimate") {
-      viewEstimate(event.target.dataset.docId);
+    if (actionTarget.dataset.action === "view-estimate") {
+      viewEstimate(actionTarget.dataset.docId);
       return;
     }
-    if (event.target.dataset.action !== "customer-upload") return;
+    if (actionTarget.dataset.action !== "customer-upload") return;
     els.documentPicker.dataset.uploadedBy = "Customer";
-    els.documentPicker.dataset.docType = event.target.dataset.docType;
+    els.documentPicker.dataset.docType = actionTarget.dataset.docType;
     els.documentPicker.click();
   });
 
@@ -1956,6 +2028,7 @@ function bindEvents() {
       }
       const job = selectedJob();
       if (job) job.timeline.push("Document upload failed");
+      showToast(publicError(error, "Document upload failed. Please try again."), "error");
       render();
     });
     els.documentPicker.value = "";
@@ -1967,6 +2040,7 @@ function bindEvents() {
     if (!name) return;
     if (!backend.live) {
       els.workspaceStatus.textContent = "Sign in required";
+      showToast("Sign in to change the company profile.", "error");
       return;
     }
     els.workspaceStatus.textContent = "Saving";
@@ -1974,10 +2048,12 @@ function bindEvents() {
     if (error || !data?.company) {
       console.warn("Workspace profile save failed", error);
       els.workspaceStatus.textContent = "Could not save";
+      showToast("Could not save the company profile.", "error");
       return;
     }
     backend.company.name = data.company.name;
     els.workspaceStatus.textContent = "Saved";
+    showToast("Company profile saved.", "success");
     render();
   });
 
@@ -1994,10 +2070,11 @@ function bindEvents() {
         .eq("id", backend.company.id);
       if (error) {
         console.warn("Billing preference failed", error);
-        els.backendStatus.textContent = "Could not save billing preference.";
+        showToast("Could not save the billing preference.", "error");
         return;
       }
       await loadLiveState();
+      showToast("Billing preference saved.", "success");
       render();
       return;
     }
@@ -2005,6 +2082,7 @@ function bindEvents() {
     state.settings.billingAccount = els.billingAccount.value;
     state.settings.billingSync = els.billingSync.value;
     state.settings.billingConnected = true;
+    showToast("Billing preference saved in preview mode.", "success");
     render();
   });
 
@@ -2013,7 +2091,7 @@ function bindEvents() {
     const code = normalizePromoCode(els.promoCode.value);
     const percent = promoPercentFor(code);
     if (code && !percent) {
-      alert("That promo code is not active yet.");
+      showToast("That promo code is not active yet.", "error");
       return;
     }
     if (backend.live) {
@@ -2023,7 +2101,7 @@ function bindEvents() {
         .eq("id", backend.company.id);
       if (error) {
         console.warn("Promo save failed", error);
-        alert("Could not save the promo code.");
+        showToast("Could not save the promo code.", "error");
         return;
       }
       await loadLiveState();
@@ -2031,11 +2109,12 @@ function bindEvents() {
       state.settings.promoCode = code;
       state.settings.promoPercentOff = percent;
     }
+    showToast(code ? "Promo code saved." : "Promo code removed.", "success");
     render();
   });
 
   els.checkoutButton.addEventListener("click", () => {
-    alert("Billing is off during early access. Wave checkout will be enabled only when the product is ready to launch.");
+    showToast("Billing is off during early access.", "info");
   });
 
   els.fieldForm.addEventListener("submit", async (event) => {
@@ -2057,11 +2136,12 @@ function bindEvents() {
       });
       if (error) {
         console.warn("Custom field save failed", error);
-        els.backendStatus.textContent = "Could not save the field.";
+        showToast("Could not save the custom field.", "error");
         return;
       }
       els.fieldForm.reset();
       await loadLiveState();
+      showToast("Custom field added.", "success");
       render();
       return;
     }
@@ -2072,6 +2152,7 @@ function bindEvents() {
       options: field.options,
     });
     els.fieldForm.reset();
+    showToast("Custom field added in preview mode.", "success");
     render();
   });
 
@@ -2082,14 +2163,16 @@ function bindEvents() {
       const { error } = await backend.client.from("custom_fields").delete().eq("id", button.dataset.fieldId);
       if (error) {
         console.warn("Custom field delete failed", error);
-        els.backendStatus.textContent = "Could not remove the field.";
+        showToast("Could not remove the custom field.", "error");
         return;
       }
       await loadLiveState();
+      showToast("Custom field removed.", "success");
       render();
       return;
     }
     state.settings.customFields = state.settings.customFields.filter((field) => field.id !== button.dataset.fieldId);
+    showToast("Custom field removed in preview mode.", "success");
     render();
   });
 
@@ -2098,10 +2181,11 @@ function bindEvents() {
     try {
       await saveJobFromForm();
       els.jobDialog.close();
+      showToast("Job saved.", "success");
       render();
     } catch (error) {
       console.warn("Job save failed", error);
-      els.backendStatus.textContent = "Could not save the job.";
+      showToast("Could not save the job.", "error");
     }
   });
 
@@ -2128,7 +2212,7 @@ function bindEvents() {
       const { error } = await backend.client.from("jobs").delete().eq("id", id);
       if (error) {
         console.warn("Job delete failed", error);
-        els.backendStatus.textContent = "Could not delete the job.";
+        showToast("Could not delete the job.", "error");
         return;
       }
       let storageWarning = false;
@@ -2139,8 +2223,9 @@ function bindEvents() {
       }
       els.jobDialog.close();
       await loadLiveState();
+      showToast("Job deleted.", "success");
       render();
-      if (storageWarning) window.alert("The job was deleted, but some uploaded files could not be removed. Please contact support.");
+      if (storageWarning) showToast("Job deleted, but some uploaded files need support cleanup.", "error");
       return;
     }
     state.jobs = state.jobs.filter((job) => job.id !== id);
@@ -2151,6 +2236,7 @@ function bindEvents() {
       state.portalAccess.lastSentTo = selectedJob()?.customerEmail || "";
     }
     els.jobDialog.close();
+    showToast("Job deleted in preview mode.", "success");
     render();
   });
 }

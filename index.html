@@ -4,167 +4,36 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="referrer" content="no-referrer" />
-    <title>Service Job Portal</title>
-    <link rel="stylesheet" href="assets/styles.css?v=accounts-v10" />
-    <style>
-      .brand {
-        position: relative;
-        padding-right: 48px;
-      }
-
-      .settings-gear {
-        position: absolute;
-        top: 2px;
-        right: 0;
-        width: 38px;
-        height: 38px;
-        border: 1px solid rgba(255, 255, 255, 0.14);
-        border-radius: 999px;
-        background: rgba(255, 255, 255, 0.08);
-        color: #ffffff;
-        font-size: 1rem;
-        font-weight: 900;
-      }
-
-      .settings-gear:hover,
-      .settings-gear.active {
-        background: #f2f0df;
-        color: #17242a;
-      }
-
-      .nav-tabs {
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-      }
-
-      body.service-portal-signed-in #authPanel {
-        display: none !important;
-      }
-
-      .estimate-acceptance {
-        border-color: rgba(23, 106, 122, 0.28);
-      }
-
-      .estimate-summary {
-        border: 1px solid rgba(23, 106, 122, 0.18);
-        border-radius: 8px;
-        padding: 12px;
-        background: #f4fbfb;
-      }
-
-      .estimate-status-card {
-        display: grid;
-        grid-template-columns: minmax(0, 1fr);
-        align-items: start;
-        justify-content: stretch;
-        gap: 10px;
-        border: 1px solid rgba(23, 106, 122, 0.18);
-        border-radius: 8px;
-        padding: 12px;
-        background: #ffffff;
-      }
-
-      .estimate-status-card strong,
-      .estimate-status-card small {
-        display: block;
-      }
-
-      .estimate-status-card small {
-        margin-top: 4px;
-      }
-
-      .estimate-status-card em {
-        color: var(--accent-3);
-        font-size: 0.82rem;
-        font-style: normal;
-        font-weight: 900;
-        white-space: nowrap;
-      }
-
-      .accept-button {
-        width: 100%;
-        min-height: 52px;
-        border: 0;
-        border-radius: 14px;
-        background: var(--accent);
-        color: #ffffff;
-        font-weight: 900;
-        box-shadow: 0 10px 22px rgba(23, 106, 122, 0.18);
-      }
-
-      .accept-button:disabled {
-        background: #9aadb2;
-        box-shadow: none;
-        cursor: not-allowed;
-      }
-
-      .acceptance-confirmed {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: 10px;
-        border: 1px solid rgba(82, 111, 63, 0.28);
-        border-radius: 14px;
-        padding: 12px;
-        background: #eef6ec;
-        color: var(--accent-3);
-      }
-
-      .acceptance-confirmed span {
-        color: var(--muted);
-        font-size: 0.82rem;
-      }
-
-      .access-summary,
-      .estimate-preview {
-        border: 1px solid rgba(23, 106, 122, 0.18);
-        border-radius: 16px;
-        padding: 14px;
-        background: #ffffff;
-        box-shadow: 0 8px 20px rgba(29, 46, 52, 0.06);
-      }
-
-      .access-summary strong,
-      .access-summary small,
-      .estimate-preview strong,
-      .estimate-preview small {
-        display: block;
-      }
-
-      .accept-row {
-        display: grid;
-        gap: 8px;
-      }
-    </style>
+    <title>Service Portal</title>
+    <link rel="stylesheet" href="assets/styles.css?v=accounts-v11" />
   </head>
   <body>
     <div class="app-shell">
-      <div class="app-statusbar" aria-hidden="true">
-        <span>9:41</span>
-        <span>LTE 100%</span>
-      </div>
       <aside class="sidebar">
         <div class="brand">
-          <div class="brand-mark" aria-hidden="true">SP</div>
-          <div>
+          <div class="brand-mark" aria-hidden="true"><i data-lucide="briefcase-business"></i></div>
+          <div class="brand-copy">
             <strong>Service Portal</strong>
-            <span>Customer job access</span>
+            <span>Jobs and customer access</span>
           </div>
-          <button class="settings-gear" data-view="settings" type="button" aria-label="Settings">⚙</button>
+          <button class="settings-gear" data-view="settings" type="button" aria-label="Settings" title="Settings">
+            <i data-lucide="settings"></i>
+          </button>
         </div>
 
         <nav class="nav-tabs" aria-label="Primary">
-          <button class="nav-tab active" data-view="dashboard" type="button">
-            <span class="tab-icon" aria-hidden="true">+</span>
-            Jobs
+          <button class="nav-tab active" data-view="dashboard" type="button" aria-label="Jobs" aria-current="page">
+            <i data-lucide="clipboard-list" aria-hidden="true"></i>
+            <span>Jobs</span>
           </button>
-          <button class="nav-tab" data-view="customer" type="button">
-            <span class="tab-icon" aria-hidden="true">@</span>
-            Customer View
+          <button class="nav-tab" data-view="customer" type="button" aria-label="Customer">
+            <i data-lucide="user-round" aria-hidden="true"></i>
+            <span>Customer</span>
           </button>
         </nav>
 
         <div class="sidebar-metric">
-          <span class="eyebrow">Today</span>
+          <span class="eyebrow">Workspace</span>
           <strong id="activeJobCount">0 active jobs</strong>
           <p id="billingProviderSummary">Private beta</p>
         </div>
@@ -178,18 +47,27 @@
             <small id="backendStatus">Create an account or sign in to save jobs and send customer links.</small>
           </div>
           <form id="authForm" class="auth-form">
-            <input id="authEmail" type="email" placeholder="Contractor email" autocomplete="email" />
-            <input id="authPassword" type="password" placeholder="Password" autocomplete="current-password" />
+            <label>
+              Email address
+              <input id="authEmail" type="email" placeholder="you@company.com" autocomplete="email" />
+            </label>
+            <label>
+              Password
+              <input id="authPassword" type="password" placeholder="Enter your password" autocomplete="current-password" />
+            </label>
             <input id="authCompany" type="hidden" value="" />
             <input id="authPromoCode" type="hidden" value="" />
             <div class="auth-actions">
-              <button id="authSubmit" class="primary-button" name="authMode" value="signin" type="button">Sign in</button>
-              <button id="authCreate" class="ghost-button" name="authMode" value="signup" type="button">Create account</button>
+              <button id="authSubmit" class="primary-button" name="authMode" value="signin" type="button"><i data-lucide="log-in"></i><span>Sign in</span></button>
+              <button id="authCreate" class="ghost-button" name="authMode" value="signup" type="button"><i data-lucide="user-plus"></i><span>Create account</span></button>
             </div>
           </form>
           <form id="recoveryForm" class="auth-form" hidden>
-            <input id="recoveryPassword" type="password" placeholder="New password" autocomplete="new-password" />
-            <button id="recoverySubmit" class="primary-button" type="submit">Save new password</button>
+            <label>
+              New password
+              <input id="recoveryPassword" type="password" placeholder="Choose a secure password" autocomplete="new-password" />
+            </label>
+            <button id="recoverySubmit" class="primary-button" type="submit"><i data-lucide="key-round"></i><span>Save new password</span></button>
           </form>
           <button id="forgotPassword" class="text-button" type="button">Forgot password?</button>
           <button id="signOut" class="ghost-button" type="button" hidden aria-hidden="true">Sign out</button>
@@ -197,7 +75,7 @@
 
         <header class="topbar">
           <div>
-            <p class="eyebrow">Operations</p>
+            <p class="eyebrow">Workspace</p>
             <h1 id="viewTitle">Jobs</h1>
           </div>
         </header>
@@ -205,12 +83,14 @@
         <section id="dashboardView" class="view active">
           <section class="action-band">
             <button id="quickStartJob" class="choice-button" type="button">
-              <span>Start a job</span>
-              <strong>Create customer, job details, and access in one flow.</strong>
+              <span class="choice-icon" aria-hidden="true"><i data-lucide="plus"></i></span>
+              <span class="choice-copy"><strong>Start a job</strong><small>Create a customer and job record.</small></span>
+              <i class="choice-arrow" data-lucide="chevron-right" aria-hidden="true"></i>
             </button>
             <button id="quickUpdateJob" class="choice-button" type="button">
-              <span>Update a job</span>
-              <strong>Change status, install date, fields, notes, or documents.</strong>
+              <span class="choice-icon" aria-hidden="true"><i data-lucide="pencil-line"></i></span>
+              <span class="choice-copy"><strong>Update a job</strong><small>Edit the selected job and its status.</small></span>
+              <i class="choice-arrow" data-lucide="chevron-right" aria-hidden="true"></i>
             </button>
           </section>
 
@@ -239,6 +119,10 @@
         </section>
 
         <section id="customerView" class="view">
+          <div class="portal-masthead">
+            <span class="portal-masthead-mark" aria-hidden="true"><i data-lucide="shield-check"></i></span>
+            <span><strong>Service Portal</strong><small>Secure customer job access</small></span>
+          </div>
           <section class="customer-layout">
             <div class="customer-selector">
               <p class="eyebrow">Customer preview</p>
@@ -269,7 +153,7 @@
                   Account email
                   <input id="workspaceEmail" type="email" disabled />
                 </label>
-                <button class="primary-button" type="submit">Save company profile</button>
+                <button class="primary-button" type="submit"><i data-lucide="save"></i><span>Save company profile</span></button>
               </form>
             </div>
 
@@ -288,18 +172,8 @@
               </form>
               <button id="checkoutButton" class="ghost-button" type="button" hidden>Set up payment</button>
               <p class="fine-print">
-                Billing is intentionally off for early access. Wave checkout and automatic payment status will be enabled only when the product is ready to launch.
+                Early access is free. You will receive notice before paid plans begin.
               </p>
-            </div>
-
-            <div class="panel">
-              <div class="panel-header">
-                <div>
-                  <p class="eyebrow">Readiness</p>
-                  <h2>Beta checklist</h2>
-                </div>
-              </div>
-              <div id="betaChecklist" class="custom-field-list"></div>
             </div>
 
             <div class="panel">
@@ -327,10 +201,10 @@
                     <option>Customers, invoices, and payments</option>
                   </select>
                 </label>
-                <button class="primary-button" type="submit">Save preference</button>
+                <button class="primary-button" type="submit"><i data-lucide="save"></i><span>Save preference</span></button>
               </form>
               <p class="fine-print">
-                This only records which billing tool the contractor prefers. It does not connect to that provider yet.
+                Provider connections are not active during early access.
               </p>
             </div>
 
@@ -350,7 +224,7 @@
                   <option value="select">Dropdown</option>
                 </select>
                 <input id="fieldOptions" type="text" placeholder="Dropdown options, comma separated" />
-                <button class="primary-button" type="submit">Add field</button>
+                <button class="primary-button" type="submit"><i data-lucide="plus"></i><span>Add field</span></button>
               </form>
               <div id="customFieldList" class="custom-field-list"></div>
             </div>
@@ -359,7 +233,7 @@
         </section>
       </main>
     </div>
-    <div class="app-homebar" aria-hidden="true"></div>
+    <div id="toastRegion" class="toast-region" role="status" aria-live="polite" aria-atomic="true"></div>
 
     <dialog id="jobDialog">
       <form id="jobForm" method="dialog" class="dialog-form">
@@ -368,7 +242,7 @@
             <p class="eyebrow" id="jobDialogMode">Start</p>
             <h2 id="jobDialogTitle">Start a job</h2>
           </div>
-          <button id="closeJobDialog" class="icon-button" type="button" aria-label="Close">X</button>
+          <button id="closeJobDialog" class="icon-button" type="button" aria-label="Close" title="Close"><i data-lucide="x"></i></button>
         </div>
 
         <input id="jobId" type="hidden" />
@@ -423,10 +297,10 @@
         </label>
 
         <div class="dialog-actions">
-          <button id="deleteJob" class="danger-button" type="button">Delete</button>
+          <button id="deleteJob" class="danger-button" type="button"><i data-lucide="trash-2"></i><span>Delete</span></button>
           <span></span>
           <button id="cancelJobDialog" class="ghost-button" type="button">Cancel</button>
-          <button id="saveJob" class="primary-button" value="default" type="submit">Save job</button>
+          <button id="saveJob" class="primary-button" value="default" type="submit"><i data-lucide="save"></i><span>Save job</span></button>
         </div>
       </form>
     </dialog>
@@ -438,7 +312,7 @@
             <p class="eyebrow">Estimate response</p>
             <h2>Requested changes</h2>
           </div>
-          <button id="closeEstimateChangesDialog" class="icon-button" type="button" aria-label="Close">X</button>
+          <button id="closeEstimateChangesDialog" class="icon-button" type="button" aria-label="Close" title="Close"><i data-lucide="x"></i></button>
         </div>
 
         <input id="estimateChangesDocId" type="hidden" />
@@ -450,14 +324,15 @@
         <div class="dialog-actions">
           <span></span>
           <button id="cancelEstimateChangesDialog" class="ghost-button" type="button">Cancel</button>
-          <button class="primary-button" type="submit">Submit changes</button>
+          <button class="primary-button" type="submit"><i data-lucide="send"></i><span>Submit changes</span></button>
         </div>
       </form>
     </dialog>
 
     <input id="documentPicker" class="hidden-file" multiple type="file" accept="application/pdf,image/jpeg,image/png,image/webp,image/heic,image/heif" aria-hidden="true" tabindex="-1" />
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.110.1"></script>
+    <script src="https://unpkg.com/lucide@1.24.0/dist/umd/lucide.js"></script>
     <script src="assets/config.js?v=accounts-v3"></script>
-    <script src="assets/app.js?v=accounts-v22"></script>
+    <script src="assets/app.js?v=accounts-v23"></script>
   </body>
 </html>

@@ -34,6 +34,8 @@ for (const obsolete of ["live.js", "authfix.js", "public-auth-guard.js"]) {
 
 assert(html.includes('name="referrer" content="no-referrer"'), "Portal page must suppress referrer data");
 assert(html.includes("@supabase/supabase-js@2.110.1"), "Supabase browser client must use the reviewed version");
+assert(html.includes("lucide@1.24.0"), "Lucide icons must use the reviewed version");
+assert(!html.includes("app-statusbar") && !html.includes("app-homebar"), "Prototype phone chrome must not ship");
 assert(/billingMode:\s*"off"/.test(config), "Early-access billing must remain off");
 assert(/waveCheckoutUrl:\s*""/.test(config), "Wave checkout URL must remain empty before launch");
 assert(/\[functions\.customer-portal\][\s\S]*?verify_jwt\s*=\s*false/.test(supabaseConfig), "Customer portal token function must allow public invocation");
@@ -48,6 +50,7 @@ for (const privateField of ["internal_notes", "custom_values", "customerEmail", 
 assert(customerSafeBlock.includes("invoice_url"), "Customer response must include the invoice URL when configured");
 assert(!app.includes("Loaded from workspace"), "Internal workspace status must not appear in the UI");
 assert(!app.includes("copy-portal-link"), "Manual portal-link control must not be exposed");
+assert(!app.includes("Wave subscription infrastructure"), "Internal billing implementation details must not appear in the UI");
 assert(app.includes("portalMode.active ?"), "Customer mutation controls must be limited to secure portal mode");
 
 console.log("Static smoke checks passed.");
