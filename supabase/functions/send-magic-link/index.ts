@@ -1,7 +1,12 @@
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.4";
 
-type CustomerAccessRequest = { jobId: string };
+type CustomerAccessRequest = {
+  jobId: string;
+  emailType?: "access" | "job_update";
+};
+
+const brandingBucket = "company-branding";
 
 function corsHeaders(req: Request) {
   const configuredBase = Deno.env.get("APP_BASE_URL") || "";
@@ -105,6 +110,10 @@ serve(async (req) => {
     return jsonResponse(req, { error: "Request is invalid" }, 400);
   }
   if (!payload.jobId) return jsonResponse(req, { error: "jobId is required" }, 400);
+  if (payload.emailType && !["access", "job_update"].includes(payload.emailType)) {
+    return jsonResponse(req, { error: "emailType is invalid" }, 400);
+  }
+  const messageType = payload.emailType || "access";
 
   const supabase = createClient(supabaseUrl, serviceKey);
   const supabaseForAuth = createClient(supabaseUrl, serviceKey, {
@@ -128,18 +137,27 @@ serve(async (req) => {
     .single();
   if (memberError || !member) return jsonResponse(req, { error: "You do not have access to this job" }, 403);
 
+  const { data: company } = await supabase
+    .from("companies")
+    .select("name,logo_path")
+    .eq("id", job.company_id)
+    .single();
+
   const customer = Array.isArray(job.customers) ? job.customers[0] : job.customers;
   if (!customer?.email) return jsonResponse(req, { error: "Customer email not found for this job" }, 400);
 
-  const oneMinuteAgo = new Date(Date.now() - 60_000).toISOString();
-  const { data: recentLink } = await supabase
-    .from("magic_links")
-    .select("id")
-    .eq("job_id", job.id)
-    .gte("created_at", oneMinuteAgo)
-    .limit(1)
-    .maybeSingle();
-  if (recentLink) return jsonResponse(req, { error: "Please wait one minute before sending another customer email" }, 429);
+  if (messageType === "access") {
+    const oneMinuteAgo = new Date(Date.now() - 60_000).toISOString();
+    const { data: recentLink } = await supabase
+      .from("magic_links")
+      .select("id")
+      .eq("job_id", job.id)
+      .eq("message_type", "access")
+      .gte("created_at", oneMinuteAgo)
+      .limit(1)
+      .maybeSingle();
+    if (recentLink) return jsonResponse(req, { error: "Please wait one minute before sending another customer email" }, 429);
+  }
 
   const token = crypto.randomUUID() + crypto.randomUUID().replaceAll("-", "");
   const tokenHash = await sha256(token);
@@ -154,13 +172,29 @@ serve(async (req) => {
     token_hash: tokenHash,
     sent_to: customer.email,
     channel: "email",
+    message_type: messageType,
     expires_at: expiresAt,
   }).select("id").single();
   if (insertError || !newLink) return jsonResponse(req, { error: "Could not create customer link" }, 500);
 
-  const subject = `${job.name || "Your project"} portal link`;
-  const customerName = escapeHtml(customer.name || "there");
+  const companyName = company?.name || "Service Portal";
+  const subject = messageType === "job_update"
+    ? `${companyName}: Your job has been updated`
+    : `${job.name || "Your project"} portal link`;
   const safePortalLink = escapeHtml(portalLink);
+  const logoUrl = company?.logo_path
+    ? supabase.storage.from(brandingBucket).getPublicUrl(company.logo_path).data.publicUrl
+    : "";
+  const logoMarkup = logoUrl
+    ? `<img src="${escapeHtml(logoUrl)}" alt="${escapeHtml(companyName)}" style="display:block;max-width:180px;max-height:72px;margin:0 0 24px;object-fit:contain;" />`
+    : `<p style="margin:0 0 24px;font-size:18px;font-weight:700;color:#172326;">${escapeHtml(companyName)}</p>`;
+  const message = messageType === "job_update"
+    ? "Your job has been updated."
+    : "Your secure project portal is ready.";
+  const linkLabel = messageType === "job_update" ? "View your job" : "Open your project portal";
+  const securityNote = messageType === "access"
+    ? `<p style="margin:24px 0 0;color:#65736f;font-size:13px;">This link expires in 7 days. A newer email will replace this link.</p>`
+    : "";
   const emailResult = await fetch("https://api.resend.com/emails", {
     method: "POST",
     headers: {
@@ -171,17 +205,22 @@ serve(async (req) => {
       from: fromEmail,
       to: customer.email,
       subject,
+      text: `${message}\n\n${linkLabel}: ${portalLink}`,
       html: `
-        <p>Hi ${customerName},</p>
-        <p>Your secure project portal is ready.</p>
-        <p><a href="${safePortalLink}">Open your project portal</a></p>
-        <p>This link expires in 7 days. A newer email will replace this link.</p>
+        <div style="margin:0;padding:28px;background:#f5f7f5;font-family:Arial,sans-serif;color:#172326;">
+          <div style="max-width:560px;margin:0 auto;padding:28px;background:#ffffff;border:1px solid #d8e0dd;border-radius:8px;">
+            ${logoMarkup}
+            <p style="margin:0 0 22px;font-size:18px;line-height:1.5;">${message}</p>
+            <a href="${safePortalLink}" style="display:inline-block;padding:12px 18px;background:#0d6f78;color:#ffffff;text-decoration:none;border-radius:6px;font-weight:700;">${linkLabel}</a>
+            ${securityNote}
+          </div>
+        </div>
       `,
     }),
   });
 
+  const resendBody = await emailResult.text();
   if (!emailResult.ok) {
-    const resendBody = await emailResult.text();
     const failure = classifyResendFailure(emailResult.status, resendBody);
     console.error("Resend email rejected", {
       status: emailResult.status,
@@ -192,12 +231,23 @@ serve(async (req) => {
     return jsonResponse(req, { error: failure.message, code: failure.code }, 502);
   }
 
+  let providerMessageId: string | null = null;
+  try {
+    providerMessageId = String(JSON.parse(resendBody)?.id || "") || null;
+  } catch {
+    providerMessageId = null;
+  }
+  if (providerMessageId) {
+    await supabase.from("magic_links").update({ provider_message_id: providerMessageId }).eq("id", newLink.id);
+  }
+
   await supabase
     .from("magic_links")
     .update({ expires_at: now })
     .eq("job_id", job.id)
     .neq("id", newLink.id)
+    .lte("created_at", now)
     .gt("expires_at", now);
 
-  return jsonResponse(req, { ok: true, expiresAt });
+  return jsonResponse(req, { ok: true, expiresAt, messageType });
 });

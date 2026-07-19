@@ -1,6 +1,9 @@
 const STORAGE_KEY = "serviceJobPortal.v1";
 const DOCUMENT_BUCKET = "job-documents";
+const BRANDING_BUCKET = "company-branding";
 const MAX_DOCUMENT_BYTES = 10 * 1024 * 1024;
+const MAX_LOGO_BYTES = 2 * 1024 * 1024;
+const ALLOWED_LOGO_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
 const ALLOWED_DOCUMENT_TYPES = new Set([
   "application/pdf",
   "image/jpeg",
@@ -155,6 +158,8 @@ const portalMode = {
 };
 
 let toastTimer = null;
+let pendingLogoPreviewUrl = "";
+let pendingLogoRemoval = false;
 
 const els = {
   tabs: document.querySelectorAll(".nav-tab"),
@@ -167,6 +172,12 @@ const els = {
   viewTitle: document.getElementById("viewTitle"),
   activeJobCount: document.getElementById("activeJobCount"),
   billingProviderSummary: document.getElementById("billingProviderSummary"),
+  sidebarCompanyLogo: document.getElementById("sidebarCompanyLogo"),
+  sidebarBrandFallback: document.getElementById("sidebarBrandFallback"),
+  sidebarCompanyName: document.getElementById("sidebarCompanyName"),
+  portalCompanyLogo: document.getElementById("portalCompanyLogo"),
+  portalBrandFallback: document.getElementById("portalBrandFallback"),
+  portalCompanyName: document.getElementById("portalCompanyName"),
   resetDemo: document.getElementById("resetDemo"),
   startJob: document.getElementById("startJob"),
   quickStartJob: document.getElementById("quickStartJob"),
@@ -235,6 +246,11 @@ const els = {
   workspaceName: document.getElementById("workspaceName"),
   workspaceEmail: document.getElementById("workspaceEmail"),
   workspaceStatus: document.getElementById("workspaceStatus"),
+  workspaceLogo: document.getElementById("workspaceLogo"),
+  workspaceLogoPreview: document.getElementById("workspaceLogoPreview"),
+  workspaceLogoFallback: document.getElementById("workspaceLogoFallback"),
+  chooseWorkspaceLogo: document.getElementById("chooseWorkspaceLogo"),
+  removeWorkspaceLogo: document.getElementById("removeWorkspaceLogo"),
   subscriptionStatus: document.getElementById("subscriptionStatus"),
   subscriptionSummary: document.getElementById("subscriptionSummary"),
   promoForm: document.getElementById("promoForm"),
@@ -793,6 +809,16 @@ function applyPortalJob(jobData) {
   };
 }
 
+function applyPortalCompany(companyData) {
+  if (!companyData) return;
+  backend.company = {
+    id: companyData.id || null,
+    name: companyData.name || "Service Portal",
+    logo_url: companyData.logo_url || "",
+    logo_path: null,
+  };
+}
+
 async function loadCustomerPortal(token, actionPayload = { action: "payload" }) {
   portalMode.active = true;
   portalMode.token = token;
@@ -805,6 +831,7 @@ async function loadCustomerPortal(token, actionPayload = { action: "payload" }) 
     els.customerPortal.innerHTML = `<div class="empty-state">This portal link is invalid or expired. Please ask the contractor to send a new link.</div>`;
     return;
   }
+  applyPortalCompany(data.company);
   applyPortalJob(data.job);
   render();
   activateCustomerPortalView();
@@ -938,6 +965,7 @@ function initStaticControls() {
 function render() {
   saveState();
   renderAuth();
+  renderBranding();
   renderMetrics();
   renderJobs();
   renderJobDetail();
@@ -945,6 +973,31 @@ function render() {
   renderCustomerPortal();
   renderSettings();
   refreshIcons();
+}
+
+function companyLogoUrl(company = backend.company) {
+  if (!company) return "";
+  const directUrl = safeExternalUrl(company.logo_url || company.logoUrl);
+  if (directUrl) return directUrl;
+  if (!company.logo_path || !backend.client) return "";
+  const { data } = backend.client.storage.from(BRANDING_BUCKET).getPublicUrl(company.logo_path);
+  return safeExternalUrl(data?.publicUrl);
+}
+
+function renderBrandImage(image, fallback, url) {
+  if (!image || !fallback) return;
+  image.src = url || "";
+  image.hidden = !url;
+  fallback.hidden = Boolean(url);
+}
+
+function renderBranding() {
+  const companyName = backend.company?.name || "Service Portal";
+  const logoUrl = companyLogoUrl();
+  els.sidebarCompanyName.textContent = companyName;
+  els.portalCompanyName.textContent = companyName;
+  renderBrandImage(els.sidebarCompanyLogo, els.sidebarBrandFallback, logoUrl);
+  renderBrandImage(els.portalCompanyLogo, els.portalBrandFallback, logoUrl);
 }
 
 function renderMetrics() {
@@ -1354,6 +1407,10 @@ function renderSettings() {
   els.workspaceName.value = backend.company?.name || "";
   els.workspaceEmail.value = backend.user?.email || "";
   els.workspaceStatus.textContent = backend.live ? "Saved" : "Preview";
+  const savedLogoUrl = pendingLogoRemoval ? "" : companyLogoUrl();
+  const previewLogoUrl = pendingLogoPreviewUrl || savedLogoUrl;
+  renderBrandImage(els.workspaceLogoPreview, els.workspaceLogoFallback, previewLogoUrl);
+  els.removeWorkspaceLogo.hidden = !previewLogoUrl;
   els.billingProvider.value = state.settings.billingProvider;
   els.billingAccount.value = state.settings.billingAccount || "";
   els.billingSync.value = state.settings.billingSync;
@@ -1376,6 +1433,32 @@ function renderSettings() {
         .join("")
     : `<div class="empty-state">Add a field contractors can fill out on every job.</div>`;
 
+}
+
+function logoValidationError(file) {
+  if (!file?.size) return "That logo file is empty.";
+  if (file.size > MAX_LOGO_BYTES) return "Logo files must be 2 MB or smaller.";
+  if (!ALLOWED_LOGO_TYPES.has(file.type)) return "Use a PNG, JPG, or WebP logo.";
+  return "";
+}
+
+function clearPendingLogo() {
+  if (pendingLogoPreviewUrl) URL.revokeObjectURL(pendingLogoPreviewUrl);
+  pendingLogoPreviewUrl = "";
+  pendingLogoRemoval = false;
+  els.workspaceLogo.value = "";
+}
+
+async function uploadCompanyLogo(file) {
+  const validationError = logoValidationError(file);
+  if (validationError) throw new Error(validationError);
+  const storagePath = `${backend.company.id}/logo-${Date.now()}-${safeStorageName(file.name)}`;
+  const { error } = await backend.client.storage.from(BRANDING_BUCKET).upload(storagePath, file, {
+    contentType: file.type,
+    upsert: false,
+  });
+  if (error) throw error;
+  return storagePath;
 }
 
 function normalizePromoCode(value) {
@@ -1512,7 +1595,7 @@ async function saveJobFromForm() {
       selectedJobId = data.id;
     }
     await loadLiveState();
-    return;
+    return { jobId: selectedJobId || id, created: !existing };
   }
 
   if (existing) {
@@ -1523,6 +1606,7 @@ async function saveJobFromForm() {
   }
   selectedJobId = id;
   render();
+  return { jobId: id, created: !existing };
 }
 
 async function sendCustomerAccessEmail() {
@@ -1532,7 +1616,7 @@ async function sendCustomerAccessEmail() {
     job.actionMessage = "Sending customer email...";
     render();
     const { error } = await backend.client.functions.invoke("send-magic-link", {
-      body: { jobId: job.id },
+      body: { jobId: job.id, emailType: "access" },
     });
     if (error) {
       const message = await edgeFunctionErrorMessage(error, "Customer email could not be sent.");
@@ -1553,6 +1637,36 @@ async function sendCustomerAccessEmail() {
   job.timeline.push(`Customer access email prepared for ${job.customerEmail}`);
   showToast("Customer email prepared in preview mode.", "success");
   render();
+}
+
+async function notifyCustomerOfJobUpdate(jobId, savedMessage = "Change saved.") {
+  const job = state.jobs.find((item) => item.id === jobId);
+  if (!job) return false;
+  if (!backend.live) {
+    activatePortalAccess(job, "email");
+    job.timeline.push("Customer update email prepared");
+    showToast(`${savedMessage} Customer update prepared in preview mode.`, "success");
+    render();
+    return true;
+  }
+
+  const { error } = await backend.client.functions.invoke("send-magic-link", {
+    body: { jobId, emailType: "job_update" },
+  });
+  if (error) {
+    const message = await edgeFunctionErrorMessage(error, "Customer update email could not be sent.");
+    console.warn("Automatic customer update email failed", error);
+    job.actionMessage = message;
+    showToast(`${savedMessage} Customer email could not be sent.`, "error");
+    render();
+    return false;
+  }
+
+  job.magicLinkLastSent = new Date().toISOString();
+  job.actionMessage = `Customer update emailed to ${job.customerEmail}.`;
+  showToast(`${savedMessage} Customer notified.`, "success");
+  render();
+  return true;
 }
 
 function activatePortalAccess(job, channel = "email") {
@@ -1628,6 +1742,7 @@ async function uploadPortalDocument(file, docType) {
     },
   });
   if (error || !data?.job) throw error || new Error("Upload failed");
+  applyPortalCompany(data.company);
   applyPortalJob(data.job);
   render();
   activateCustomerPortalView();
@@ -1724,8 +1839,10 @@ async function addDocuments(files, uploadedBy, docType = "Other") {
     );
     if (error) throw error;
     await loadLiveState();
-    showToast(`${docs.length} file${docs.length === 1 ? "" : "s"} uploaded.`, "success");
-    render();
+    await notifyCustomerOfJobUpdate(
+      job.id,
+      `${docs.length} file${docs.length === 1 ? "" : "s"} uploaded.`,
+    );
     return;
   }
 
@@ -1738,7 +1855,7 @@ async function addDocuments(files, uploadedBy, docType = "Other") {
     job.timeline.push(`${uploadedBy} uploaded ${files.length} document${files.length === 1 ? "" : "s"}`);
   }
   showToast(`${docs.length} file${docs.length === 1 ? "" : "s"} uploaded.`, "success");
-  render();
+  await notifyCustomerOfJobUpdate(job.id, `${docs.length} file${docs.length === 1 ? "" : "s"} uploaded.`);
 }
 
 async function setDocumentArchived(docId, archived) {
@@ -1750,14 +1867,12 @@ async function setDocumentArchived(docId, archived) {
     const { error } = await backend.client.from("documents").update({ status: nextStatus }).eq("id", docId);
     if (error) throw error;
     await loadLiveState();
-    showToast(`${archived ? "Archived" : "Restored"} ${doc.name}.`, "success");
-    render();
+    await notifyCustomerOfJobUpdate(job.id, `${archived ? "Archived" : "Restored"} ${doc.name}.`);
     return;
   }
   doc.status = nextStatus;
   job.timeline.push(`${archived ? "Archived" : "Restored"} ${doc.name}`);
-  showToast(`${archived ? "Archived" : "Restored"} ${doc.name}.`, "success");
-  render();
+  await notifyCustomerOfJobUpdate(job.id, `${archived ? "Archived" : "Restored"} ${doc.name}.`);
 }
 
 function viewEstimate(docId) {
@@ -2049,6 +2164,35 @@ function bindEvents() {
     els.documentPicker.value = "";
   });
 
+  els.chooseWorkspaceLogo.addEventListener("click", () => els.workspaceLogo.click());
+
+  els.workspaceLogo.addEventListener("change", () => {
+    const file = els.workspaceLogo.files?.[0];
+    if (!file) return;
+    const validationError = logoValidationError(file);
+    if (validationError) {
+      els.workspaceLogo.value = "";
+      showToast(validationError, "error");
+      return;
+    }
+    if (pendingLogoPreviewUrl) URL.revokeObjectURL(pendingLogoPreviewUrl);
+    pendingLogoPreviewUrl = URL.createObjectURL(file);
+    pendingLogoRemoval = false;
+    renderSettings();
+    els.workspaceStatus.textContent = "Unsaved";
+    refreshIcons();
+  });
+
+  els.removeWorkspaceLogo.addEventListener("click", () => {
+    if (pendingLogoPreviewUrl) URL.revokeObjectURL(pendingLogoPreviewUrl);
+    pendingLogoPreviewUrl = "";
+    pendingLogoRemoval = true;
+    els.workspaceLogo.value = "";
+    renderSettings();
+    els.workspaceStatus.textContent = "Unsaved";
+    refreshIcons();
+  });
+
   els.workspaceForm.addEventListener("submit", async (event) => {
     event.preventDefault();
     const name = els.workspaceName.value.trim();
@@ -2059,14 +2203,37 @@ function bindEvents() {
       return;
     }
     els.workspaceStatus.textContent = "Saving";
-    const { data, error } = await backend.client.functions.invoke("workspace-settings", { body: { name } });
+    const previousLogoPath = backend.company.logo_path || null;
+    let nextLogoPath = pendingLogoRemoval ? null : previousLogoPath;
+    let uploadedLogoPath = "";
+    const logoFile = els.workspaceLogo.files?.[0];
+    try {
+      if (logoFile) {
+        uploadedLogoPath = await uploadCompanyLogo(logoFile);
+        nextLogoPath = uploadedLogoPath;
+      }
+    } catch (error) {
+      console.warn("Company logo upload failed", error);
+      els.workspaceStatus.textContent = "Could not save";
+      showToast(publicError(error, "Could not upload the company logo."), "error");
+      return;
+    }
+    const { data, error } = await backend.client.functions.invoke("workspace-settings", {
+      body: { name, logoPath: nextLogoPath },
+    });
     if (error || !data?.company) {
       console.warn("Workspace profile save failed", error);
+      if (uploadedLogoPath) await backend.client.storage.from(BRANDING_BUCKET).remove([uploadedLogoPath]);
       els.workspaceStatus.textContent = "Could not save";
       showToast("Could not save the company profile.", "error");
       return;
     }
-    backend.company.name = data.company.name;
+    backend.company = { ...backend.company, ...data.company };
+    if (previousLogoPath && previousLogoPath !== nextLogoPath) {
+      const { error: cleanupError } = await backend.client.storage.from(BRANDING_BUCKET).remove([previousLogoPath]);
+      if (cleanupError) console.warn("Previous company logo could not be removed", cleanupError);
+    }
+    clearPendingLogo();
     els.workspaceStatus.textContent = "Saved";
     showToast("Company profile saved.", "success");
     render();
@@ -2194,10 +2361,9 @@ function bindEvents() {
   els.jobForm.addEventListener("submit", async (event) => {
     event.preventDefault();
     try {
-      await saveJobFromForm();
+      const savedJob = await saveJobFromForm();
       els.jobDialog.close();
-      showToast("Job saved.", "success");
-      render();
+      await notifyCustomerOfJobUpdate(savedJob.jobId, savedJob.created ? "Job started." : "Job updated.");
     } catch (error) {
       console.warn("Job save failed", error);
       showToast("Could not save the job.", "error");

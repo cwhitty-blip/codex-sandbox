@@ -181,6 +181,16 @@ small {
   height: 20px;
 }
 
+.brand-mark img,
+.portal-masthead-mark img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  border-radius: 6px;
+  padding: 3px;
+  background: #ffffff;
+}
+
 .brand-copy {
   min-width: 0;
 }
@@ -985,6 +995,56 @@ body.contractor-locked main {
 
 .subscription-summary small + small {
   margin-top: 2px;
+}
+
+.company-logo-field {
+  display: grid;
+  gap: 7px;
+}
+
+.form-label {
+  color: #4d5b57;
+  font-size: 0.82rem;
+  font-weight: 760;
+}
+
+.company-logo-control {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.company-logo-preview {
+  width: 72px;
+  height: 72px;
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  border: 1px solid var(--line-strong);
+  border-radius: 8px;
+  background: var(--surface-subtle);
+  color: var(--muted);
+}
+
+.company-logo-preview img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  padding: 5px;
+  background: #ffffff;
+}
+
+.company-logo-preview svg {
+  width: 24px;
+  height: 24px;
+}
+
+.company-logo-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
 }
 
 label {

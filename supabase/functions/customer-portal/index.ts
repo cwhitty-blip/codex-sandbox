@@ -15,6 +15,7 @@ type PortalRequest = {
 };
 
 const documentBucket = "job-documents";
+const brandingBucket = "company-branding";
 const maxFileBytes = 10 * 1024 * 1024;
 const maxRequestBytes = Math.ceil((maxFileBytes * 4) / 3) + 200_000;
 const allowedMimeTypes = new Set([
@@ -121,6 +122,19 @@ async function customerSafeJob(supabase: ReturnType<typeof createClient>, job: R
     documents: await signedDocuments(supabase, documents),
     estimate_acceptances: decisions,
   };
+}
+
+async function customerSafeCompany(supabase: ReturnType<typeof createClient>, companyId: string) {
+  const { data: company } = await supabase
+    .from("companies")
+    .select("id,name,logo_path")
+    .eq("id", companyId)
+    .single();
+  if (!company) return { id: companyId, name: "Service Portal", logo_url: "" };
+  const logoUrl = company.logo_path
+    ? supabase.storage.from(brandingBucket).getPublicUrl(company.logo_path).data.publicUrl
+    : "";
+  return { id: company.id, name: company.name, logo_url: logoUrl };
 }
 
 serve(async (req) => {
@@ -257,5 +271,8 @@ serve(async (req) => {
     .single();
 
   if (refreshError || !refreshed) return jsonResponse(req, { error: "Could not load portal" }, 500);
-  return jsonResponse(req, { job: await customerSafeJob(supabase, refreshed as Record<string, unknown>) });
+  return jsonResponse(req, {
+    job: await customerSafeJob(supabase, refreshed as Record<string, unknown>),
+    company: await customerSafeCompany(supabase, String(link.company_id)),
+  });
 });

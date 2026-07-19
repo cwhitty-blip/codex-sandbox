@@ -50,9 +50,15 @@ serve(async (req) => {
   if (!authHeader) return jsonResponse(req, { error: "Unauthorized" }, 401);
 
   let name = "";
+  let logoPath: string | null | undefined;
   try {
     const payload = await req.json();
     name = String(payload?.name || "").trim();
+    logoPath = payload?.logoPath === null
+      ? null
+      : payload?.logoPath === undefined
+        ? undefined
+        : String(payload.logoPath).trim();
   } catch {
     return jsonResponse(req, { error: "Request is invalid" }, 400);
   }
@@ -74,11 +80,18 @@ serve(async (req) => {
     .single();
   if (membershipError || !membership) return jsonResponse(req, { error: "Workspace not found" }, 404);
 
+  if (logoPath !== undefined && logoPath !== null && !logoPath.startsWith(`${membership.company_id}/`)) {
+    return jsonResponse(req, { error: "Company logo path is invalid" }, 400);
+  }
+
+  const updates: { name: string; logo_path?: string | null } = { name };
+  if (logoPath !== undefined) updates.logo_path = logoPath || null;
+
   const { data: company, error: updateError } = await serviceClient
     .from("companies")
-    .update({ name })
+    .update(updates)
     .eq("id", membership.company_id)
-    .select("id,name")
+    .select("id,name,logo_path")
     .single();
   if (updateError || !company) return jsonResponse(req, { error: "Could not save company profile" }, 500);
 

@@ -38,6 +38,8 @@ This build does not collect cards directly. Wave will host the recurring checkou
 - Company profile and custom job field setup
 - Custom job field builder
 - Customer access email flow through Resend
+- Automatic customer email after successful contractor job changes
+- Contractor logo branding in the workspace, customer portal, and customer emails
 - Customer portal for status visibility, estimate responses, and document uploads
 - Insurance claim and general document upload tracking
 - Exact-duplicate prevention plus archive and restore

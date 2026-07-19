@@ -11,9 +11,12 @@
     <div class="app-shell">
       <aside class="sidebar">
         <div class="brand">
-          <div class="brand-mark" aria-hidden="true"><i data-lucide="briefcase-business"></i></div>
+          <div class="brand-mark" aria-hidden="true">
+            <img id="sidebarCompanyLogo" alt="" hidden />
+            <i id="sidebarBrandFallback" data-lucide="briefcase-business"></i>
+          </div>
           <div class="brand-copy">
-            <strong>Service Portal</strong>
+            <strong id="sidebarCompanyName">Service Portal</strong>
             <span>Jobs and customer access</span>
           </div>
           <button class="settings-gear" data-view="settings" type="button" aria-label="Settings" title="Settings">
@@ -120,8 +123,11 @@
 
         <section id="customerView" class="view">
           <div class="portal-masthead">
-            <span class="portal-masthead-mark" aria-hidden="true"><i data-lucide="shield-check"></i></span>
-            <span><strong>Service Portal</strong><small>Secure customer job access</small></span>
+            <span class="portal-masthead-mark" aria-hidden="true">
+              <img id="portalCompanyLogo" alt="" hidden />
+              <i id="portalBrandFallback" data-lucide="shield-check"></i>
+            </span>
+            <span><strong id="portalCompanyName">Service Portal</strong><small>Secure customer job access</small></span>
           </div>
           <section class="customer-layout">
             <div class="customer-selector">
@@ -145,6 +151,21 @@
                 <span id="workspaceStatus" class="status-pill">Ready</span>
               </div>
               <form id="workspaceForm" class="stacked-form">
+                <div class="company-logo-field">
+                  <span class="form-label">Company logo</span>
+                  <div class="company-logo-control">
+                    <span class="company-logo-preview" aria-hidden="true">
+                      <img id="workspaceLogoPreview" alt="" hidden />
+                      <i id="workspaceLogoFallback" data-lucide="image"></i>
+                    </span>
+                    <span class="company-logo-actions">
+                      <button id="chooseWorkspaceLogo" class="ghost-button" type="button"><i data-lucide="image-up"></i><span>Choose logo</span></button>
+                      <button id="removeWorkspaceLogo" class="icon-button" type="button" aria-label="Remove company logo" title="Remove company logo" hidden><i data-lucide="trash-2"></i></button>
+                    </span>
+                  </div>
+                  <small>PNG, JPG, or WebP, up to 2 MB.</small>
+                  <input id="workspaceLogo" class="hidden-file" type="file" accept="image/png,image/jpeg,image/webp" aria-hidden="true" tabindex="-1" />
+                </div>
                 <label>
                   Company name
                   <input id="workspaceName" type="text" maxlength="120" placeholder="Your service company" required />
@@ -333,6 +354,6 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.110.1"></script>
     <script src="https://unpkg.com/lucide@1.24.0/dist/umd/lucide.js"></script>
     <script src="assets/config.js?v=accounts-v3"></script>
-    <script src="assets/app.js?v=accounts-v24"></script>
+    <script src="assets/app.js?v=accounts-v25"></script>
   </body>
 </html>

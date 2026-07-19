@@ -25,6 +25,7 @@ alter table public.companies add column if not exists promo_code text;
 alter table public.companies add column if not exists promo_percent_off integer not null default 0;
 alter table public.companies add column if not exists stripe_customer_id text;
 alter table public.companies add column if not exists stripe_subscription_id text;
+alter table public.companies add column if not exists logo_path text;
 
 create table if not exists public.company_members (
   id uuid primary key default gen_random_uuid(),
@@ -96,10 +97,26 @@ create table if not exists public.magic_links (
   token_hash text not null,
   sent_to text not null,
   channel text not null default 'email',
+  message_type text not null default 'access',
+  provider_message_id text,
   expires_at timestamptz not null,
   used_at timestamptz,
   created_at timestamptz not null default now()
 );
+
+alter table public.magic_links add column if not exists message_type text not null default 'access';
+alter table public.magic_links add column if not exists provider_message_id text;
+do $$
+begin
+  if not exists (
+    select 1 from pg_constraint where conname = 'magic_links_message_type_check'
+  ) then
+    alter table public.magic_links
+      add constraint magic_links_message_type_check
+      check (message_type in ('access', 'job_update'));
+  end if;
+end;
+$$;
 
 create table if not exists public.estimate_acceptances (
   id uuid primary key default gen_random_uuid(),
@@ -328,6 +345,19 @@ insert into storage.buckets (id, name, public)
 values ('job-documents', 'job-documents', false)
 on conflict (id) do nothing;
 
+insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+values (
+  'company-branding',
+  'company-branding',
+  true,
+  2097152,
+  array['image/jpeg', 'image/png', 'image/webp']
+)
+on conflict (id) do update set
+  public = excluded.public,
+  file_size_limit = excluded.file_size_limit,
+  allowed_mime_types = excluded.allowed_mime_types;
+
 drop policy if exists "Members can read companies" on public.companies;
 create policy "Members can read companies"
 on public.companies for select
@@ -348,6 +378,7 @@ grant update (name, billing_provider, billing_account, billing_sync) on public.c
 
 create unique index if not exists magic_links_token_hash_idx on public.magic_links(token_hash);
 create index if not exists magic_links_job_created_idx on public.magic_links(job_id, created_at desc);
+create index if not exists magic_links_job_message_created_idx on public.magic_links(job_id, message_type, created_at desc);
 create index if not exists documents_job_created_idx on public.documents(job_id, created_at desc);
 
 drop policy if exists "Users can read their memberships" on public.company_members;
@@ -463,6 +494,37 @@ on storage.objects for delete
 to authenticated
 using (
   bucket_id = 'job-documents'
+  and public.is_company_member(public.company_id_from_storage_path(name))
+);
+
+drop policy if exists "Members can upload company branding" on storage.objects;
+create policy "Members can upload company branding"
+on storage.objects for insert
+to authenticated
+with check (
+  bucket_id = 'company-branding'
+  and public.is_company_member(public.company_id_from_storage_path(name))
+);
+
+drop policy if exists "Members can update company branding" on storage.objects;
+create policy "Members can update company branding"
+on storage.objects for update
+to authenticated
+using (
+  bucket_id = 'company-branding'
+  and public.is_company_member(public.company_id_from_storage_path(name))
+)
+with check (
+  bucket_id = 'company-branding'
+  and public.is_company_member(public.company_id_from_storage_path(name))
+);
+
+drop policy if exists "Members can delete company branding" on storage.objects;
+create policy "Members can delete company branding"
+on storage.objects for delete
+to authenticated
+using (
+  bucket_id = 'company-branding'
   and public.is_company_member(public.company_id_from_storage_path(name))
 );
 

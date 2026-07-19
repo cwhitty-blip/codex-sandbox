@@ -15,6 +15,9 @@ const html = read("index.html");
 const app = read("assets/app.js");
 const config = read("assets/config.js");
 const edge = read("supabase/functions/customer-portal/index.ts");
+const emailEdge = read("supabase/functions/send-magic-link/index.ts");
+const workspaceEdge = read("supabase/functions/workspace-settings/index.ts");
+const brandingMigration = read("supabase/migrations/20260719090000_company_branding_and_job_notifications.sql");
 const supabaseConfig = read("supabase/config.toml");
 
 const ids = [...html.matchAll(/\sid="([^"]+)"/g)].map((match) => match[1]);
@@ -52,5 +55,15 @@ assert(!app.includes("Loaded from workspace"), "Internal workspace status must n
 assert(!app.includes("copy-portal-link"), "Manual portal-link control must not be exposed");
 assert(!app.includes("Wave subscription infrastructure"), "Internal billing implementation details must not appear in the UI");
 assert(app.includes("portalMode.active ?"), "Customer mutation controls must be limited to secure portal mode");
+assert(html.includes('id="workspaceLogo"'), "Company profile must include a logo picker");
+assert(html.includes('id="portalCompanyLogo"'), "Customer portal must include contractor branding");
+assert(app.includes('emailType: "job_update"'), "Contractor job changes must request customer update emails");
+assert(emailEdge.includes("Your job has been updated."), "Update email must use the approved customer wording");
+assert(emailEdge.includes("text: `${message}"), "Customer email must include a plain-text alternative");
+assert(emailEdge.includes('message_type: messageType'), "Customer email records must identify the message type");
+assert(edge.includes("customerSafeCompany"), "Customer portal must return safe company branding");
+assert(workspaceEdge.includes("logo_path"), "Workspace settings must save the company logo path server-side");
+assert(brandingMigration.includes("'company-branding'"), "Branding migration must create the company logo bucket");
+assert(brandingMigration.includes("2097152"), "Company logo storage must enforce the 2 MB limit");
 
 console.log("Static smoke checks passed.");
