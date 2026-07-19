@@ -18,6 +18,7 @@ const edge = read("supabase/functions/customer-portal/index.ts");
 const emailEdge = read("supabase/functions/send-magic-link/index.ts");
 const workspaceEdge = read("supabase/functions/workspace-settings/index.ts");
 const brandingMigration = read("supabase/migrations/20260719090000_company_branding_and_job_notifications.sql");
+const mileageMigration = read("supabase/migrations/20260719120000_mileage_tracking.sql");
 const supabaseConfig = read("supabase/config.toml");
 
 const ids = [...html.matchAll(/\sid="([^"]+)"/g)].map((match) => match[1]);
@@ -47,7 +48,7 @@ assert(/\[functions\.wave-webhook\][\s\S]*?verify_jwt\s*=\s*false/.test(supabase
 const customerSafeStart = edge.indexOf("async function customerSafeJob");
 const customerSafeEnd = edge.indexOf("serve(async", customerSafeStart);
 const customerSafeBlock = edge.slice(customerSafeStart, customerSafeEnd);
-for (const privateField of ["internal_notes", "custom_values", "customerEmail", "customerPhone"]) {
+for (const privateField of ["internal_notes", "custom_values", "customerEmail", "customerPhone", "mileage_entries"]) {
   assert(!customerSafeBlock.includes(privateField), `Customer response exposes private field: ${privateField}`);
 }
 assert(customerSafeBlock.includes("invoice_url"), "Customer response must include the invoice URL when configured");
@@ -65,5 +66,16 @@ assert(edge.includes("customerSafeCompany"), "Customer portal must return safe c
 assert(workspaceEdge.includes("logo_path"), "Workspace settings must save the company logo path server-side");
 assert(brandingMigration.includes("'company-branding'"), "Branding migration must create the company logo bucket");
 assert(brandingMigration.includes("2097152"), "Company logo storage must enforce the 2 MB limit");
+assert(html.includes('id="mileageTrackingEnabled"'), "Settings must include the global mileage switch");
+assert(app.includes('.from("mileage_entries")'), "Contractor app must persist mileage records");
+assert(app.includes('if (!state.settings.mileageTrackingEnabled) return ""'), "Mileage controls must respect the global setting");
+assert(mileageMigration.includes("mileage_tracking_enabled boolean not null default false"), "Mileage tracking must default off for existing companies");
+assert(mileageMigration.includes("alter table public.mileage_entries enable row level security"), "Mileage records must have row-level security");
+assert(mileageMigration.includes("public.job_belongs_to_company(job_id, company_id)"), "Mileage records must remain scoped to company jobs");
+
+const mileageMutationStart = app.indexOf("async function addMileageEntry");
+const mileageMutationEnd = app.indexOf("function viewEstimate", mileageMutationStart);
+assert(mileageMutationStart >= 0 && mileageMutationEnd > mileageMutationStart, "Mileage mutation helpers must exist");
+assert(!app.slice(mileageMutationStart, mileageMutationEnd).includes("notifyCustomerOfJobUpdate"), "Private mileage changes must not email customers");
 
 console.log("Static smoke checks passed.");

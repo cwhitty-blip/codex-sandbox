@@ -232,6 +232,23 @@
             <div class="panel">
               <div class="panel-header">
                 <div>
+                  <p class="eyebrow">Operations</p>
+                  <h2>Mileage tracking</h2>
+                </div>
+                <span id="mileageTrackingStatus" class="status-pill">Off</span>
+              </div>
+              <label class="setting-toggle" for="mileageTrackingEnabled">
+                <span>
+                  <strong>Track mileage on jobs</strong>
+                  <small>Private to the contractor workspace</small>
+                </span>
+                <input id="mileageTrackingEnabled" type="checkbox" role="switch" />
+              </label>
+            </div>
+
+            <div class="panel">
+              <div class="panel-header">
+                <div>
                   <p class="eyebrow">Customization</p>
                   <h2>Custom job fields</h2>
                 </div>
@@ -354,6 +371,6 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.110.1"></script>
     <script src="https://unpkg.com/lucide@1.24.0/dist/umd/lucide.js"></script>
     <script src="assets/config.js?v=accounts-v3"></script>
-    <script src="assets/app.js?v=accounts-v25"></script>
+    <script src="assets/app.js?v=accounts-v26"></script>
   </body>
 </html>

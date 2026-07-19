@@ -40,6 +40,7 @@ This build does not collect cards directly. Wave will host the recurring checkou
 - Customer access email flow through Resend
 - Automatic customer email after successful contractor job changes
 - Contractor logo branding in the workspace, customer portal, and customer emails
+- Optional company-wide mileage tracking with private per-job date and mileage records
 - Customer portal for status visibility, estimate responses, and document uploads
 - Insurance claim and general document upload tracking
 - Exact-duplicate prevention plus archive and restore

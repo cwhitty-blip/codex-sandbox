@@ -863,6 +863,60 @@ body.contractor-locked main {
   margin-top: 6px;
 }
 
+.mileage-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.mileage-total {
+  color: var(--accent);
+  font-size: 0.86rem;
+  font-weight: 820;
+  white-space: nowrap;
+}
+
+.mileage-entry-form {
+  display: grid;
+  grid-template-columns: minmax(150px, 1fr) minmax(100px, 140px) auto;
+  align-items: end;
+  gap: 9px;
+  margin-top: 12px;
+}
+
+.mileage-entry-form .primary-button {
+  min-height: 42px;
+}
+
+.mileage-list {
+  display: grid;
+  gap: 7px;
+  margin-top: 12px;
+}
+
+.mileage-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto 34px;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 9px 10px;
+  background: var(--surface-subtle);
+}
+
+.mileage-row span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.mileage-row strong {
+  color: var(--ink);
+  white-space: nowrap;
+}
+
 .customer-layout {
   display: grid;
   grid-template-columns: minmax(240px, 300px) minmax(0, 1fr);
@@ -1045,6 +1099,73 @@ body.contractor-locked main {
   align-items: center;
   gap: 8px;
   min-width: 0;
+}
+
+.setting-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  min-width: 0;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 13px 14px;
+  background: var(--surface-subtle);
+  cursor: pointer;
+}
+
+.setting-toggle > span {
+  min-width: 0;
+}
+
+.setting-toggle strong,
+.setting-toggle small {
+  display: block;
+}
+
+.setting-toggle small {
+  margin-top: 3px;
+  color: var(--muted);
+  font-weight: 600;
+}
+
+.setting-toggle input[type="checkbox"] {
+  appearance: none;
+  width: 46px;
+  min-width: 46px;
+  height: 26px;
+  min-height: 26px;
+  border: 1px solid var(--line-strong);
+  border-radius: 13px;
+  padding: 2px;
+  background: #c6cfcc;
+  cursor: pointer;
+  transition: background 160ms ease, border-color 160ms ease;
+}
+
+.setting-toggle input[type="checkbox"]::before {
+  content: "";
+  display: block;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #ffffff;
+  box-shadow: 0 1px 3px rgba(16, 25, 23, 0.25);
+  transition: transform 160ms ease;
+}
+
+.setting-toggle input[type="checkbox"]:checked {
+  border-color: var(--accent);
+  background: var(--accent);
+}
+
+.setting-toggle input[type="checkbox"]:checked::before {
+  transform: translateX(20px);
+}
+
+.setting-toggle input[type="checkbox"]:focus-visible {
+  outline: 3px solid rgba(13, 111, 120, 0.22);
+  outline-offset: 2px;
 }
 
 label {
@@ -1419,6 +1540,14 @@ body.customer-portal-mode .customer-layout {
 
   .document-row-actions {
     justify-content: flex-start;
+  }
+
+  .mileage-entry-form {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
+
+  .mileage-entry-form .primary-button {
+    grid-column: 1 / -1;
   }
 
   .estimate-status-card,

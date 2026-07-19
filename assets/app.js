@@ -50,6 +50,7 @@ const demoState = {
     planPriceCents: monthlyPlanCents,
     promoCode: "",
     promoPercentOff: 0,
+    mileageTrackingEnabled: true,
     customFields: [
       { id: createId(), label: "Claim number", type: "text", options: [] },
       { id: createId(), label: "Gate code", type: "text", options: [] },
@@ -79,6 +80,10 @@ const demoState = {
       nextAction: "Customer needs to upload insurance claim letter.",
       internalNotes: "Adjuster approved roof, gutters still pending.",
       customValues: { "Claim number": "CLM-10492", "Gate code": "2418", "Permit required": "Yes" },
+      mileageEntries: [
+        { id: createId(), date: "2026-07-18", miles: 18.4, createdAt: "2026-07-18T16:30:00.000Z" },
+        { id: createId(), date: "2026-07-02", miles: 11, createdAt: "2026-07-02T14:10:00.000Z" },
+      ],
       documents: [
         {
           id: createId(),
@@ -119,6 +124,7 @@ const demoState = {
       nextAction: "Crew scheduled for Thursday morning.",
       internalNotes: "Customer requested shoe covers and driveway parking.",
       customValues: { "Claim number": "", "Gate code": "", "Permit required": "No" },
+      mileageEntries: [],
       documents: [],
       timeline: ["Job started", "Equipment arrived", "Service date scheduled"],
       estimateAcceptedAt: null,
@@ -194,6 +200,8 @@ const els = {
   billingProvider: document.getElementById("billingProvider"),
   billingAccount: document.getElementById("billingAccount"),
   billingSync: document.getElementById("billingSync"),
+  mileageTrackingEnabled: document.getElementById("mileageTrackingEnabled"),
+  mileageTrackingStatus: document.getElementById("mileageTrackingStatus"),
   fieldForm: document.getElementById("fieldForm"),
   fieldLabel: document.getElementById("fieldLabel"),
   fieldType: document.getElementById("fieldType"),
@@ -282,6 +290,7 @@ function normalizeState(nextState) {
       doc.stored = Boolean(doc.stored);
     });
     job.timeline = Array.isArray(job.timeline) ? job.timeline : ["Job started"];
+    job.mileageEntries = Array.isArray(job.mileageEntries) ? job.mileageEntries : [];
     job.customValues = job.customValues || {};
     job.estimateAcceptedAt = job.estimateAcceptedAt || null;
     job.acceptedEstimate = job.acceptedEstimate || null;
@@ -683,6 +692,15 @@ function mapDbDocument(doc) {
   };
 }
 
+function mapDbMileageEntry(entry) {
+  return {
+    id: entry.id,
+    date: entry.mileage_date,
+    miles: Number(entry.miles || 0),
+    createdAt: entry.created_at,
+  };
+}
+
 function mapDbJob(job) {
   const customer = Array.isArray(job.customers) ? job.customers[0] : job.customers;
   const latestDecision = [...(job.estimate_acceptances || [])]
@@ -703,6 +721,9 @@ function mapDbJob(job) {
     nextAction: job.next_action || "",
     internalNotes: job.internal_notes || "",
     customValues: job.custom_values || {},
+    mileageEntries: (job.mileage_entries || [])
+      .map(mapDbMileageEntry)
+      .sort((a, b) => new Date(b.date) - new Date(a.date) || new Date(b.createdAt) - new Date(a.createdAt)),
     documents: (job.documents || []).map(mapDbDocument),
     timeline: [],
     estimateAcceptedAt: latestDecision?.decision_status === "accept" ? latestDecision.accepted_at : null,
@@ -735,7 +756,7 @@ async function loadLiveState() {
       backend.client.from("custom_fields").select("*").eq("company_id", companyId).order("created_at"),
       backend.client
         .from("jobs")
-        .select("*, customers(*), documents(*), estimate_acceptances(*)")
+        .select("*, customers(*), documents(*), estimate_acceptances(*), mileage_entries(*)")
         .eq("company_id", companyId)
         .order("created_at", { ascending: false }),
     ]);
@@ -756,6 +777,7 @@ async function loadLiveState() {
     planPriceCents: company.plan_price_cents || monthlyPlanCents,
     promoCode: company.promo_code || "",
     promoPercentOff: company.promo_percent_off || 0,
+    mileageTrackingEnabled: Boolean(company.mileage_tracking_enabled),
     customFields: (fields || []).map((field) => ({
       id: field.id,
       label: field.label,
@@ -941,6 +963,16 @@ function formatFileSize(bytes) {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
+function formatMiles(value) {
+  return new Intl.NumberFormat(undefined, { maximumFractionDigits: 1 }).format(Number(value || 0));
+}
+
+function todayInputValue() {
+  const now = new Date();
+  const local = new Date(now.getTime() - now.getTimezoneOffset() * 60_000);
+  return local.toISOString().slice(0, 10);
+}
+
 function nextEstimateVersion(job) {
   const versions = job.documents.filter((doc) => doc.type === "Estimate").map((doc) => Number(doc.version || 0));
   return Math.max(0, ...versions) + 1;
@@ -1077,6 +1109,7 @@ function renderJobDetail() {
       <h3>Billing</h3>
       <p>${escapeHtml(billingProvider)} / ${invoiceUrl ? `<a href="${escapeHtml(invoiceUrl)}" target="_blank" rel="noopener noreferrer">Invoice link</a>` : "No invoice linked"}</p>
     </section>
+    ${renderMileageTracker(job)}
     <section class="plain-section">
       <h3>Custom fields</h3>
       <div class="field-readout">${renderCustomValueReadout(job)}</div>
@@ -1165,6 +1198,40 @@ function renderCustomValueReadout(job) {
       return `<div><span>${escapeHtml(field.label)}</span><strong>${escapeHtml(value)}</strong></div>`;
     })
     .join("");
+}
+
+function renderMileageTracker(job) {
+  if (!state.settings.mileageTrackingEnabled) return "";
+  const entries = job.mileageEntries || [];
+  const total = entries.reduce((sum, entry) => sum + Number(entry.miles || 0), 0);
+  return `
+    <section class="plain-section mileage-section">
+      <div class="mileage-heading">
+        <h3>Mileage</h3>
+        <span class="mileage-total">${escapeHtml(formatMiles(total))} total miles</span>
+      </div>
+      <form class="mileage-entry-form" data-mileage-form>
+        <label>
+          Date
+          <input name="mileageDate" type="date" value="${todayInputValue()}" required />
+        </label>
+        <label>
+          Miles
+          <input name="mileageMiles" type="number" min="0.1" max="10000" step="0.1" inputmode="decimal" placeholder="0.0" required />
+        </label>
+        <button class="primary-button" type="submit">${iconMarkup("plus")}<span>Add mileage</span></button>
+      </form>
+      <div class="mileage-list">
+        ${entries.length ? entries.map((entry) => `
+          <div class="mileage-row">
+            <span>${escapeHtml(formatDate(entry.date))}</span>
+            <strong>${escapeHtml(formatMiles(entry.miles))} mi</strong>
+            <button class="icon-button" data-action="delete-mileage" data-mileage-id="${escapeHtml(entry.id)}" type="button" aria-label="Remove mileage entry" title="Remove mileage entry">${iconMarkup("trash-2")}</button>
+          </div>
+        `).join("") : `<div class="empty-state">No mileage recorded for this job.</div>`}
+      </div>
+    </section>
+  `;
 }
 
 function renderDocumentList(documents, archived = false) {
@@ -1415,6 +1482,9 @@ function renderSettings() {
   els.billingAccount.value = state.settings.billingAccount || "";
   els.billingSync.value = state.settings.billingSync;
   els.billingStatus.textContent = state.settings.billingConnected ? "Preference saved" : "Not connected";
+  els.mileageTrackingEnabled.checked = Boolean(state.settings.mileageTrackingEnabled);
+  els.mileageTrackingStatus.textContent = state.settings.mileageTrackingEnabled ? "On" : "Off";
+  els.mileageTrackingStatus.dataset.status = state.settings.mileageTrackingEnabled ? "Active" : "Empty";
   renderSubscriptionSettings();
   els.fieldCount.textContent = String(state.settings.customFields.length);
   els.customFieldList.innerHTML = state.settings.customFields.length
@@ -1559,6 +1629,7 @@ async function saveJobFromForm() {
     nextAction: els.nextAction.value,
     internalNotes: els.internalNotes.value,
     customValues,
+    mileageEntries: existing?.mileageEntries || [],
     documents: existing?.documents || [],
     timeline: existing?.timeline || ["Job started"],
     estimateAcceptedAt: existing?.estimateAcceptedAt || null,
@@ -1875,6 +1946,53 @@ async function setDocumentArchived(docId, archived) {
   await notifyCustomerOfJobUpdate(job.id, `${archived ? "Archived" : "Restored"} ${doc.name}.`);
 }
 
+async function addMileageEntry(job, date, milesValue) {
+  const miles = Number(milesValue);
+  if (!job || !date || !Number.isFinite(miles) || miles <= 0 || miles > 10000) {
+    showToast("Enter a date and mileage greater than zero.", "error");
+    return;
+  }
+  if (backend.live) {
+    const { error } = await backend.client.from("mileage_entries").insert({
+      company_id: backend.company.id,
+      job_id: job.id,
+      mileage_date: date,
+      miles: Math.round(miles * 10) / 10,
+    });
+    if (error) throw error;
+    await loadLiveState();
+  } else {
+    job.mileageEntries.unshift({
+      id: createId(),
+      date,
+      miles: Math.round(miles * 10) / 10,
+      createdAt: new Date().toISOString(),
+    });
+    job.mileageEntries.sort((a, b) => new Date(b.date) - new Date(a.date) || new Date(b.createdAt) - new Date(a.createdAt));
+  }
+  showToast("Mileage added.", "success");
+  render();
+}
+
+async function deleteMileageEntry(entryId) {
+  const job = selectedJob();
+  if (!job || !job.mileageEntries.some((entry) => entry.id === entryId)) return;
+  if (backend.live) {
+    const { error } = await backend.client
+      .from("mileage_entries")
+      .delete()
+      .eq("id", entryId)
+      .eq("job_id", job.id)
+      .eq("company_id", backend.company.id);
+    if (error) throw error;
+    await loadLiveState();
+  } else {
+    job.mileageEntries = job.mileageEntries.filter((entry) => entry.id !== entryId);
+  }
+  showToast("Mileage removed.", "success");
+  render();
+}
+
 function viewEstimate(docId) {
   const job = customerJob();
   const estimate = estimateFor(job);
@@ -2113,6 +2231,10 @@ function bindEvents() {
       showToast("Could not change the document status.", "error");
       render();
     });
+    if (action === "delete-mileage") deleteMileageEntry(actionTarget.dataset.mileageId).catch((error) => {
+      console.warn("Mileage delete failed", error);
+      showToast("Could not remove the mileage entry.", "error");
+    });
     if (action === "upload-estimate") {
       els.documentPicker.dataset.uploadedBy = "Contractor";
       els.documentPicker.dataset.docType = "Estimate";
@@ -2123,6 +2245,19 @@ function bindEvents() {
       els.documentPicker.dataset.docType = "Other";
       els.documentPicker.click();
     }
+  });
+
+  els.jobDetail.addEventListener("submit", (event) => {
+    const form = event.target.closest("[data-mileage-form]");
+    if (!form) return;
+    event.preventDefault();
+    const job = selectedJob();
+    const date = form.elements.mileageDate.value;
+    const miles = form.elements.mileageMiles.value;
+    addMileageEntry(job, date, miles).catch((error) => {
+      console.warn("Mileage save failed", error);
+      showToast("Could not save mileage.", "error");
+    });
   });
 
   els.customerPortal.addEventListener("click", (event) => {
@@ -2236,6 +2371,32 @@ function bindEvents() {
     clearPendingLogo();
     els.workspaceStatus.textContent = "Saved";
     showToast("Company profile saved.", "success");
+    render();
+  });
+
+  els.mileageTrackingEnabled.addEventListener("change", async () => {
+    const enabled = els.mileageTrackingEnabled.checked;
+    const previous = Boolean(state.settings.mileageTrackingEnabled);
+    els.mileageTrackingEnabled.disabled = true;
+    els.mileageTrackingStatus.textContent = "Saving";
+    if (backend.live) {
+      const { error } = await backend.client
+        .from("companies")
+        .update({ mileage_tracking_enabled: enabled })
+        .eq("id", backend.company.id);
+      if (error) {
+        console.warn("Mileage setting failed", error);
+        els.mileageTrackingEnabled.checked = previous;
+        els.mileageTrackingEnabled.disabled = false;
+        els.mileageTrackingStatus.textContent = previous ? "On" : "Off";
+        showToast("Could not save the mileage setting.", "error");
+        return;
+      }
+      backend.company.mileage_tracking_enabled = enabled;
+    }
+    state.settings.mileageTrackingEnabled = enabled;
+    els.mileageTrackingEnabled.disabled = false;
+    showToast(`Mileage tracking turned ${enabled ? "on" : "off"}.`, "success");
     render();
   });
 

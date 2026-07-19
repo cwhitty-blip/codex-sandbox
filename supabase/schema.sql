@@ -14,6 +14,7 @@ create table if not exists public.companies (
   promo_percent_off integer not null default 0,
   stripe_customer_id text,
   stripe_subscription_id text,
+  mileage_tracking_enabled boolean not null default false,
   created_at timestamptz not null default now()
 );
 
@@ -26,6 +27,7 @@ alter table public.companies add column if not exists promo_percent_off integer 
 alter table public.companies add column if not exists stripe_customer_id text;
 alter table public.companies add column if not exists stripe_subscription_id text;
 alter table public.companies add column if not exists logo_path text;
+alter table public.companies add column if not exists mileage_tracking_enabled boolean not null default false;
 
 create table if not exists public.company_members (
   id uuid primary key default gen_random_uuid(),
@@ -70,6 +72,16 @@ create table if not exists public.custom_fields (
   field_type text not null default 'text',
   options jsonb not null default '[]'::jsonb,
   created_at timestamptz not null default now()
+);
+
+create table if not exists public.mileage_entries (
+  id uuid primary key default gen_random_uuid(),
+  company_id uuid not null references public.companies(id) on delete cascade,
+  job_id uuid not null references public.jobs(id) on delete cascade,
+  mileage_date date not null default current_date,
+  miles numeric(8,1) not null,
+  created_at timestamptz not null default now(),
+  constraint mileage_entries_miles_check check (miles > 0 and miles <= 10000)
 );
 
 create table if not exists public.documents (
@@ -321,6 +333,7 @@ alter table public.company_members enable row level security;
 alter table public.customers enable row level security;
 alter table public.jobs enable row level security;
 alter table public.custom_fields enable row level security;
+alter table public.mileage_entries enable row level security;
 alter table public.documents enable row level security;
 alter table public.magic_links enable row level security;
 alter table public.estimate_acceptances enable row level security;
@@ -375,6 +388,12 @@ with check (public.is_company_member(id));
 
 revoke update on public.companies from authenticated;
 grant update (name, billing_provider, billing_account, billing_sync) on public.companies to authenticated;
+grant update (mileage_tracking_enabled) on public.companies to authenticated;
+
+grant select, insert, update, delete on public.mileage_entries to authenticated;
+
+create index if not exists mileage_entries_job_date_idx
+on public.mileage_entries(job_id, mileage_date desc, created_at desc);
 
 create unique index if not exists magic_links_token_hash_idx on public.magic_links(token_hash);
 create index if not exists magic_links_job_created_idx on public.magic_links(job_id, created_at desc);
@@ -446,6 +465,19 @@ on public.custom_fields for all
 to authenticated
 using (public.is_company_member(company_id))
 with check (public.is_company_member(company_id));
+
+drop policy if exists "Members can manage mileage entries" on public.mileage_entries;
+create policy "Members can manage mileage entries"
+on public.mileage_entries for all
+to authenticated
+using (
+  public.is_company_member(company_id)
+  and public.job_belongs_to_company(job_id, company_id)
+)
+with check (
+  public.is_company_member(company_id)
+  and public.job_belongs_to_company(job_id, company_id)
+);
 
 drop policy if exists "Members can manage documents" on public.documents;
 create policy "Members can manage documents"
