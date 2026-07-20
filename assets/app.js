@@ -166,6 +166,8 @@ const portalMode = {
 let toastTimer = null;
 let pendingLogoPreviewUrl = "";
 let pendingLogoRemoval = false;
+let jobSaveBusy = false;
+let mileageMutationBusy = false;
 
 const els = {
   tabs: document.querySelectorAll(".nav-tab"),
@@ -225,6 +227,7 @@ const els = {
   customFieldInputs: document.getElementById("customFieldInputs"),
   nextAction: document.getElementById("nextAction"),
   internalNotes: document.getElementById("internalNotes"),
+  saveJob: document.getElementById("saveJob"),
   deleteJob: document.getElementById("deleteJob"),
   closeJobDialog: document.getElementById("closeJobDialog"),
   cancelJobDialog: document.getElementById("cancelJobDialog"),
@@ -857,23 +860,6 @@ async function loadCustomerPortal(token, actionPayload = { action: "payload" }) 
   applyPortalJob(data.job);
   render();
   activateCustomerPortalView();
-}
-
-function dbJobPayload(job, customerId) {
-  return {
-    company_id: backend.company.id,
-    customer_id: customerId,
-    industry: job.industry,
-    name: job.name,
-    service_address: job.serviceAddress,
-    job_status: job.jobStatus,
-    material_status: job.materialStatus,
-    projected_date: job.projectedDate || null,
-    invoice_url: job.invoiceUrl || null,
-    next_action: job.nextAction,
-    internal_notes: job.internalNotes,
-    custom_values: job.customValues,
-  };
 }
 
 function selectedJob() {
@@ -1640,33 +1626,29 @@ async function saveJobFromForm() {
   };
 
   if (backend.live) {
-    const customerPayload = {
-      company_id: backend.company.id,
-      name: payload.customerName,
-      email: payload.customerEmail,
-      phone: payload.customerPhone || null,
-    };
-    let customerId = existing?.customerId;
-    if (customerId) {
-      const { error } = await backend.client.from("customers").update(customerPayload).eq("id", customerId);
-      if (error) throw error;
-    } else {
-      const { data, error } = await backend.client.from("customers").insert(customerPayload).select("id").single();
-      if (error) throw error;
-      customerId = data.id;
-    }
-
-    const jobPayload = dbJobPayload(payload, customerId);
-    if (existing) {
-      const { error } = await backend.client.from("jobs").update(jobPayload).eq("id", id);
-      if (error) throw error;
-    } else {
-      const { data, error } = await backend.client.from("jobs").insert(jobPayload).select("id").single();
-      if (error) throw error;
-      selectedJobId = data.id;
-    }
+    const { data, error } = await backend.client.rpc("save_job_record", {
+      target_company_id: backend.company.id,
+      target_job_id: existing?.id || null,
+      input_customer_name: payload.customerName,
+      input_customer_email: payload.customerEmail,
+      input_customer_phone: payload.customerPhone || "",
+      input_job_industry: payload.industry,
+      input_job_name: payload.name,
+      input_job_service_address: payload.serviceAddress,
+      input_job_status: payload.jobStatus,
+      input_job_material_status: payload.materialStatus,
+      input_job_projected_date: payload.projectedDate || null,
+      input_job_invoice_url: payload.invoiceUrl || "",
+      input_job_next_action: payload.nextAction || "",
+      input_job_internal_notes: payload.internalNotes || "",
+      input_job_custom_values: payload.customValues,
+    });
+    if (error) throw error;
+    const savedJob = Array.isArray(data) ? data[0] : data;
+    if (!savedJob?.id) throw new Error("Job save did not return a record");
+    selectedJobId = savedJob.id;
     await loadLiveState();
-    return { jobId: selectedJobId || id, created: !existing };
+    return { jobId: savedJob.id, created: !existing };
   }
 
   if (existing) {
@@ -1790,6 +1772,26 @@ async function uploadLiveDocumentFile(job, file) {
   };
 }
 
+async function removeLiveDocumentFiles(storagePaths) {
+  const paths = storagePaths.filter(Boolean);
+  if (!paths.length) return;
+  const { error } = await backend.client.storage.from(DOCUMENT_BUCKET).remove(paths);
+  if (error) console.warn("Uploaded file cleanup failed", error);
+}
+
+async function uploadLiveDocumentFiles(job, files) {
+  const uploaded = [];
+  try {
+    for (const file of files) {
+      uploaded.push(await uploadLiveDocumentFile(job, file));
+    }
+    return uploaded;
+  } catch (error) {
+    await removeLiveDocumentFiles(uploaded.map((item) => item.storagePath));
+    throw error;
+  }
+}
+
 function fileToBase64(file) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -1873,7 +1875,7 @@ async function addDocuments(files, uploadedBy, docType = "Other") {
     return;
   }
   const uploadedFiles = backend.live
-    ? await Promise.all(sourceFiles.map((file) => uploadLiveDocumentFile(job, file)))
+    ? await uploadLiveDocumentFiles(job, sourceFiles)
     : sourceFiles.map(() => ({ storagePath: "", previewUrl: "" }));
   const docs = sourceFiles.map((file, index) => ({
       id: createId(),
@@ -1908,7 +1910,10 @@ async function addDocuments(files, uploadedBy, docType = "Other") {
         size_bytes: doc.size,
       })),
     );
-    if (error) throw error;
+    if (error) {
+      await removeLiveDocumentFiles(docs.map((doc) => doc.storagePath));
+      throw error;
+    }
     await loadLiveState();
     await notifyCustomerOfJobUpdate(
       job.id,
@@ -1952,45 +1957,57 @@ async function addMileageEntry(job, date, milesValue) {
     showToast("Enter a date and mileage greater than zero.", "error");
     return;
   }
-  if (backend.live) {
-    const { error } = await backend.client.from("mileage_entries").insert({
-      company_id: backend.company.id,
-      job_id: job.id,
-      mileage_date: date,
-      miles: Math.round(miles * 10) / 10,
-    });
-    if (error) throw error;
-    await loadLiveState();
-  } else {
-    job.mileageEntries.unshift({
-      id: createId(),
-      date,
-      miles: Math.round(miles * 10) / 10,
-      createdAt: new Date().toISOString(),
-    });
-    job.mileageEntries.sort((a, b) => new Date(b.date) - new Date(a.date) || new Date(b.createdAt) - new Date(a.createdAt));
+  if (mileageMutationBusy) return;
+  mileageMutationBusy = true;
+  try {
+    if (backend.live) {
+      const { error } = await backend.client.from("mileage_entries").insert({
+        company_id: backend.company.id,
+        job_id: job.id,
+        mileage_date: date,
+        miles: Math.round(miles * 10) / 10,
+      });
+      if (error) throw error;
+      await loadLiveState();
+    } else {
+      job.mileageEntries.unshift({
+        id: createId(),
+        date,
+        miles: Math.round(miles * 10) / 10,
+        createdAt: new Date().toISOString(),
+      });
+      job.mileageEntries.sort((a, b) => new Date(b.date) - new Date(a.date) || new Date(b.createdAt) - new Date(a.createdAt));
+    }
+    showToast("Mileage added.", "success");
+    render();
+  } finally {
+    mileageMutationBusy = false;
   }
-  showToast("Mileage added.", "success");
-  render();
 }
 
 async function deleteMileageEntry(entryId) {
   const job = selectedJob();
   if (!job || !job.mileageEntries.some((entry) => entry.id === entryId)) return;
-  if (backend.live) {
-    const { error } = await backend.client
-      .from("mileage_entries")
-      .delete()
-      .eq("id", entryId)
-      .eq("job_id", job.id)
-      .eq("company_id", backend.company.id);
-    if (error) throw error;
-    await loadLiveState();
-  } else {
-    job.mileageEntries = job.mileageEntries.filter((entry) => entry.id !== entryId);
+  if (mileageMutationBusy) return;
+  mileageMutationBusy = true;
+  try {
+    if (backend.live) {
+      const { error } = await backend.client
+        .from("mileage_entries")
+        .delete()
+        .eq("id", entryId)
+        .eq("job_id", job.id)
+        .eq("company_id", backend.company.id);
+      if (error) throw error;
+      await loadLiveState();
+    } else {
+      job.mileageEntries = job.mileageEntries.filter((entry) => entry.id !== entryId);
+    }
+    showToast("Mileage removed.", "success");
+    render();
+  } finally {
+    mileageMutationBusy = false;
   }
-  showToast("Mileage removed.", "success");
-  render();
 }
 
 function viewEstimate(docId) {
@@ -2464,6 +2481,10 @@ function bindEvents() {
     event.preventDefault();
     const label = els.fieldLabel.value.trim();
     if (!label) return;
+    if (state.settings.customFields.some((field) => field.label.toLowerCase() === label.toLowerCase())) {
+      showToast("A custom field with that name already exists.", "error");
+      return;
+    }
     const field = {
       id: createId(),
       label,
@@ -2521,6 +2542,11 @@ function bindEvents() {
 
   els.jobForm.addEventListener("submit", async (event) => {
     event.preventDefault();
+    if (jobSaveBusy) return;
+    jobSaveBusy = true;
+    els.saveJob.disabled = true;
+    setButtonLabel(els.saveJob, "loader-circle", "Saving...");
+    refreshIcons();
     try {
       const savedJob = await saveJobFromForm();
       els.jobDialog.close();
@@ -2528,6 +2554,11 @@ function bindEvents() {
     } catch (error) {
       console.warn("Job save failed", error);
       showToast("Could not save the job.", "error");
+    } finally {
+      jobSaveBusy = false;
+      els.saveJob.disabled = false;
+      setButtonLabel(els.saveJob, "save", "Save job");
+      refreshIcons();
     }
   });
 

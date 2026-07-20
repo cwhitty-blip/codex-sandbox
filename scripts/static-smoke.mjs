@@ -19,6 +19,7 @@ const emailEdge = read("supabase/functions/send-magic-link/index.ts");
 const workspaceEdge = read("supabase/functions/workspace-settings/index.ts");
 const brandingMigration = read("supabase/migrations/20260719090000_company_branding_and_job_notifications.sql");
 const mileageMigration = read("supabase/migrations/20260719120000_mileage_tracking.sql");
+const atomicJobMigration = read("supabase/migrations/20260719183000_atomic_job_save.sql");
 const supabaseConfig = read("supabase/config.toml");
 
 const ids = [...html.matchAll(/\sid="([^"]+)"/g)].map((match) => match[1]);
@@ -77,5 +78,14 @@ const mileageMutationStart = app.indexOf("async function addMileageEntry");
 const mileageMutationEnd = app.indexOf("function viewEstimate", mileageMutationStart);
 assert(mileageMutationStart >= 0 && mileageMutationEnd > mileageMutationStart, "Mileage mutation helpers must exist");
 assert(!app.slice(mileageMutationStart, mileageMutationEnd).includes("notifyCustomerOfJobUpdate"), "Private mileage changes must not email customers");
+assert(app.includes('rpc("save_job_record"'), "Job saves must use the atomic database function");
+assert(app.includes("input_customer_name: payload.customerName"), "Job save arguments must match the database function");
+assert(atomicJobMigration.includes("security definer"), "Atomic job save must run through a reviewed security boundary");
+assert(atomicJobMigration.includes("user_id = auth.uid()"), "Atomic job save must verify company membership");
+assert(atomicJobMigration.includes("input_job_status text"), "Atomic job save parameters must remain unambiguous");
+assert(app.includes("uploadLiveDocumentFiles"), "Multi-file uploads must use the rollback-aware uploader");
+assert(app.includes("removeLiveDocumentFiles(docs.map"), "Failed document records must clean up uploaded files");
+assert(app.includes("if (jobSaveBusy) return"), "Job saves must guard against duplicate submission");
+assert(app.includes("A custom field with that name already exists."), "Custom fields must reject duplicate names");
 
 console.log("Static smoke checks passed.");
