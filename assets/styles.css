@@ -463,6 +463,88 @@ body.contractor-locked main {
   margin-bottom: 16px;
 }
 
+.attention-section {
+  display: grid;
+  gap: 11px;
+  margin-bottom: 16px;
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+  padding: 15px 0;
+}
+
+.attention-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.attention-queue {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.attention-item {
+  min-width: 0;
+  min-height: 58px;
+  justify-content: flex-start;
+  gap: 9px;
+  border-color: var(--line);
+  background: var(--surface);
+  color: var(--ink);
+  padding: 9px 10px;
+  text-align: left;
+}
+
+.attention-item:hover,
+.attention-item.active {
+  border-color: rgba(13, 111, 120, 0.4);
+  background: var(--accent-soft);
+}
+
+.attention-item.active {
+  box-shadow: inset 3px 0 0 var(--accent);
+}
+
+.attention-item > span:last-child {
+  min-width: 0;
+}
+
+.attention-item strong,
+.attention-item small {
+  display: block;
+}
+
+.attention-item strong {
+  font-size: 1.05rem;
+  line-height: 1;
+}
+
+.attention-item small {
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.attention-icon {
+  width: 30px;
+  height: 30px;
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  border-radius: 8px;
+  background: var(--copper-soft);
+  color: var(--copper);
+}
+
+.attention-icon svg {
+  width: 16px;
+  height: 16px;
+}
+
 .choice-button {
   min-height: 70px;
   border-color: var(--line);
@@ -553,6 +635,52 @@ body.contractor-locked main {
   margin-bottom: 14px;
 }
 
+.job-filter-bar {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 40px;
+  gap: 7px;
+  margin-bottom: 11px;
+}
+
+.search-control {
+  position: relative;
+  grid-column: 1 / -1;
+}
+
+.search-control svg {
+  position: absolute;
+  left: 11px;
+  top: 50%;
+  width: 17px;
+  height: 17px;
+  pointer-events: none;
+  color: var(--muted);
+  transform: translateY(-50%);
+}
+
+.search-control input {
+  padding-left: 36px;
+}
+
+.filter-control {
+  min-width: 0;
+}
+
+.job-filter-bar .icon-button {
+  width: 40px;
+  min-height: 42px;
+}
+
+.visually-hidden {
+  position: absolute !important;
+  width: 1px !important;
+  height: 1px !important;
+  overflow: hidden !important;
+  clip: rect(0 0 0 0) !important;
+  white-space: nowrap !important;
+  clip-path: inset(50%) !important;
+}
+
 .job-list,
 .document-list,
 .custom-field-list {
@@ -607,6 +735,12 @@ body.contractor-locked main {
 .job-row small {
   margin-top: 4px;
   font-size: 0.78rem;
+}
+
+.job-row .job-attention-label {
+  color: var(--copper);
+  font-size: 0.7rem;
+  font-weight: 780;
 }
 
 .job-row em,
@@ -1447,6 +1581,10 @@ body.customer-portal-mode .customer-layout {
   .customer-selector {
     position: static;
   }
+
+  .attention-queue {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
 @media (max-width: 640px) {
@@ -1504,6 +1642,10 @@ body.customer-portal-mode .customer-layout {
 
   .action-band {
     grid-template-columns: 1fr;
+  }
+
+  .attention-header {
+    align-items: flex-start;
   }
 
   .choice-button {

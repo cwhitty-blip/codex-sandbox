@@ -32,6 +32,8 @@ This build does not collect cards directly. Wave will host the recurring checkou
 ## Included MVP Flows
 
 - Contractor dashboard with `Start a job` and `Update a job`
+- Needs-attention queue for new customer uploads, estimate replies, unscheduled jobs, and past projected dates
+- Job search by customer, project, email, or address with open, attention, and status filters
 - Generic service-industry job records
 - Billing provider preference for a future integration
 - Contractor account sign-up/sign-in with a 7-day trial model

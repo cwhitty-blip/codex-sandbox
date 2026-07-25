@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="referrer" content="no-referrer" />
     <title>Service Portal</title>
-    <link rel="stylesheet" href="assets/styles.css?v=accounts-v11" />
+    <link rel="stylesheet" href="assets/styles.css?v=accounts-v12" />
   </head>
   <body>
     <div class="app-shell">
@@ -97,13 +97,50 @@
             </button>
           </section>
 
+          <section class="attention-section" aria-labelledby="attentionTitle">
+            <div class="attention-header">
+              <div>
+                <p class="eyebrow">Today</p>
+                <h2 id="attentionTitle">Needs attention</h2>
+              </div>
+              <span id="attentionSummary" class="count-chip">0 jobs</span>
+            </div>
+            <div id="attentionQueue" class="attention-queue"></div>
+          </section>
+
           <section class="work-grid">
             <div class="panel">
               <div class="panel-header">
                 <div>
                   <p class="eyebrow">Pipeline</p>
-                  <h2>Active jobs</h2>
+                  <h2>Jobs</h2>
                 </div>
+                <span id="filteredJobCount" class="count-chip">0 shown</span>
+              </div>
+              <div class="job-filter-bar" role="search">
+                <label class="search-control">
+                  <span class="visually-hidden">Search jobs</span>
+                  <i data-lucide="search" aria-hidden="true"></i>
+                  <input id="jobSearch" type="search" placeholder="Search jobs, customers, or addresses" autocomplete="off" />
+                </label>
+                <label class="filter-control">
+                  <span class="visually-hidden">Filter jobs</span>
+                  <select id="jobStatusFilter" aria-label="Filter jobs">
+                    <option value="open">Open jobs</option>
+                    <option value="attention">Needs attention</option>
+                    <option value="all">All jobs</option>
+                    <option value="Active">Active</option>
+                    <option value="Waiting on Customer">Waiting on customer</option>
+                    <option value="Ready to Schedule">Ready to schedule</option>
+                    <option value="Scheduled">Scheduled</option>
+                    <option value="In Progress">In progress</option>
+                    <option value="On Hold">On hold</option>
+                    <option value="Complete">Complete</option>
+                  </select>
+                </label>
+                <button id="clearJobFilters" class="icon-button" type="button" aria-label="Clear job search and filters" title="Clear job search and filters" hidden>
+                  <i data-lucide="x"></i>
+                </button>
               </div>
               <div id="jobList" class="job-list"></div>
             </div>
@@ -371,6 +408,6 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.110.1"></script>
     <script src="https://unpkg.com/lucide@1.24.0/dist/umd/lucide.js"></script>
     <script src="assets/config.js?v=accounts-v3"></script>
-    <script src="assets/app.js?v=accounts-v27"></script>
+    <script src="assets/app.js?v=accounts-v28"></script>
   </body>
 </html>

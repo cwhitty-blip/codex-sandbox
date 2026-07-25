@@ -168,6 +168,9 @@ let pendingLogoPreviewUrl = "";
 let pendingLogoRemoval = false;
 let jobSaveBusy = false;
 let mileageMutationBusy = false;
+let jobSearchQuery = "";
+let jobStatusFilter = "open";
+let jobAttentionFilter = "";
 
 const els = {
   tabs: document.querySelectorAll(".nav-tab"),
@@ -190,6 +193,12 @@ const els = {
   startJob: document.getElementById("startJob"),
   quickStartJob: document.getElementById("quickStartJob"),
   quickUpdateJob: document.getElementById("quickUpdateJob"),
+  attentionSummary: document.getElementById("attentionSummary"),
+  attentionQueue: document.getElementById("attentionQueue"),
+  jobSearch: document.getElementById("jobSearch"),
+  jobStatusFilter: document.getElementById("jobStatusFilter"),
+  clearJobFilters: document.getElementById("clearJobFilters"),
+  filteredJobCount: document.getElementById("filteredJobCount"),
   jobList: document.getElementById("jobList"),
   detailTitle: document.getElementById("detailTitle"),
   detailStatus: document.getElementById("detailStatus"),
@@ -863,7 +872,7 @@ async function loadCustomerPortal(token, actionPayload = { action: "payload" }) 
 }
 
 function selectedJob() {
-  return state.jobs.find((job) => job.id === selectedJobId) || state.jobs[0] || null;
+  return state.jobs.find((job) => job.id === selectedJobId) || null;
 }
 
 function customerJob() {
@@ -883,6 +892,70 @@ function estimateStatus(job) {
   if (job.estimateDecision?.status === "changes") return "Changes requested";
   if (job.estimateDecision?.status === "reject") return "Not accepted";
   return job.acceptedEstimate?.id === estimateFor(job).id ? "Accepted" : "Needs acceptance";
+}
+
+const attentionDefinitions = [
+  { id: "customer-upload", label: "New uploads", icon: "cloud-upload" },
+  { id: "estimate-response", label: "Estimate replies", icon: "file-check-2" },
+  { id: "unscheduled", label: "Needs scheduling", icon: "calendar-plus" },
+  { id: "past-date", label: "Past projected date", icon: "calendar-clock" },
+];
+
+function isOpenJob(job) {
+  return job.jobStatus !== "Complete";
+}
+
+function attentionCategoriesForJob(job) {
+  const categories = [];
+  const activeDocuments = (job.documents || []).filter((doc) => doc.status !== "Archived");
+  if (activeDocuments.some((doc) => doc.uploadedBy === "Customer" && doc.status === "New")) {
+    categories.push("customer-upload");
+  }
+  const estimate = estimateFor(job);
+  if (
+    estimate
+    && job.estimateDecision?.documentId === estimate.id
+    && ["changes", "reject"].includes(job.estimateDecision.status)
+  ) {
+    categories.push("estimate-response");
+  }
+  if (isOpenJob(job) && !job.projectedDate) categories.push("unscheduled");
+  if (isOpenJob(job) && job.projectedDate && job.projectedDate < todayInputValue()) categories.push("past-date");
+  return categories;
+}
+
+function filteredJobs() {
+  const query = jobSearchQuery.trim().toLowerCase();
+  return state.jobs.filter((job) => {
+    const searchable = [job.name, job.customerName, job.serviceAddress, job.customerEmail]
+      .filter(Boolean)
+      .join(" ")
+      .toLowerCase();
+    if (query && !searchable.includes(query)) return false;
+    if (jobStatusFilter === "all") return true;
+    if (jobStatusFilter === "open") return isOpenJob(job);
+    if (jobStatusFilter === "attention") {
+      const categories = attentionCategoriesForJob(job);
+      return jobAttentionFilter ? categories.includes(jobAttentionFilter) : categories.length > 0;
+    }
+    return job.jobStatus === jobStatusFilter;
+  });
+}
+
+function ensureFilteredJobSelection(jobs = filteredJobs()) {
+  if (!jobs.some((job) => job.id === selectedJobId)) {
+    selectedJobId = jobs[0]?.id || null;
+  }
+  return jobs;
+}
+
+function attentionLabelForJob(job) {
+  const categories = attentionCategoriesForJob(job);
+  if (!categories.length) return "";
+  const labels = categories
+    .map((category) => attentionDefinitions.find((item) => item.id === category)?.label)
+    .filter(Boolean);
+  return labels.length > 1 ? `${labels[0]} +${labels.length - 1}` : labels[0];
 }
 
 function escapeHtml(value) {
@@ -985,6 +1058,7 @@ function render() {
   renderAuth();
   renderBranding();
   renderMetrics();
+  renderAttentionQueue();
   renderJobs();
   renderJobDetail();
   renderCustomerAccessSummary();
@@ -1024,36 +1098,65 @@ function renderMetrics() {
   els.billingProviderSummary.textContent = "Early access";
 }
 
+function renderAttentionQueue() {
+  const attentionJobs = state.jobs.filter((job) => attentionCategoriesForJob(job).length > 0);
+  els.attentionSummary.textContent = `${attentionJobs.length} ${attentionJobs.length === 1 ? "job" : "jobs"}`;
+  els.attentionQueue.innerHTML = attentionDefinitions
+    .map((item) => {
+      const count = state.jobs.filter((job) => attentionCategoriesForJob(job).includes(item.id)).length;
+      const pressed = jobStatusFilter === "attention" && jobAttentionFilter === item.id;
+      return `
+        <button class="attention-item ${pressed ? "active" : ""}" data-attention-filter="${escapeHtml(item.id)}" type="button" aria-pressed="${pressed}" ${count ? "" : "disabled"}>
+          <span class="attention-icon">${iconMarkup(item.icon)}</span>
+          <span><strong>${count}</strong><small>${escapeHtml(item.label)}</small></span>
+        </button>
+      `;
+    })
+    .join("");
+}
+
 function renderJobs() {
-  const jobs = state.jobs;
-  els.quickUpdateJob.disabled = jobs.length === 0;
+  const jobs = ensureFilteredJobSelection();
+  els.quickUpdateJob.disabled = !selectedJob();
+  els.jobSearch.value = jobSearchQuery;
+  els.jobStatusFilter.value = jobStatusFilter;
+  els.clearJobFilters.hidden = !jobSearchQuery && jobStatusFilter === "open" && !jobAttentionFilter;
+  els.filteredJobCount.textContent = `${jobs.length} shown`;
   els.jobList.innerHTML = jobs
     .map(
-      (job) => `
+      (job) => {
+        const attentionLabel = attentionLabelForJob(job);
+        return `
         <button class="job-row ${job.id === selectedJobId ? "active" : ""}" data-job-id="${job.id}" type="button" aria-pressed="${job.id === selectedJobId}">
           <span>
             <strong>${escapeHtml(job.name)}</strong>
             <small>${escapeHtml(job.customerName)}</small>
+            ${attentionLabel ? `<small class="job-attention-label">${escapeHtml(attentionLabel)}</small>` : ""}
           </span>
           <em class="job-status" data-status="${escapeHtml(job.jobStatus)}">${escapeHtml(job.jobStatus)}</em>
         </button>
-      `,
+      `;
+      },
     )
     .join("");
 
   if (!jobs.length) {
-    els.jobList.innerHTML = `<div class="empty-state">No jobs yet.</div>`;
+    els.jobList.innerHTML = state.jobs.length
+      ? `<div class="empty-state">No jobs match this search or filter.</div>`
+      : `<div class="empty-state">No jobs yet.</div>`;
   }
 }
 
 function renderJobDetail() {
   const job = selectedJob();
   if (!job) {
-    els.detailTitle.textContent = "No jobs yet";
+    els.detailTitle.textContent = state.jobs.length ? "No matching job" : "No jobs yet";
     els.detailStatus.textContent = "Empty";
     els.detailStatus.dataset.status = "Empty";
     els.jobDetail.classList.add("empty-state");
-    els.jobDetail.innerHTML = "Start a job to create the first customer portal.";
+    els.jobDetail.innerHTML = state.jobs.length
+      ? "Adjust the search or filter to select a job."
+      : "Start a job to create the first customer portal.";
     return;
   }
 
@@ -2217,6 +2320,37 @@ function bindEvents() {
     if (!row) return;
     selectedJobId = row.dataset.jobId;
     render();
+  });
+  els.attentionQueue.addEventListener("click", (event) => {
+    const button = event.target.closest("[data-attention-filter]");
+    if (!button) return;
+    const nextFilter = button.dataset.attentionFilter;
+    const alreadySelected = jobStatusFilter === "attention" && jobAttentionFilter === nextFilter;
+    jobSearchQuery = "";
+    jobStatusFilter = alreadySelected ? "open" : "attention";
+    jobAttentionFilter = alreadySelected ? "" : nextFilter;
+    ensureFilteredJobSelection();
+    render();
+  });
+  els.jobSearch.addEventListener("input", () => {
+    jobSearchQuery = els.jobSearch.value;
+    ensureFilteredJobSelection();
+    render();
+    els.jobSearch.focus();
+  });
+  els.jobStatusFilter.addEventListener("change", () => {
+    jobStatusFilter = els.jobStatusFilter.value;
+    jobAttentionFilter = "";
+    ensureFilteredJobSelection();
+    render();
+  });
+  els.clearJobFilters.addEventListener("click", () => {
+    jobSearchQuery = "";
+    jobStatusFilter = "open";
+    jobAttentionFilter = "";
+    ensureFilteredJobSelection();
+    render();
+    els.jobSearch.focus();
   });
 
   els.jobDetail.addEventListener("click", (event) => {

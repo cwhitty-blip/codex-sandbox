@@ -87,5 +87,12 @@ assert(app.includes("uploadLiveDocumentFiles"), "Multi-file uploads must use the
 assert(app.includes("removeLiveDocumentFiles(docs.map"), "Failed document records must clean up uploaded files");
 assert(app.includes("if (jobSaveBusy) return"), "Job saves must guard against duplicate submission");
 assert(app.includes("A custom field with that name already exists."), "Custom fields must reject duplicate names");
+assert(html.includes('id="attentionQueue"'), "Dashboard must include the needs-attention queue");
+assert(html.includes('id="jobSearch"'), "Dashboard must include job search");
+assert(html.includes('id="jobStatusFilter"'), "Dashboard must include job filtering");
+assert(app.includes("attentionCategoriesForJob"), "Attention categories must be derived from job data");
+assert(app.includes('doc.uploadedBy === "Customer" && doc.status === "New"'), "New customer uploads must appear in the attention queue");
+assert(app.includes('jobStatusFilter === "attention"'), "Job filtering must support the attention queue");
+assert(app.includes('${count ? "" : "disabled"}'), "Empty attention categories must not act like filters");
 
 console.log("Static smoke checks passed.");
