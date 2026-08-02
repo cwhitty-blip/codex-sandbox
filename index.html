@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="referrer" content="no-referrer" />
     <title>Service Portal</title>
-    <link rel="stylesheet" href="assets/styles.css?v=billing-v1" />
+    <link rel="stylesheet" href="assets/styles.css?v=scheduling-v1" />
   </head>
   <body>
     <div class="app-shell">
@@ -114,6 +114,17 @@
               <span id="attentionSummary" class="count-chip">0 jobs</span>
             </div>
             <div id="attentionQueue" class="attention-queue"></div>
+          </section>
+
+          <section class="schedule-section" aria-labelledby="upcomingScheduleTitle">
+            <div class="attention-header">
+              <div>
+                <p class="eyebrow">Schedule</p>
+                <h2 id="upcomingScheduleTitle">Upcoming visits</h2>
+              </div>
+              <span id="upcomingScheduleCount" class="count-chip">0 visits</span>
+            </div>
+            <div id="upcomingSchedule" class="upcoming-schedule"></div>
           </section>
 
           <section class="work-grid">
@@ -291,6 +302,55 @@
               </label>
             </div>
 
+            <div class="panel schedule-settings-panel">
+              <div class="panel-header">
+                <div>
+                  <p class="eyebrow">Scheduling</p>
+                  <h2>Company availability</h2>
+                </div>
+                <span id="scheduleSettingsStatus" class="status-pill">Ready</span>
+              </div>
+              <form id="scheduleSettingsForm" class="stacked-form">
+                <label>
+                  Time zone
+                  <select id="scheduleTimezone" data-requires-write></select>
+                </label>
+                <fieldset class="weekday-fieldset">
+                  <legend>Working days</legend>
+                  <div id="scheduleWorkdays" class="weekday-options">
+                    <label><input type="checkbox" value="1" data-requires-write /><span>Mon</span></label>
+                    <label><input type="checkbox" value="2" data-requires-write /><span>Tue</span></label>
+                    <label><input type="checkbox" value="3" data-requires-write /><span>Wed</span></label>
+                    <label><input type="checkbox" value="4" data-requires-write /><span>Thu</span></label>
+                    <label><input type="checkbox" value="5" data-requires-write /><span>Fri</span></label>
+                    <label><input type="checkbox" value="6" data-requires-write /><span>Sat</span></label>
+                    <label><input type="checkbox" value="0" data-requires-write /><span>Sun</span></label>
+                  </div>
+                </fieldset>
+                <div class="form-grid compact-form-grid">
+                  <label>
+                    Day starts
+                    <input id="scheduleWorkdayStart" data-requires-write type="time" required />
+                  </label>
+                  <label>
+                    Day ends
+                    <input id="scheduleWorkdayEnd" data-requires-write type="time" required />
+                  </label>
+                  <label>
+                    Between-job buffer
+                    <select id="scheduleBufferMinutes" data-requires-write>
+                      <option value="0">No buffer</option>
+                      <option value="15">15 minutes</option>
+                      <option value="30">30 minutes</option>
+                      <option value="45">45 minutes</option>
+                      <option value="60">1 hour</option>
+                    </select>
+                  </label>
+                </div>
+                <button class="primary-button" data-requires-write type="submit"><i data-lucide="save"></i><span>Save availability</span></button>
+              </form>
+            </div>
+
             <div class="panel">
               <div class="panel-header">
                 <div>
@@ -359,14 +419,45 @@
             <select id="materialStatus"></select>
           </label>
           <label>
-            Projected service date
-            <input id="projectedDate" type="date" />
-          </label>
-          <label>
             Billing invoice URL
             <input id="invoiceUrl" type="url" placeholder="https://..." />
           </label>
         </div>
+
+        <fieldset class="schedule-fieldset">
+          <legend>Appointment</legend>
+          <div class="form-grid compact-form-grid">
+            <label>
+              Date
+              <input id="projectedDate" type="date" />
+            </label>
+            <label>
+              Start time
+              <input id="scheduledTime" type="time" />
+            </label>
+            <label>
+              Estimated hours
+              <input id="estimatedHours" type="number" min="0.5" max="24" step="0.5" inputmode="decimal" value="1" />
+            </label>
+            <label>
+              Repeats
+              <select id="recurrencePattern">
+                <option value="none">Does not repeat</option>
+                <option value="weekly:1">Every week</option>
+                <option value="weekly:2">Every 2 weeks</option>
+                <option value="monthly:1">Every month</option>
+              </select>
+            </label>
+            <label id="recurrenceUntilLabel" hidden>
+              Repeat through
+              <input id="recurrenceUntil" type="date" />
+            </label>
+          </div>
+          <div class="schedule-suggestion-row">
+            <button id="suggestNextAvailable" class="ghost-button" type="button"><i data-lucide="calendar-search"></i><span>Suggest next available</span></button>
+            <small id="scheduleSuggestionStatus">Suggestions use the company availability in Settings.</small>
+          </div>
+        </fieldset>
 
         <div id="customFieldInputs" class="custom-field-inputs"></div>
 
@@ -384,6 +475,36 @@
           <span></span>
           <button id="cancelJobDialog" class="ghost-button" type="button">Cancel</button>
           <button id="saveJob" class="primary-button" value="default" type="submit"><i data-lucide="save"></i><span>Save job</span></button>
+        </div>
+      </form>
+    </dialog>
+
+    <dialog id="scheduleVisitDialog">
+      <form id="scheduleVisitForm" method="dialog" class="dialog-form compact-dialog-form">
+        <div class="dialog-header">
+          <div>
+            <p class="eyebrow">Recurring visit</p>
+            <h2 id="scheduleVisitTitle">Reschedule visit</h2>
+          </div>
+          <button id="closeScheduleVisitDialog" class="icon-button" type="button" aria-label="Close" title="Close"><i data-lucide="x"></i></button>
+        </div>
+        <input id="scheduleVisitJobId" type="hidden" />
+        <input id="scheduleVisitOriginalStart" type="hidden" />
+        <div class="form-grid compact-form-grid">
+          <label>
+            New date
+            <input id="scheduleVisitDate" type="date" required />
+          </label>
+          <label>
+            New start time
+            <input id="scheduleVisitTime" type="time" required />
+          </label>
+        </div>
+        <div class="dialog-actions">
+          <button id="skipScheduleVisit" class="danger-button" type="button"><i data-lucide="calendar-x-2"></i><span>Skip visit</span></button>
+          <span></span>
+          <button id="cancelScheduleVisitDialog" class="ghost-button" type="button">Cancel</button>
+          <button class="primary-button" type="submit"><i data-lucide="calendar-check-2"></i><span>Save new time</span></button>
         </div>
       </form>
     </dialog>
@@ -416,6 +537,6 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.110.1"></script>
     <script src="https://unpkg.com/lucide@1.24.0/dist/umd/lucide.js"></script>
     <script src="assets/config.js?v=accounts-v3"></script>
-    <script src="assets/app.js?v=billing-v1"></script>
+    <script src="assets/app.js?v=scheduling-v1"></script>
   </body>
 </html>

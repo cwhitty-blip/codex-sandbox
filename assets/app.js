@@ -1,4 +1,4 @@
-const STORAGE_KEY = "serviceJobPortal.v1";
+const STORAGE_KEY = "serviceJobPortal.v2";
 const DOCUMENT_BUCKET = "job-documents";
 const BRANDING_BUCKET = "company-branding";
 const MAX_DOCUMENT_BYTES = 10 * 1024 * 1024;
@@ -29,6 +29,22 @@ const materialStatuses = ["Not Ordered", "Ordered", "In Transit", "Arrived", "No
 const monthlyPlanCents = 1299;
 const trialDays = 14;
 const previewPromoCodes = { "20off": 20, "30off": 30 };
+const scheduleTimezones = [
+  { value: "America/New_York", label: "Eastern Time" },
+  { value: "America/Chicago", label: "Central Time" },
+  { value: "America/Denver", label: "Mountain Time" },
+  { value: "America/Phoenix", label: "Arizona Time" },
+  { value: "America/Los_Angeles", label: "Pacific Time" },
+  { value: "America/Anchorage", label: "Alaska Time" },
+  { value: "Pacific/Honolulu", label: "Hawaii Time" },
+];
+const defaultScheduleSettings = {
+  schedulingTimezone: Intl.DateTimeFormat().resolvedOptions().timeZone || "America/Chicago",
+  schedulingWorkdays: [1, 2, 3, 4, 5],
+  schedulingWorkdayStart: "08:00",
+  schedulingWorkdayEnd: "17:00",
+  schedulingBufferMinutes: 30,
+};
 
 function createId() {
   if (window.crypto?.randomUUID) return window.crypto.randomUUID();
@@ -56,6 +72,7 @@ const demoState = {
     promoCode: "",
     promoPercentOff: 0,
     mileageTrackingEnabled: true,
+    ...defaultScheduleSettings,
     customFields: [
       { id: createId(), label: "Claim number", type: "text", options: [] },
       { id: createId(), label: "Gate code", type: "text", options: [] },
@@ -81,6 +98,13 @@ const demoState = {
       jobStatus: "Waiting on Customer",
       materialStatus: "Ordered",
       projectedDate: "2026-07-18",
+      scheduledStart: "2026-08-04T14:00:00.000Z",
+      scheduledEnd: "2026-08-04T18:00:00.000Z",
+      estimatedDurationMinutes: 240,
+      recurrenceFrequency: "none",
+      recurrenceInterval: 1,
+      recurrenceUntil: "",
+      scheduleExceptions: [],
       invoiceUrl: "https://pay.example.com/invoice/garcia",
       nextAction: "Customer needs to upload insurance claim letter.",
       internalNotes: "Adjuster approved roof, gutters still pending.",
@@ -125,6 +149,13 @@ const demoState = {
       jobStatus: "Scheduled",
       materialStatus: "Arrived",
       projectedDate: "2026-07-09",
+      scheduledStart: "2026-08-06T15:00:00.000Z",
+      scheduledEnd: "2026-08-06T17:00:00.000Z",
+      estimatedDurationMinutes: 120,
+      recurrenceFrequency: "weekly",
+      recurrenceInterval: 2,
+      recurrenceUntil: "2026-10-31",
+      scheduleExceptions: [],
       invoiceUrl: "",
       nextAction: "Crew scheduled for Thursday morning.",
       internalNotes: "Customer requested shoe covers and driveway parking.",
@@ -202,6 +233,8 @@ const els = {
   quickUpdateJob: document.getElementById("quickUpdateJob"),
   attentionSummary: document.getElementById("attentionSummary"),
   attentionQueue: document.getElementById("attentionQueue"),
+  upcomingSchedule: document.getElementById("upcomingSchedule"),
+  upcomingScheduleCount: document.getElementById("upcomingScheduleCount"),
   jobSearch: document.getElementById("jobSearch"),
   jobStatusFilter: document.getElementById("jobStatusFilter"),
   clearJobFilters: document.getElementById("clearJobFilters"),
@@ -220,6 +253,13 @@ const els = {
   billingSync: document.getElementById("billingSync"),
   mileageTrackingEnabled: document.getElementById("mileageTrackingEnabled"),
   mileageTrackingStatus: document.getElementById("mileageTrackingStatus"),
+  scheduleSettingsForm: document.getElementById("scheduleSettingsForm"),
+  scheduleSettingsStatus: document.getElementById("scheduleSettingsStatus"),
+  scheduleTimezone: document.getElementById("scheduleTimezone"),
+  scheduleWorkdays: document.getElementById("scheduleWorkdays"),
+  scheduleWorkdayStart: document.getElementById("scheduleWorkdayStart"),
+  scheduleWorkdayEnd: document.getElementById("scheduleWorkdayEnd"),
+  scheduleBufferMinutes: document.getElementById("scheduleBufferMinutes"),
   fieldForm: document.getElementById("fieldForm"),
   fieldLabel: document.getElementById("fieldLabel"),
   fieldType: document.getElementById("fieldType"),
@@ -239,6 +279,13 @@ const els = {
   jobStatus: document.getElementById("jobStatus"),
   materialStatus: document.getElementById("materialStatus"),
   projectedDate: document.getElementById("projectedDate"),
+  scheduledTime: document.getElementById("scheduledTime"),
+  estimatedHours: document.getElementById("estimatedHours"),
+  recurrencePattern: document.getElementById("recurrencePattern"),
+  recurrenceUntilLabel: document.getElementById("recurrenceUntilLabel"),
+  recurrenceUntil: document.getElementById("recurrenceUntil"),
+  suggestNextAvailable: document.getElementById("suggestNextAvailable"),
+  scheduleSuggestionStatus: document.getElementById("scheduleSuggestionStatus"),
   invoiceUrl: document.getElementById("invoiceUrl"),
   customFieldInputs: document.getElementById("customFieldInputs"),
   nextAction: document.getElementById("nextAction"),
@@ -247,6 +294,16 @@ const els = {
   deleteJob: document.getElementById("deleteJob"),
   closeJobDialog: document.getElementById("closeJobDialog"),
   cancelJobDialog: document.getElementById("cancelJobDialog"),
+  scheduleVisitDialog: document.getElementById("scheduleVisitDialog"),
+  scheduleVisitForm: document.getElementById("scheduleVisitForm"),
+  scheduleVisitTitle: document.getElementById("scheduleVisitTitle"),
+  scheduleVisitJobId: document.getElementById("scheduleVisitJobId"),
+  scheduleVisitOriginalStart: document.getElementById("scheduleVisitOriginalStart"),
+  scheduleVisitDate: document.getElementById("scheduleVisitDate"),
+  scheduleVisitTime: document.getElementById("scheduleVisitTime"),
+  closeScheduleVisitDialog: document.getElementById("closeScheduleVisitDialog"),
+  cancelScheduleVisitDialog: document.getElementById("cancelScheduleVisitDialog"),
+  skipScheduleVisit: document.getElementById("skipScheduleVisit"),
   estimateChangesDialog: document.getElementById("estimateChangesDialog"),
   estimateChangesForm: document.getElementById("estimateChangesForm"),
   estimateChangesDocId: document.getElementById("estimateChangesDocId"),
@@ -300,6 +357,9 @@ function loadState() {
 
 function normalizeState(nextState) {
   nextState.settings = { ...structuredClone(demoState.settings), ...(nextState.settings || {}) };
+  nextState.settings.schedulingWorkdays = Array.isArray(nextState.settings.schedulingWorkdays)
+    ? nextState.settings.schedulingWorkdays.map(Number).filter((day) => day >= 0 && day <= 6)
+    : [...defaultScheduleSettings.schedulingWorkdays];
   nextState.portalAccess = { ...structuredClone(demoState.portalAccess), ...(nextState.portalAccess || {}) };
   nextState.settings.customFields = Array.isArray(nextState.settings.customFields) ? nextState.settings.customFields : [];
   nextState.jobs = Array.isArray(nextState.jobs) ? nextState.jobs : [];
@@ -312,6 +372,13 @@ function normalizeState(nextState) {
     });
     job.timeline = Array.isArray(job.timeline) ? job.timeline : ["Job started"];
     job.mileageEntries = Array.isArray(job.mileageEntries) ? job.mileageEntries : [];
+    job.scheduledStart = job.scheduledStart || null;
+    job.scheduledEnd = job.scheduledEnd || null;
+    job.estimatedDurationMinutes = Math.max(30, Number(job.estimatedDurationMinutes || 60));
+    job.recurrenceFrequency = ["weekly", "monthly"].includes(job.recurrenceFrequency) ? job.recurrenceFrequency : "none";
+    job.recurrenceInterval = Math.max(1, Number(job.recurrenceInterval || 1));
+    job.recurrenceUntil = job.recurrenceUntil || "";
+    job.scheduleExceptions = Array.isArray(job.scheduleExceptions) ? job.scheduleExceptions : [];
     job.customValues = job.customValues || {};
     job.estimateAcceptedAt = job.estimateAcceptedAt || null;
     job.acceptedEstimate = job.acceptedEstimate || null;
@@ -739,6 +806,16 @@ function mapDbMileageEntry(entry) {
   };
 }
 
+function mapDbScheduleException(exception) {
+  return {
+    id: exception.id,
+    originalStart: exception.occurrence_start,
+    replacementStart: exception.replacement_start || null,
+    replacementEnd: exception.replacement_end || null,
+    status: exception.status,
+  };
+}
+
 function mapDbJob(job) {
   const customer = Array.isArray(job.customers) ? job.customers[0] : job.customers;
   const latestDecision = [...(job.estimate_acceptances || [])]
@@ -755,6 +832,13 @@ function mapDbJob(job) {
     jobStatus: job.job_status,
     materialStatus: job.material_status,
     projectedDate: job.projected_date || "",
+    scheduledStart: job.scheduled_start || null,
+    scheduledEnd: job.scheduled_end || null,
+    estimatedDurationMinutes: Math.max(30, Number(job.estimated_duration_minutes || 60)),
+    recurrenceFrequency: job.recurrence_frequency || "none",
+    recurrenceInterval: Math.max(1, Number(job.recurrence_interval || 1)),
+    recurrenceUntil: job.recurrence_until || "",
+    scheduleExceptions: (job.schedule_exceptions || []).map(mapDbScheduleException),
     invoiceUrl: job.invoice_url || "",
     nextAction: job.next_action || "",
     internalNotes: job.internal_notes || "",
@@ -799,7 +883,7 @@ async function loadLiveState() {
       backend.client.from("custom_fields").select("*").eq("company_id", companyId).order("created_at"),
       backend.client
         .from("jobs")
-        .select("*, customers(*), documents(*), estimate_acceptances(*), mileage_entries(*)")
+        .select("*, customers(*), documents(*), estimate_acceptances(*), mileage_entries(*), schedule_exceptions(*)")
         .eq("company_id", companyId)
         .order("created_at", { ascending: false }),
       backend.client.rpc("get_my_company_entitlement").maybeSingle(),
@@ -832,6 +916,13 @@ async function loadLiveState() {
     promoCode: entitlement?.promo_code || "",
     promoPercentOff: entitlement?.promo_percent_off || 0,
     mileageTrackingEnabled: Boolean(company.mileage_tracking_enabled),
+    schedulingTimezone: company.scheduling_timezone || defaultScheduleSettings.schedulingTimezone,
+    schedulingWorkdays: Array.isArray(company.scheduling_workdays)
+      ? company.scheduling_workdays.map(Number)
+      : [...defaultScheduleSettings.schedulingWorkdays],
+    schedulingWorkdayStart: String(company.scheduling_workday_start || defaultScheduleSettings.schedulingWorkdayStart).slice(0, 5),
+    schedulingWorkdayEnd: String(company.scheduling_workday_end || defaultScheduleSettings.schedulingWorkdayEnd).slice(0, 5),
+    schedulingBufferMinutes: Number(company.scheduling_buffer_minutes ?? defaultScheduleSettings.schedulingBufferMinutes),
     customFields: (fields || []).map((field) => ({
       id: field.id,
       label: field.label,
@@ -893,6 +984,7 @@ function applyPortalCompany(companyData) {
     logo_url: companyData.logo_url || "",
     logo_path: null,
   };
+  if (companyData.scheduling_timezone) state.settings.schedulingTimezone = companyData.scheduling_timezone;
 }
 
 async function loadCustomerPortal(token, actionPayload = { action: "payload" }) {
@@ -1084,6 +1176,210 @@ function todayInputValue() {
   return local.toISOString().slice(0, 10);
 }
 
+function scheduleTimezone() {
+  return state.settings.schedulingTimezone || defaultScheduleSettings.schedulingTimezone;
+}
+
+function datePartsInTimezone(value, timeZone = scheduleTimezone()) {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+  }).formatToParts(new Date(value));
+  return Object.fromEntries(parts.filter((part) => part.type !== "literal").map((part) => [part.type, part.value]));
+}
+
+function dateInputInTimezone(value, timeZone = scheduleTimezone()) {
+  if (!value) return "";
+  const parts = datePartsInTimezone(value, timeZone);
+  return `${parts.year}-${parts.month}-${parts.day}`;
+}
+
+function timeInputInTimezone(value, timeZone = scheduleTimezone()) {
+  if (!value) return "";
+  const parts = datePartsInTimezone(value, timeZone);
+  return `${parts.hour}:${parts.minute}`;
+}
+
+function zonedDateTimeToUtc(dateValue, timeValue, timeZone = scheduleTimezone()) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(dateValue || "") || !/^\d{2}:\d{2}$/.test(timeValue || "")) return null;
+  const [year, month, day] = dateValue.split("-").map(Number);
+  const [hour, minute] = timeValue.split(":").map(Number);
+  const targetUtc = Date.UTC(year, month - 1, day, hour, minute);
+  let result = targetUtc;
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    const parts = datePartsInTimezone(result, timeZone);
+    const renderedUtc = Date.UTC(
+      Number(parts.year),
+      Number(parts.month) - 1,
+      Number(parts.day),
+      Number(parts.hour),
+      Number(parts.minute),
+    );
+    const adjustment = targetUtc - renderedUtc;
+    result += adjustment;
+    if (!adjustment) break;
+  }
+  return new Date(result);
+}
+
+function addCalendarDays(dateValue, days) {
+  const [year, month, day] = dateValue.split("-").map(Number);
+  const date = new Date(Date.UTC(year, month - 1, day + days));
+  return date.toISOString().slice(0, 10);
+}
+
+function addCalendarMonths(dateValue, months) {
+  const [year, month, day] = dateValue.split("-").map(Number);
+  const monthIndex = month - 1 + months;
+  const targetYear = year + Math.floor(monthIndex / 12);
+  const targetMonth = ((monthIndex % 12) + 12) % 12;
+  const lastDay = new Date(Date.UTC(targetYear, targetMonth + 1, 0)).getUTCDate();
+  return `${targetYear}-${String(targetMonth + 1).padStart(2, "0")}-${String(Math.min(day, lastDay)).padStart(2, "0")}`;
+}
+
+function weekdayForDate(dateValue) {
+  const [year, month, day] = dateValue.split("-").map(Number);
+  return new Date(Date.UTC(year, month - 1, day)).getUTCDay();
+}
+
+function formatScheduleDateTime(value) {
+  if (!value) return "Not scheduled";
+  return new Intl.DateTimeFormat(undefined, {
+    timeZone: scheduleTimezone(),
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  }).format(new Date(value));
+}
+
+function formatDuration(minutes) {
+  const total = Math.max(0, Number(minutes || 0));
+  const hours = Math.floor(total / 60);
+  const remaining = total % 60;
+  if (!hours) return `${remaining} min`;
+  if (!remaining) return `${hours} ${hours === 1 ? "hr" : "hrs"}`;
+  return `${hours} hr ${remaining} min`;
+}
+
+function recurrenceLabel(job) {
+  if (job.recurrenceFrequency === "weekly") {
+    return Number(job.recurrenceInterval || 1) === 2 ? "Every 2 weeks" : "Every week";
+  }
+  if (job.recurrenceFrequency === "monthly") return "Every month";
+  return "One visit";
+}
+
+function scheduleExceptionFor(job, originalStart) {
+  const target = new Date(originalStart).getTime();
+  return (job.scheduleExceptions || []).find((exception) => new Date(exception.originalStart).getTime() === target);
+}
+
+function occurrencesForJob(job, rangeStart, rangeEnd, includeSkipped = false) {
+  if (!job.scheduledStart || job.jobStatus === "Complete") return [];
+  const baseStart = new Date(job.scheduledStart);
+  if (Number.isNaN(baseStart.getTime())) return [];
+  const duration = Math.max(30, Number(job.estimatedDurationMinutes || 60));
+  const baseDate = dateInputInTimezone(baseStart);
+  const baseTime = timeInputInTimezone(baseStart);
+  const frequency = job.recurrenceFrequency || "none";
+  const interval = Math.max(1, Number(job.recurrenceInterval || 1));
+  const until = job.recurrenceUntil || "";
+  const occurrences = [];
+  let occurrenceDate = baseDate;
+
+  for (let index = 0; index < 520; index += 1) {
+    if (until && occurrenceDate > until) break;
+    const originalDate = frequency === "none" && index === 0
+      ? baseStart
+      : zonedDateTimeToUtc(occurrenceDate, baseTime);
+    if (!originalDate || originalDate > rangeEnd) break;
+    const originalStart = originalDate.toISOString();
+    const exception = scheduleExceptionFor(job, originalStart);
+    const skipped = exception?.status === "skipped";
+    const occurrenceStart = exception?.status === "rescheduled" && exception.replacementStart
+      ? new Date(exception.replacementStart)
+      : originalDate;
+    const occurrenceEnd = exception?.status === "rescheduled" && exception.replacementEnd
+      ? new Date(exception.replacementEnd)
+      : new Date(occurrenceStart.getTime() + duration * 60_000);
+    if ((includeSkipped || !skipped) && occurrenceEnd >= rangeStart && occurrenceStart <= rangeEnd) {
+      occurrences.push({
+        job,
+        originalStart,
+        start: occurrenceStart.toISOString(),
+        end: occurrenceEnd.toISOString(),
+        status: skipped ? "skipped" : exception?.status || "scheduled",
+      });
+    }
+    if (frequency === "none") break;
+    occurrenceDate = frequency === "monthly"
+      ? addCalendarMonths(baseDate, (index + 1) * interval)
+      : addCalendarDays(baseDate, (index + 1) * interval * 7);
+  }
+  return occurrences;
+}
+
+function upcomingOccurrences(days = 90) {
+  const start = new Date();
+  const end = new Date(start.getTime() + days * 86_400_000);
+  return state.jobs
+    .flatMap((job) => occurrencesForJob(job, start, end))
+    .sort((a, b) => new Date(a.start) - new Date(b.start));
+}
+
+function nextOccurrenceForJob(job) {
+  const now = new Date();
+  const end = new Date(now.getTime() + 400 * 86_400_000);
+  return occurrencesForJob(job, now, end)[0] || null;
+}
+
+function candidateHasConflict(start, end, excludedJobId = "", excludedOriginalStart = "") {
+  const bufferMs = Math.max(0, Number(state.settings.schedulingBufferMinutes || 0)) * 60_000;
+  const rangeStart = new Date(start.getTime() - 86_400_000);
+  const rangeEnd = new Date(end.getTime() + 86_400_000);
+  return state.jobs.some((job) => occurrencesForJob(job, rangeStart, rangeEnd).some((occurrence) => {
+    if (job.id === excludedJobId && (!excludedOriginalStart || occurrence.originalStart === excludedOriginalStart)) return false;
+    const busyStart = new Date(occurrence.start).getTime();
+    const busyEnd = new Date(occurrence.end).getTime();
+    return start.getTime() < busyEnd + bufferMs && end.getTime() + bufferMs > busyStart;
+  }));
+}
+
+function suggestNextAvailableSlot(durationMinutes, earliestDate = "", excludedJobId = "") {
+  const timeZone = scheduleTimezone();
+  const now = new Date();
+  const today = dateInputInTimezone(now, timeZone);
+  const firstDate = earliestDate && earliestDate > today ? earliestDate : today;
+  const workdays = state.settings.schedulingWorkdays || defaultScheduleSettings.schedulingWorkdays;
+  const dayStartTime = state.settings.schedulingWorkdayStart || defaultScheduleSettings.schedulingWorkdayStart;
+  const dayEndTime = state.settings.schedulingWorkdayEnd || defaultScheduleSettings.schedulingWorkdayEnd;
+  const durationMs = Math.max(30, Number(durationMinutes || 60)) * 60_000;
+
+  for (let offset = 0; offset <= 90; offset += 1) {
+    const dateValue = addCalendarDays(firstDate, offset);
+    if (!workdays.includes(weekdayForDate(dateValue))) continue;
+    const workdayStart = zonedDateTimeToUtc(dateValue, dayStartTime, timeZone);
+    const workdayEnd = zonedDateTimeToUtc(dateValue, dayEndTime, timeZone);
+    if (!workdayStart || !workdayEnd || workdayEnd <= workdayStart) continue;
+    let cursorMs = Math.max(workdayStart.getTime(), now.getTime());
+    cursorMs = Math.ceil(cursorMs / (15 * 60_000)) * 15 * 60_000;
+    while (cursorMs + durationMs <= workdayEnd.getTime()) {
+      const start = new Date(cursorMs);
+      const end = new Date(cursorMs + durationMs);
+      if (!candidateHasConflict(start, end, excludedJobId)) return { start, end };
+      cursorMs += 15 * 60_000;
+    }
+  }
+  return null;
+}
+
 function nextEstimateVersion(job) {
   const versions = job.documents.filter((doc) => doc.type === "Estimate").map((doc) => Number(doc.version || 0));
   return Math.max(0, ...versions) + 1;
@@ -1103,6 +1399,11 @@ function initStaticControls() {
   populateSelect(els.jobStatus, jobStatuses);
   populateSelect(els.materialStatus, materialStatuses);
   populateSelect(els.billingProvider, billingProviders);
+  const browserTimezone = defaultScheduleSettings.schedulingTimezone;
+  const timezoneOptions = scheduleTimezones.some((item) => item.value === browserTimezone)
+    ? scheduleTimezones
+    : [{ value: browserTimezone, label: `Local time (${browserTimezone})` }, ...scheduleTimezones];
+  populateSelect(els.scheduleTimezone, timezoneOptions, "value", "label");
 }
 
 function render() {
@@ -1111,6 +1412,7 @@ function render() {
   renderBranding();
   renderMetrics();
   renderAttentionQueue();
+  renderUpcomingSchedule();
   renderJobs();
   renderJobDetail();
   renderCustomerAccessSummary();
@@ -1177,6 +1479,37 @@ function renderAttentionQueue() {
     .join("");
 }
 
+function renderUpcomingSchedule() {
+  const allOccurrences = upcomingOccurrences(90);
+  const occurrences = allOccurrences.slice(0, 8);
+  els.upcomingScheduleCount.textContent = `${allOccurrences.length} ${allOccurrences.length === 1 ? "visit" : "visits"}`;
+  els.upcomingSchedule.innerHTML = occurrences.length
+    ? occurrences.map((occurrence) => {
+        const job = occurrence.job;
+        const recurring = job.recurrenceFrequency !== "none";
+        return `
+          <div class="schedule-row ${job.id === selectedJobId ? "active" : ""}">
+            <button class="schedule-row-main" data-schedule-job-id="${escapeHtml(job.id)}" type="button">
+              <span class="schedule-date-block">
+                <strong>${escapeHtml(new Intl.DateTimeFormat(undefined, { timeZone: scheduleTimezone(), month: "short", day: "numeric" }).format(new Date(occurrence.start)))}</strong>
+                <small>${escapeHtml(new Intl.DateTimeFormat(undefined, { timeZone: scheduleTimezone(), hour: "numeric", minute: "2-digit" }).format(new Date(occurrence.start)))}</small>
+              </span>
+              <span class="schedule-job-copy">
+                <strong>${escapeHtml(job.name)}</strong>
+                <small>${escapeHtml(job.customerName)} / ${escapeHtml(formatDuration(job.estimatedDurationMinutes))}</small>
+              </span>
+            </button>
+            ${recurring ? `
+              <button class="icon-button" data-action="reschedule-occurrence" data-job-id="${escapeHtml(job.id)}" data-original-start="${escapeHtml(occurrence.originalStart)}" type="button" aria-label="Change this visit" title="Change this visit">
+                ${iconMarkup("calendar-cog")}
+              </button>
+            ` : ""}
+          </div>
+        `;
+      }).join("")
+    : `<div class="empty-state">No visits are scheduled in the next 90 days.</div>`;
+}
+
 function renderJobs() {
   const jobs = ensureFilteredJobSelection();
   els.quickUpdateJob.disabled = !selectedJob();
@@ -1229,6 +1562,7 @@ function renderJobDetail() {
   const customerDocs = activeDocuments.filter((doc) => doc.uploadedBy === "Customer").length;
   const archivedDocs = job.documents.length - activeDocuments.length;
   const invoiceUrl = safeExternalUrl(job.invoiceUrl);
+  const nextAppointment = nextOccurrenceForJob(job);
   const billingProvider = state.settings.billingConnected ? state.settings.billingProvider : "Billing not configured";
   els.detailTitle.textContent = job.name;
   els.detailStatus.textContent = job.jobStatus;
@@ -1244,13 +1578,25 @@ function renderJobDetail() {
     ${job.actionMessage ? `<div class="action-feedback" role="status">${iconMarkup("info")}<span>${escapeHtml(job.actionMessage)}</span></div>` : ""}
     <div class="stat-grid">
       <div><span>Customer</span><strong>${escapeHtml(job.customerName)}</strong></div>
-      <div><span>Projected service date</span><strong>${formatDate(job.projectedDate)}</strong></div>
+      <div><span>Next visit</span><strong>${nextAppointment ? formatScheduleDateTime(nextAppointment.start) : formatDate(job.projectedDate)}</strong></div>
       <div><span>Material or parts status</span><strong>${escapeHtml(job.materialStatus)}</strong></div>
       <div><span>Estimate</span><strong>${escapeHtml(estimateStatus(job))}</strong></div>
     </div>
     <section class="plain-section estimate-summary">
       <h3>Estimate</h3>
       ${renderContractorEstimateStatus(job, estimate)}
+    </section>
+    <section class="plain-section schedule-summary">
+      <h3>Schedule</h3>
+      ${nextAppointment ? `
+        <div class="schedule-summary-line">
+          <span>${iconMarkup("calendar-clock")}</span>
+          <span>
+            <strong>${escapeHtml(formatScheduleDateTime(nextAppointment.start))}</strong>
+            <small>${escapeHtml(formatDuration(job.estimatedDurationMinutes))} / ${escapeHtml(recurrenceLabel(job))}${job.recurrenceUntil ? ` through ${escapeHtml(formatDate(job.recurrenceUntil))}` : ""}</small>
+          </span>
+        </div>
+      ` : `<p>No appointment time has been scheduled.</p>`}
     </section>
     <section class="plain-section">
       <h3>Next action</h3>
@@ -1467,7 +1813,9 @@ function customerTimelineFor(job) {
   if (job.estimateDecision?.status === "reject") items.push("Estimate not accepted");
   if (job.acceptedEstimate || job.estimateAcceptedAt) items.push("Estimate accepted");
   if (job.documents.some((doc) => doc.uploadedBy === "Customer")) items.push("Insurance claim uploaded");
-  if (job.projectedDate) items.push(`Projected service date: ${formatDate(job.projectedDate)}`);
+  const nextAppointment = nextOccurrenceForJob(job);
+  if (nextAppointment) items.push(`Next visit: ${formatScheduleDateTime(nextAppointment.start)}`);
+  else if (job.projectedDate) items.push(`Projected service date: ${formatDate(job.projectedDate)}`);
   return items;
 }
 
@@ -1512,6 +1860,7 @@ function renderCustomerPortal() {
   const estimate = estimateFor(job);
   const receivedUploads = customerUploads.length;
   const invoiceUrl = safeExternalUrl(job.invoiceUrl);
+  const nextAppointment = nextOccurrenceForJob(job);
   els.customerPortal.innerHTML = `
     <div class="customer-hero">
       <div>
@@ -1524,7 +1873,7 @@ function renderCustomerPortal() {
     ${portalMode.active && !portalMode.canWrite ? `<div class="action-feedback" role="status">${iconMarkup("lock-keyhole")}<span>This portal is temporarily read-only. Files and job details remain available.</span></div>` : ""}
     <div class="stat-grid">
       <div><span>Material or parts status</span><strong>${escapeHtml(job.materialStatus)}</strong></div>
-      <div><span>Projected service date</span><strong>${formatDate(job.projectedDate)}</strong></div>
+      <div><span>Next visit</span><strong>${nextAppointment ? formatScheduleDateTime(nextAppointment.start) : formatDate(job.projectedDate)}</strong></div>
       <div><span>Uploads received</span><strong>${receivedUploads}</strong></div>
     </div>
     ${invoiceUrl ? `
@@ -1637,6 +1986,19 @@ function renderSettings() {
   els.mileageTrackingEnabled.checked = Boolean(state.settings.mileageTrackingEnabled);
   els.mileageTrackingStatus.textContent = state.settings.mileageTrackingEnabled ? "On" : "Off";
   els.mileageTrackingStatus.dataset.status = state.settings.mileageTrackingEnabled ? "Active" : "Empty";
+  if (![...els.scheduleTimezone.options].some((option) => option.value === scheduleTimezone())) {
+    els.scheduleTimezone.add(new Option(scheduleTimezone(), scheduleTimezone()));
+  }
+  els.scheduleTimezone.value = scheduleTimezone();
+  els.scheduleWorkdayStart.value = state.settings.schedulingWorkdayStart || defaultScheduleSettings.schedulingWorkdayStart;
+  els.scheduleWorkdayEnd.value = state.settings.schedulingWorkdayEnd || defaultScheduleSettings.schedulingWorkdayEnd;
+  els.scheduleBufferMinutes.value = String(state.settings.schedulingBufferMinutes ?? defaultScheduleSettings.schedulingBufferMinutes);
+  const selectedWorkdays = state.settings.schedulingWorkdays || defaultScheduleSettings.schedulingWorkdays;
+  els.scheduleWorkdays.querySelectorAll('input[type="checkbox"]').forEach((checkbox) => {
+    checkbox.checked = selectedWorkdays.includes(Number(checkbox.value));
+  });
+  els.scheduleSettingsStatus.textContent = backend.live ? "Saved" : "Preview";
+  els.scheduleSettingsStatus.dataset.status = "Active";
   renderSubscriptionSettings();
   els.fieldCount.textContent = String(state.settings.customFields.length);
   els.customFieldList.innerHTML = state.settings.customFields.length
@@ -1826,6 +2188,93 @@ function renderCustomFieldInputs(job = null) {
     .join("");
 }
 
+function applySuggestedSchedule() {
+  const durationMinutes = Math.round(Math.max(0.5, Number(els.estimatedHours.value || 1)) * 60);
+  const suggestion = suggestNextAvailableSlot(durationMinutes, els.projectedDate.value, els.jobId.value);
+  if (!suggestion) {
+    els.scheduleSuggestionStatus.textContent = "No opening was found in the next 90 days. Check company availability.";
+    showToast("No available opening was found in the next 90 days.", "error");
+    return;
+  }
+  els.projectedDate.value = dateInputInTimezone(suggestion.start);
+  els.scheduledTime.value = timeInputInTimezone(suggestion.start);
+  els.scheduleSuggestionStatus.textContent = `Suggested ${formatScheduleDateTime(suggestion.start)}.`;
+  showToast("Next available appointment selected.", "success");
+}
+
+function openScheduleVisitDialog(jobId, originalStart) {
+  if (!requireWorkspaceWriteAccess()) return;
+  const job = state.jobs.find((item) => item.id === jobId);
+  if (!job) return;
+  const occurrence = occurrencesForJob(
+    job,
+    new Date(new Date(originalStart).getTime() - 86_400_000),
+    new Date(new Date(originalStart).getTime() + 86_400_000),
+  ).find((item) => item.originalStart === originalStart);
+  const currentStart = occurrence?.start || originalStart;
+  els.scheduleVisitJobId.value = jobId;
+  els.scheduleVisitOriginalStart.value = originalStart;
+  els.scheduleVisitTitle.textContent = job.name;
+  els.scheduleVisitDate.value = dateInputInTimezone(currentStart);
+  els.scheduleVisitTime.value = timeInputInTimezone(currentStart);
+  els.scheduleVisitDialog.showModal();
+}
+
+async function saveScheduleException(job, originalStart, status, replacementStart = null, replacementEnd = null) {
+  if (backend.live) {
+    const { error } = await backend.client.from("schedule_exceptions").upsert({
+      company_id: backend.company.id,
+      job_id: job.id,
+      occurrence_start: originalStart,
+      replacement_start: replacementStart,
+      replacement_end: replacementEnd,
+      status,
+    }, { onConflict: "job_id,occurrence_start" });
+    if (error) throw error;
+    await loadLiveState();
+    return;
+  }
+  const existing = scheduleExceptionFor(job, originalStart);
+  const nextException = {
+    id: existing?.id || createId(),
+    originalStart,
+    replacementStart,
+    replacementEnd,
+    status,
+  };
+  if (existing) Object.assign(existing, nextException);
+  else job.scheduleExceptions.push(nextException);
+}
+
+async function rescheduleSelectedOccurrence() {
+  const job = state.jobs.find((item) => item.id === els.scheduleVisitJobId.value);
+  if (!job) return;
+  const start = zonedDateTimeToUtc(els.scheduleVisitDate.value, els.scheduleVisitTime.value);
+  if (!start) throw new Error("Choose a valid appointment date and time.");
+  const end = new Date(start.getTime() + Math.max(30, Number(job.estimatedDurationMinutes || 60)) * 60_000);
+  if (candidateHasConflict(start, end, job.id, els.scheduleVisitOriginalStart.value)) {
+    throw new Error("That time overlaps another scheduled visit or its buffer.");
+  }
+  await saveScheduleException(
+    job,
+    els.scheduleVisitOriginalStart.value,
+    "rescheduled",
+    start.toISOString(),
+    end.toISOString(),
+  );
+  els.scheduleVisitDialog.close();
+  await notifyCustomerOfJobUpdate(job.id, "Visit rescheduled.");
+}
+
+async function skipSelectedOccurrence() {
+  const job = state.jobs.find((item) => item.id === els.scheduleVisitJobId.value);
+  if (!job) return;
+  if (!window.confirm(`Skip this visit for "${job.name}"? The rest of the series will stay scheduled.`)) return;
+  await saveScheduleException(job, els.scheduleVisitOriginalStart.value, "skipped");
+  els.scheduleVisitDialog.close();
+  await notifyCustomerOfJobUpdate(job.id, "Visit skipped.");
+}
+
 function openJobDialog(job = null) {
   if (!requireWorkspaceWriteAccess()) return;
   const isEdit = Boolean(job);
@@ -1840,7 +2289,15 @@ function openJobDialog(job = null) {
   els.serviceAddress.value = job?.serviceAddress || "";
   els.jobStatus.value = job?.jobStatus || "Active";
   els.materialStatus.value = job?.materialStatus || "Not Ordered";
-  els.projectedDate.value = job?.projectedDate || "";
+  els.projectedDate.value = job?.scheduledStart ? dateInputInTimezone(job.scheduledStart) : job?.projectedDate || "";
+  els.scheduledTime.value = job?.scheduledStart ? timeInputInTimezone(job.scheduledStart) : "";
+  els.estimatedHours.value = String(Math.max(0.5, Number(job?.estimatedDurationMinutes || 60) / 60));
+  els.recurrencePattern.value = job?.recurrenceFrequency && job.recurrenceFrequency !== "none"
+    ? `${job.recurrenceFrequency}:${Math.max(1, Number(job.recurrenceInterval || 1))}`
+    : "none";
+  els.recurrenceUntil.value = job?.recurrenceUntil || "";
+  els.recurrenceUntilLabel.hidden = els.recurrencePattern.value === "none";
+  els.scheduleSuggestionStatus.textContent = "Suggestions use the company availability in Settings.";
   els.invoiceUrl.value = job?.invoiceUrl || "";
   els.nextAction.value = job?.nextAction || "";
   els.internalNotes.value = job?.internalNotes || "";
@@ -1856,6 +2313,24 @@ async function saveJobFromForm() {
   document.querySelectorAll("[data-custom-field]").forEach((input) => {
     customValues[input.dataset.customField] = input.value;
   });
+  const estimatedDurationMinutes = Math.round(Math.max(0.5, Number(els.estimatedHours.value || 1)) * 60);
+  const [recurrenceFrequency, recurrenceIntervalText] = els.recurrencePattern.value === "none"
+    ? ["none", "1"]
+    : els.recurrencePattern.value.split(":");
+  const hasScheduleDate = Boolean(els.projectedDate.value);
+  const hasScheduleTime = Boolean(els.scheduledTime.value);
+  if (hasScheduleDate !== hasScheduleTime) {
+    throw new Error("Choose both an appointment date and start time.");
+  }
+  if (recurrenceFrequency !== "none" && !hasScheduleDate) {
+    throw new Error("Recurring work needs a first appointment date and time.");
+  }
+  const scheduledStartDate = hasScheduleDate
+    ? zonedDateTimeToUtc(els.projectedDate.value, els.scheduledTime.value)
+    : null;
+  const scheduledEndDate = scheduledStartDate
+    ? new Date(scheduledStartDate.getTime() + estimatedDurationMinutes * 60_000)
+    : null;
   const payload = {
     id,
     industry: existing?.industry || "general",
@@ -1867,6 +2342,13 @@ async function saveJobFromForm() {
     jobStatus: els.jobStatus.value,
     materialStatus: els.materialStatus.value,
     projectedDate: els.projectedDate.value,
+    scheduledStart: scheduledStartDate?.toISOString() || null,
+    scheduledEnd: scheduledEndDate?.toISOString() || null,
+    estimatedDurationMinutes,
+    recurrenceFrequency,
+    recurrenceInterval: Math.max(1, Number(recurrenceIntervalText || 1)),
+    recurrenceUntil: recurrenceFrequency === "none" ? "" : els.recurrenceUntil.value,
+    scheduleExceptions: existing?.scheduleExceptions || [],
     invoiceUrl: els.invoiceUrl.value,
     nextAction: els.nextAction.value,
     internalNotes: els.internalNotes.value,
@@ -1882,7 +2364,7 @@ async function saveJobFromForm() {
   };
 
   if (backend.live) {
-    const { data, error } = await backend.client.rpc("save_job_record", {
+    const { data, error } = await backend.client.rpc("save_scheduled_job_record", {
       target_company_id: backend.company.id,
       target_job_id: existing?.id || null,
       input_customer_name: payload.customerName,
@@ -1894,6 +2376,12 @@ async function saveJobFromForm() {
       input_job_status: payload.jobStatus,
       input_job_material_status: payload.materialStatus,
       input_job_projected_date: payload.projectedDate || null,
+      input_job_scheduled_start: payload.scheduledStart,
+      input_job_scheduled_end: payload.scheduledEnd,
+      input_job_estimated_duration_minutes: payload.estimatedDurationMinutes,
+      input_job_recurrence_frequency: payload.recurrenceFrequency,
+      input_job_recurrence_interval: payload.recurrenceInterval,
+      input_job_recurrence_until: payload.recurrenceUntil || null,
       input_job_invoice_url: payload.invoiceUrl || "",
       input_job_next_action: payload.nextAction || "",
       input_job_internal_notes: payload.internalNotes || "",
@@ -2467,6 +2955,10 @@ function bindEvents() {
   els.startJob?.addEventListener("click", () => openJobDialog());
   els.quickStartJob.addEventListener("click", () => openJobDialog());
   els.quickUpdateJob.addEventListener("click", () => openJobDialog(selectedJob()));
+  els.recurrencePattern.addEventListener("change", () => {
+    els.recurrenceUntilLabel.hidden = els.recurrencePattern.value === "none";
+  });
+  els.suggestNextAvailable.addEventListener("click", applySuggestedSchedule);
   els.resetDemo?.addEventListener("click", () => {
     state = normalizeState(structuredClone(demoState));
     selectedJobId = state.jobs[0]?.id || null;
@@ -2489,6 +2981,18 @@ function bindEvents() {
     jobAttentionFilter = alreadySelected ? "" : nextFilter;
     ensureFilteredJobSelection();
     render();
+  });
+  els.upcomingSchedule.addEventListener("click", (event) => {
+    const rescheduleButton = event.target.closest('[data-action="reschedule-occurrence"]');
+    if (rescheduleButton) {
+      openScheduleVisitDialog(rescheduleButton.dataset.jobId, rescheduleButton.dataset.originalStart);
+      return;
+    }
+    const jobButton = event.target.closest("[data-schedule-job-id]");
+    if (!jobButton) return;
+    selectedJobId = jobButton.dataset.scheduleJobId;
+    render();
+    els.detailTitle.scrollIntoView({ behavior: "smooth", block: "start" });
   });
   els.jobSearch.addEventListener("input", () => {
     jobSearchQuery = els.jobSearch.value;
@@ -2721,6 +3225,56 @@ function bindEvents() {
     render();
   });
 
+  els.scheduleSettingsForm.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    if (!requireWorkspaceWriteAccess()) return;
+    const workdays = [...els.scheduleWorkdays.querySelectorAll('input[type="checkbox"]:checked')].map((checkbox) => Number(checkbox.value));
+    const workdayStart = els.scheduleWorkdayStart.value;
+    const workdayEnd = els.scheduleWorkdayEnd.value;
+    if (!workdays.length) {
+      showToast("Choose at least one working day.", "error");
+      return;
+    }
+    if (!workdayStart || !workdayEnd || workdayStart >= workdayEnd) {
+      showToast("The workday end time must be after the start time.", "error");
+      return;
+    }
+    const nextSettings = {
+      schedulingTimezone: els.scheduleTimezone.value,
+      schedulingWorkdays: workdays,
+      schedulingWorkdayStart: workdayStart,
+      schedulingWorkdayEnd: workdayEnd,
+      schedulingBufferMinutes: Number(els.scheduleBufferMinutes.value || 0),
+    };
+    els.scheduleSettingsStatus.textContent = "Saving";
+    if (backend.live) {
+      const { error } = await backend.client.from("companies").update({
+        scheduling_timezone: nextSettings.schedulingTimezone,
+        scheduling_workdays: nextSettings.schedulingWorkdays,
+        scheduling_workday_start: nextSettings.schedulingWorkdayStart,
+        scheduling_workday_end: nextSettings.schedulingWorkdayEnd,
+        scheduling_buffer_minutes: nextSettings.schedulingBufferMinutes,
+      }).eq("id", backend.company.id);
+      if (error) {
+        console.warn("Schedule availability save failed", error);
+        els.scheduleSettingsStatus.textContent = "Could not save";
+        showToast("Could not save company availability.", "error");
+        return;
+      }
+      Object.assign(backend.company, {
+        scheduling_timezone: nextSettings.schedulingTimezone,
+        scheduling_workdays: nextSettings.schedulingWorkdays,
+        scheduling_workday_start: nextSettings.schedulingWorkdayStart,
+        scheduling_workday_end: nextSettings.schedulingWorkdayEnd,
+        scheduling_buffer_minutes: nextSettings.schedulingBufferMinutes,
+      });
+    }
+    Object.assign(state.settings, nextSettings);
+    els.scheduleSettingsStatus.textContent = backend.live ? "Saved" : "Preview";
+    showToast("Company availability saved.", "success");
+    render();
+  });
+
   els.billingForm.addEventListener("submit", async (event) => {
     event.preventDefault();
     if (!requireWorkspaceWriteAccess()) return;
@@ -2868,7 +3422,10 @@ function bindEvents() {
       await notifyCustomerOfJobUpdate(savedJob.jobId, savedJob.created ? "Job started." : "Job updated.");
     } catch (error) {
       console.warn("Job save failed", error);
-      showToast("Could not save the job.", "error");
+      const validationMessage = /appointment date|Recurring work/i.test(String(error?.message || ""))
+        ? error.message
+        : "Could not save the job.";
+      showToast(validationMessage, "error");
     } finally {
       jobSaveBusy = false;
       els.saveJob.disabled = false;
@@ -2879,6 +3436,25 @@ function bindEvents() {
 
   els.closeJobDialog.addEventListener("click", () => els.jobDialog.close());
   els.cancelJobDialog.addEventListener("click", () => els.jobDialog.close());
+
+  els.closeScheduleVisitDialog.addEventListener("click", () => els.scheduleVisitDialog.close());
+  els.cancelScheduleVisitDialog.addEventListener("click", () => els.scheduleVisitDialog.close());
+  els.scheduleVisitForm.addEventListener("submit", (event) => {
+    event.preventDefault();
+    rescheduleSelectedOccurrence().catch((error) => {
+      console.warn("Visit reschedule failed", error);
+      const message = /overlaps|valid appointment/i.test(String(error?.message || ""))
+        ? error.message
+        : "Could not reschedule this visit.";
+      showToast(message, "error");
+    });
+  });
+  els.skipScheduleVisit.addEventListener("click", () => {
+    skipSelectedOccurrence().catch((error) => {
+      console.warn("Visit skip failed", error);
+      showToast("Could not skip this visit.", "error");
+    });
+  });
 
   els.closeEstimateChangesDialog.addEventListener("click", () => els.estimateChangesDialog.close());
   els.cancelEstimateChangesDialog.addEventListener("click", () => els.estimateChangesDialog.close());

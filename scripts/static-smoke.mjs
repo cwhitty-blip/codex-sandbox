@@ -21,6 +21,7 @@ const brandingMigration = read("supabase/migrations/20260719090000_company_brand
 const mileageMigration = read("supabase/migrations/20260719120000_mileage_tracking.sql");
 const atomicJobMigration = read("supabase/migrations/20260719183000_atomic_job_save.sql");
 const subscriptionMigration = read("supabase/migrations/20260802090000_subscription_access_and_trial.sql");
+const schedulingMigration = read("supabase/migrations/20260802130000_scheduling_foundation.sql");
 const waveEdge = read("supabase/functions/wave-webhook/index.ts");
 const supabaseConfig = read("supabase/config.toml");
 
@@ -94,7 +95,7 @@ const mileageMutationStart = app.indexOf("async function addMileageEntry");
 const mileageMutationEnd = app.indexOf("function viewEstimate", mileageMutationStart);
 assert(mileageMutationStart >= 0 && mileageMutationEnd > mileageMutationStart, "Mileage mutation helpers must exist");
 assert(!app.slice(mileageMutationStart, mileageMutationEnd).includes("notifyCustomerOfJobUpdate"), "Private mileage changes must not email customers");
-assert(app.includes('rpc("save_job_record"'), "Job saves must use the atomic database function");
+assert(app.includes('rpc("save_scheduled_job_record"'), "Job saves must use the atomic scheduling database function");
 assert(app.includes("input_customer_name: payload.customerName"), "Job save arguments must match the database function");
 assert(atomicJobMigration.includes("security definer"), "Atomic job save must run through a reviewed security boundary");
 assert(atomicJobMigration.includes("user_id = auth.uid()"), "Atomic job save must verify company membership");
@@ -110,5 +111,15 @@ assert(app.includes("attentionCategoriesForJob"), "Attention categories must be 
 assert(app.includes('doc.uploadedBy === "Customer" && doc.status === "New"'), "New customer uploads must appear in the attention queue");
 assert(app.includes('jobStatusFilter === "attention"'), "Job filtering must support the attention queue");
 assert(app.includes('${count ? "" : "disabled"}'), "Empty attention categories must not act like filters");
+assert(html.includes('id="upcomingSchedule"'), "Dashboard must include the upcoming schedule");
+assert(html.includes('id="scheduleSettingsForm"'), "Settings must include company availability");
+assert(app.includes("function suggestNextAvailableSlot"), "Scheduling must provide next-available suggestions");
+assert(app.includes("function occurrencesForJob"), "Scheduling must expand recurring jobs");
+assert(app.includes('.from("schedule_exceptions").upsert'), "Recurring visits must support per-visit changes");
+assert(schedulingMigration.includes("alter table public.schedule_exceptions enable row level security"), "Schedule exceptions must have row-level security");
+assert(schedulingMigration.includes("public.job_belongs_to_company(job_id, company_id)"), "Schedule exceptions must remain scoped to company jobs");
+assert(schedulingMigration.includes("save_scheduled_job_record"), "Scheduled job saves must use a reviewed database boundary");
+assert(schedulingMigration.includes("public.company_member_can_write(target_company_id)"), "Scheduled job saves must enforce subscription access");
+assert(schedulingMigration.includes("Members can read schedule exceptions"), "Read-only workspaces must retain schedule visibility");
 
 console.log("Static smoke checks passed.");

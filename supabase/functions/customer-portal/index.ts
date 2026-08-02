@@ -125,6 +125,13 @@ async function customerSafeJob(supabase: ReturnType<typeof createClient>, job: R
     job_status: job.job_status,
     material_status: job.material_status,
     projected_date: job.projected_date,
+    scheduled_start: job.scheduled_start,
+    scheduled_end: job.scheduled_end,
+    estimated_duration_minutes: job.estimated_duration_minutes,
+    recurrence_frequency: job.recurrence_frequency,
+    recurrence_interval: job.recurrence_interval,
+    recurrence_until: job.recurrence_until,
+    schedule_exceptions: job.schedule_exceptions || [],
     invoice_url: job.invoice_url,
     customers: customer ? { name: (customer as Record<string, unknown>).name } : null,
     documents: await signedDocuments(supabase, documents),
@@ -135,14 +142,14 @@ async function customerSafeJob(supabase: ReturnType<typeof createClient>, job: R
 async function customerSafeCompany(supabase: ReturnType<typeof createClient>, companyId: string) {
   const { data: company } = await supabase
     .from("companies")
-    .select("id,name,logo_path")
+    .select("id,name,logo_path,scheduling_timezone")
     .eq("id", companyId)
     .single();
-  if (!company) return { id: companyId, name: "Service Portal", logo_url: "" };
+  if (!company) return { id: companyId, name: "Service Portal", logo_url: "", scheduling_timezone: "UTC" };
   const logoUrl = company.logo_path
     ? supabase.storage.from(brandingBucket).getPublicUrl(company.logo_path).data.publicUrl
     : "";
-  return { id: company.id, name: company.name, logo_url: logoUrl };
+  return { id: company.id, name: company.name, logo_url: logoUrl, scheduling_timezone: company.scheduling_timezone };
 }
 
 serve(async (req) => {
@@ -168,7 +175,7 @@ serve(async (req) => {
   const tokenHash = await sha256(payload.token);
   const { data: link, error: linkError } = await supabase
     .from("magic_links")
-    .select("*, jobs(id,name,service_address,job_status,material_status,projected_date,invoice_url,customers(name),documents(id,name,document_type,uploaded_by,visibility,status,storage_file_id,storage_url,version,size_bytes,created_at),estimate_acceptances(document_id,decision_status,notes,decided_at,accepted_at))")
+    .select("*, jobs(id,name,service_address,job_status,material_status,projected_date,scheduled_start,scheduled_end,estimated_duration_minutes,recurrence_frequency,recurrence_interval,recurrence_until,invoice_url,customers(name),documents(id,name,document_type,uploaded_by,visibility,status,storage_file_id,storage_url,version,size_bytes,created_at),estimate_acceptances(document_id,decision_status,notes,decided_at,accepted_at),schedule_exceptions(id,occurrence_start,replacement_start,replacement_end,status))")
     .eq("token_hash", tokenHash)
     .gt("expires_at", new Date().toISOString())
     .single();
@@ -284,7 +291,7 @@ serve(async (req) => {
 
   const { data: refreshed, error: refreshError } = await supabase
     .from("jobs")
-    .select("id,name,service_address,job_status,material_status,projected_date,invoice_url,customers(name),documents(id,name,document_type,uploaded_by,visibility,status,storage_file_id,storage_url,version,size_bytes,created_at),estimate_acceptances(document_id,decision_status,notes,decided_at,accepted_at)")
+    .select("id,name,service_address,job_status,material_status,projected_date,scheduled_start,scheduled_end,estimated_duration_minutes,recurrence_frequency,recurrence_interval,recurrence_until,invoice_url,customers(name),documents(id,name,document_type,uploaded_by,visibility,status,storage_file_id,storage_url,version,size_bytes,created_at),estimate_acceptances(document_id,decision_status,notes,decided_at,accepted_at),schedule_exceptions(id,occurrence_start,replacement_start,replacement_end,status)")
     .eq("id", link.job_id)
     .single();
 

@@ -43,10 +43,13 @@ This build does not collect cards directly. Wave will host the recurring checkou
 - Automatic customer email after successful contractor job changes
 - Contractor logo branding in the workspace, customer portal, and customer emails
 - Optional company-wide mileage tracking with private per-job date and mileage records
+- Shared company schedule with working days, hours, time zone, and between-job buffers
+- Next-available appointment suggestions based on job duration and existing visits
+- Weekly, biweekly, and monthly recurring jobs with one-visit skip or reschedule controls
 - Customer portal for status visibility, estimate responses, and document uploads
 - Insurance claim and general document upload tracking
 - Exact-duplicate prevention plus archive and restore
 
 ## Release Checks
 
-Before inviting a beta user, verify contractor sign-in, company setup, job creation, estimate upload, customer email delivery, estimate response, customer insurance upload, file opening, duplicate prevention, and archive/restore. Customer links expire after seven days, and sending a newer link invalidates the older one.
+Before inviting a beta user, verify contractor sign-in, company setup, availability settings, one-time and recurring job scheduling, conflict prevention, estimate upload, customer email delivery, estimate response, customer insurance upload, file opening, duplicate prevention, and archive/restore. Customer links expire after seven days, and sending a newer link invalidates the older one.
