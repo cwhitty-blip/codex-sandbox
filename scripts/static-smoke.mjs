@@ -113,6 +113,9 @@ assert(app.includes('jobStatusFilter === "attention"'), "Job filtering must supp
 assert(app.includes('${count ? "" : "disabled"}'), "Empty attention categories must not act like filters");
 assert(html.includes('id="upcomingSchedule"'), "Dashboard must include the upcoming schedule");
 assert(html.includes('id="scheduleSettingsForm"'), "Settings must include company availability");
+assert(app.includes("function createDemoSchedule"), "The review demo must keep sample visits in the future");
+assert(/function demoMode\(\)\s*{\s*return new URLSearchParams/.test(app), "The published review link must support demo mode");
+assert(/function loadState\(\)\s*{\s*if \(demoMode\(\)\)/.test(app), "The review demo must not reuse stale browser data");
 assert(app.includes("function suggestNextAvailableSlot"), "Scheduling must provide next-available suggestions");
 assert(app.includes("function occurrencesForJob"), "Scheduling must expand recurring jobs");
 assert(app.includes('.from("schedule_exceptions").upsert'), "Recurring visits must support per-visit changes");

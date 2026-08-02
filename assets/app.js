@@ -51,6 +51,20 @@ function createId() {
   return `id_${Date.now()}_${Math.random().toString(16).slice(2)}`;
 }
 
+function createDemoSchedule(daysAhead, hour, durationMinutes) {
+  const start = new Date();
+  start.setDate(start.getDate() + daysAhead);
+  start.setHours(hour, 0, 0, 0);
+  const end = new Date(start.getTime() + durationMinutes * 60_000);
+  const date = [start.getFullYear(), start.getMonth() + 1, start.getDate()]
+    .map((part, index) => String(part).padStart(index ? 2 : 4, "0"))
+    .join("-");
+  return { start: start.toISOString(), end: end.toISOString(), date };
+}
+
+const demoPrimarySchedule = createDemoSchedule(2, 9, 240);
+const demoRecurringSchedule = createDemoSchedule(4, 10, 120);
+
 const demoState = {
   settings: {
     billingProvider: "QuickBooks Online",
@@ -97,9 +111,9 @@ const demoState = {
       serviceAddress: "4822 Redbud Lane, Tulsa, OK",
       jobStatus: "Waiting on Customer",
       materialStatus: "Ordered",
-      projectedDate: "2026-07-18",
-      scheduledStart: "2026-08-04T14:00:00.000Z",
-      scheduledEnd: "2026-08-04T18:00:00.000Z",
+      projectedDate: demoPrimarySchedule.date,
+      scheduledStart: demoPrimarySchedule.start,
+      scheduledEnd: demoPrimarySchedule.end,
       estimatedDurationMinutes: 240,
       recurrenceFrequency: "none",
       recurrenceInterval: 1,
@@ -148,9 +162,9 @@ const demoState = {
       serviceAddress: "77 Meadow Court, Bentonville, AR",
       jobStatus: "Scheduled",
       materialStatus: "Arrived",
-      projectedDate: "2026-07-09",
-      scheduledStart: "2026-08-06T15:00:00.000Z",
-      scheduledEnd: "2026-08-06T17:00:00.000Z",
+      projectedDate: demoRecurringSchedule.date,
+      scheduledStart: demoRecurringSchedule.start,
+      scheduledEnd: demoRecurringSchedule.end,
       estimatedDurationMinutes: 120,
       recurrenceFrequency: "weekly",
       recurrenceInterval: 2,
@@ -346,6 +360,7 @@ const els = {
 };
 
 function loadState() {
+  if (demoMode()) return normalizeState(structuredClone(demoState));
   const stored = localStorage.getItem(STORAGE_KEY);
   if (!stored) return normalizeState(structuredClone(demoState));
   try {
@@ -410,18 +425,17 @@ function saveState() {
 }
 
 function backendConfigured() {
-  if (localDemoMode()) return false;
+  if (demoMode()) return false;
   const config = window.SERVICE_PORTAL_CONFIG;
   return Boolean(config?.supabaseUrl && config?.supabasePublishableKey && window.supabase?.createClient);
 }
 
-function localDemoMode() {
-  return ["localhost", "127.0.0.1"].includes(window.location.hostname)
-    && new URLSearchParams(window.location.search).has("demo");
+function demoMode() {
+  return new URLSearchParams(window.location.search).has("demo");
 }
 
 function readOnlyPreviewMode() {
-  return localDemoMode() && new URLSearchParams(window.location.search).get("demo") === "readonly";
+  return demoMode() && new URLSearchParams(window.location.search).get("demo") === "readonly";
 }
 
 function localAuthPreviewMode() {
@@ -487,7 +501,7 @@ function renderAuth() {
     return;
   }
 
-  if (localDemoMode()) {
+  if (demoMode()) {
     document.body.classList.add("service-portal-signed-in");
     setContractorLock(false);
     els.authPanel.hidden = true;
@@ -568,7 +582,7 @@ async function initBackend() {
     renderAuth();
     return;
   }
-  if (localDemoMode() && new URLSearchParams(window.location.search).has("portalPreview")) {
+  if (demoMode() && new URLSearchParams(window.location.search).has("portalPreview")) {
     portalMode.active = true;
     portalMode.token = "local-preview";
     activateCustomerPortalView();
