@@ -73,6 +73,14 @@ function serviceRoleKey() {
   return Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
 }
 
+async function companyCanWrite(supabase: ReturnType<typeof createClient>, companyId: string) {
+  const { data, error } = await supabase.rpc("company_has_write_access", {
+    target_company_id: companyId,
+  });
+  if (error) throw error;
+  return data === true;
+}
+
 function safeStorageName(name: string) {
   return name.replace(/[^a-zA-Z0-9._-]+/g, "-").replace(/^-+|-+$/g, "") || "document";
 }
@@ -170,6 +178,16 @@ serve(async (req) => {
   const action = payload.action || "payload";
   const job = link.jobs as Record<string, unknown>;
   if (!link.used_at) await supabase.from("magic_links").update({ used_at: new Date().toISOString() }).eq("id", link.id);
+
+  let canWrite = false;
+  try {
+    canWrite = await companyCanWrite(supabase, String(link.company_id));
+  } catch {
+    return jsonResponse(req, { error: "Could not verify workspace access" }, 500);
+  }
+  if (action !== "payload" && !canWrite) {
+    return jsonResponse(req, { error: "This customer portal is temporarily read-only" }, 402);
+  }
 
   if (action === "decision") {
     if (!payload.documentId || !payload.decision) return jsonResponse(req, { error: "Decision is incomplete" }, 400);
@@ -274,5 +292,6 @@ serve(async (req) => {
   return jsonResponse(req, {
     job: await customerSafeJob(supabase, refreshed as Record<string, unknown>),
     company: await customerSafeCompany(supabase, String(link.company_id)),
+    can_write: canWrite,
   });
 });

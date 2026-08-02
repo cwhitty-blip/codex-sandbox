@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="referrer" content="no-referrer" />
     <title>Service Portal</title>
-    <link rel="stylesheet" href="assets/styles.css?v=accounts-v12" />
+    <link rel="stylesheet" href="assets/styles.css?v=billing-v1" />
   </head>
   <body>
     <div class="app-shell">
@@ -83,14 +83,22 @@
           </div>
         </header>
 
+        <aside id="workspaceAccessNotice" class="workspace-access-notice" role="status" hidden>
+          <i data-lucide="lock-keyhole" aria-hidden="true"></i>
+          <span>
+            <strong>Workspace is read-only</strong>
+            <small>Your jobs and files remain available. Restore billing to make changes.</small>
+          </span>
+        </aside>
+
         <section id="dashboardView" class="view active">
           <section class="action-band">
-            <button id="quickStartJob" class="choice-button" type="button">
+            <button id="quickStartJob" class="choice-button" data-requires-write type="button">
               <span class="choice-icon" aria-hidden="true"><i data-lucide="plus"></i></span>
               <span class="choice-copy"><strong>Start a job</strong><small>Create a customer and job record.</small></span>
               <i class="choice-arrow" data-lucide="chevron-right" aria-hidden="true"></i>
             </button>
-            <button id="quickUpdateJob" class="choice-button" type="button">
+            <button id="quickUpdateJob" class="choice-button" data-requires-write type="button">
               <span class="choice-icon" aria-hidden="true"><i data-lucide="pencil-line"></i></span>
               <span class="choice-copy"><strong>Update a job</strong><small>Edit the selected job and its status.</small></span>
               <i class="choice-arrow" data-lucide="chevron-right" aria-hidden="true"></i>
@@ -196,8 +204,8 @@
                       <i id="workspaceLogoFallback" data-lucide="image"></i>
                     </span>
                     <span class="company-logo-actions">
-                      <button id="chooseWorkspaceLogo" class="ghost-button" type="button"><i data-lucide="image-up"></i><span>Choose logo</span></button>
-                      <button id="removeWorkspaceLogo" class="icon-button" type="button" aria-label="Remove company logo" title="Remove company logo" hidden><i data-lucide="trash-2"></i></button>
+                      <button id="chooseWorkspaceLogo" class="ghost-button" data-requires-write type="button"><i data-lucide="image-up"></i><span>Choose logo</span></button>
+                      <button id="removeWorkspaceLogo" class="icon-button" data-requires-write type="button" aria-label="Remove company logo" title="Remove company logo" hidden><i data-lucide="trash-2"></i></button>
                     </span>
                   </div>
                   <small>PNG, JPG, or WebP, up to 2 MB.</small>
@@ -205,17 +213,17 @@
                 </div>
                 <label>
                   Company name
-                  <input id="workspaceName" type="text" maxlength="120" placeholder="Your service company" required />
+                  <input id="workspaceName" data-requires-write type="text" maxlength="120" placeholder="Your service company" required />
                 </label>
                 <label>
                   Account email
                   <input id="workspaceEmail" type="email" disabled />
                 </label>
-                <button class="primary-button" type="submit"><i data-lucide="save"></i><span>Save company profile</span></button>
+                <button class="primary-button" data-requires-write type="submit"><i data-lucide="save"></i><span>Save company profile</span></button>
               </form>
             </div>
 
-            <div class="panel billing-plan-panel">
+            <div id="billingPlanPanel" class="panel billing-plan-panel">
               <div class="panel-header">
                 <div>
                   <p class="eyebrow">Access</p>
@@ -229,7 +237,7 @@
                 <button class="primary-button" type="submit">Apply promo</button>
               </form>
               <button id="checkoutButton" class="ghost-button" type="button" hidden>Set up payment</button>
-              <p class="fine-print">
+              <p id="subscriptionFinePrint" class="fine-print">
                 Early access is free. You will receive notice before paid plans begin.
               </p>
             </div>
@@ -408,6 +416,6 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.110.1"></script>
     <script src="https://unpkg.com/lucide@1.24.0/dist/umd/lucide.js"></script>
     <script src="assets/config.js?v=accounts-v3"></script>
-    <script src="assets/app.js?v=accounts-v28"></script>
+    <script src="assets/app.js?v=billing-v1"></script>
   </body>
 </html>

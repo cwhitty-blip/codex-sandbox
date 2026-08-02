@@ -25,7 +25,7 @@ The publishable Supabase key in `assets/config.js` is intended for browser use. 
 
 ### Subscription Direction
 
-The intended plan is seven free days followed by `$12.99/month` through Wave. Billing remains explicitly disabled during early access.
+The intended plan is 14 free days followed by `$12.99/month` through Wave. Billing remains explicitly disabled during early access.
 
 This build does not collect cards directly. Wave will host the recurring checkout and payment collection. Supabase has a provider-neutral subscription record and an idempotent Wave webhook receiver, but the endpoint does nothing until `WAVE_BILLING_ENABLED` is deliberately set to `true` at launch. See `docs/wave-billing-foundation-2026-07-11.md`.
 
@@ -36,7 +36,7 @@ This build does not collect cards directly. Wave will host the recurring checkou
 - Job search by customer, project, email, or address with open, attention, and status filters
 - Generic service-industry job records
 - Billing provider preference for a future integration
-- Contractor account sign-up/sign-in with a 7-day trial model
+- Contractor account sign-up/sign-in with a 14-day trial model and read-only expiration state
 - Company profile and custom job field setup
 - Custom job field builder
 - Customer access email flow through Resend

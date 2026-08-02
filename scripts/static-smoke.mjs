@@ -20,6 +20,8 @@ const workspaceEdge = read("supabase/functions/workspace-settings/index.ts");
 const brandingMigration = read("supabase/migrations/20260719090000_company_branding_and_job_notifications.sql");
 const mileageMigration = read("supabase/migrations/20260719120000_mileage_tracking.sql");
 const atomicJobMigration = read("supabase/migrations/20260719183000_atomic_job_save.sql");
+const subscriptionMigration = read("supabase/migrations/20260802090000_subscription_access_and_trial.sql");
+const waveEdge = read("supabase/functions/wave-webhook/index.ts");
 const supabaseConfig = read("supabase/config.toml");
 
 const ids = [...html.matchAll(/\sid="([^"]+)"/g)].map((match) => match[1]);
@@ -43,6 +45,20 @@ assert(html.includes("lucide@1.24.0"), "Lucide icons must use the reviewed versi
 assert(!html.includes("app-statusbar") && !html.includes("app-homebar"), "Prototype phone chrome must not ship");
 assert(/billingMode:\s*"off"/.test(config), "Early-access billing must remain off");
 assert(/waveCheckoutUrl:\s*""/.test(config), "Wave checkout URL must remain empty before launch");
+assert(/const trialDays = 14;/.test(app), "Contractor trials must last 14 days");
+assert(app.includes('rpc("get_my_company_entitlement")'), "The browser must load server-calculated subscription access");
+assert(html.includes('id="workspaceAccessNotice"'), "Expired workspaces must show a read-only notice");
+assert(app.includes("function requireWorkspaceWriteAccess"), "Browser mutations must have a read-only guard");
+assert(subscriptionMigration.includes("now() + interval '14 days'"), "New company trials must last 14 days in the database");
+assert(subscriptionMigration.includes("public.company_member_can_write"), "Database writes must enforce membership and subscription access");
+assert(subscriptionMigration.includes("create or replace function public.apply_billing_promo_code"), "Promo codes must be validated server-side");
+assert(edge.includes("companyCanWrite"), "Customer portal writes must enforce subscription access");
+assert(emailEdge.includes("companyCanWrite"), "Customer email writes must enforce subscription access");
+assert(workspaceEdge.includes("companyCanWrite"), "Workspace profile writes must enforce subscription access");
+assert(waveEdge.includes('Deno.env.get("WAVE_BUSINESS_ID")'), "Wave events must be scoped to the configured business");
+assert(waveEdge.includes('Deno.env.get("WAVE_ACCESS_TOKEN")'), "Wave renewals must support customer reconciliation");
+assert(waveEdge.includes("verifyWaveSignature"), "Wave callbacks must verify their signatures");
+assert(waveEdge.includes('["processed", "ignored", "unmatched"]'), "Completed Wave events must be idempotent while failed events remain retryable");
 assert(/\[functions\.customer-portal\][\s\S]*?verify_jwt\s*=\s*false/.test(supabaseConfig), "Customer portal token function must allow public invocation");
 assert(/\[functions\.wave-webhook\][\s\S]*?verify_jwt\s*=\s*false/.test(supabaseConfig), "Wave webhook must allow provider callbacks");
 

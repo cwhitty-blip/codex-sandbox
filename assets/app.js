@@ -27,11 +27,8 @@ const billingProviders = [
 const jobStatuses = ["Active", "Waiting on Customer", "Ready to Schedule", "Scheduled", "In Progress", "Complete", "On Hold"];
 const materialStatuses = ["Not Ordered", "Ordered", "In Transit", "Arrived", "Not Required"];
 const monthlyPlanCents = 1299;
-const trialDays = 7;
-const promoCodes = {
-  "20off": 20,
-  "30off": 30,
-};
+const trialDays = 14;
+const previewPromoCodes = { "20off": 20, "30off": 30 };
 
 function createId() {
   if (window.crypto?.randomUUID) return window.crypto.randomUUID();
@@ -44,9 +41,17 @@ const demoState = {
     billingAccount: "Demo Service Co.",
     billingSync: "Invoices and payment status",
     billingConnected: true,
+    billingMode: "off",
+    subscriptionProvider: "none",
     subscriptionStatus: "trialing",
+    canWrite: true,
     trialStartedAt: "2026-07-09T00:00:00.000Z",
-    trialEndsAt: "2026-07-16T00:00:00.000Z",
+    trialEndsAt: "2026-07-23T00:00:00.000Z",
+    currentPeriodEndsAt: "",
+    graceEndsAt: "",
+    cancelAtPeriodEnd: false,
+    checkoutUrl: "",
+    basePlanPriceCents: monthlyPlanCents,
     planPriceCents: monthlyPlanCents,
     promoCode: "",
     promoPercentOff: 0,
@@ -150,6 +155,7 @@ const backend = {
   session: null,
   user: null,
   company: null,
+  entitlement: null,
   live: false,
   loading: false,
   authMode: "signin",
@@ -161,6 +167,7 @@ const backend = {
 const portalMode = {
   active: false,
   token: "",
+  canWrite: true,
 };
 
 let toastTimer = null;
@@ -273,9 +280,11 @@ const els = {
   removeWorkspaceLogo: document.getElementById("removeWorkspaceLogo"),
   subscriptionStatus: document.getElementById("subscriptionStatus"),
   subscriptionSummary: document.getElementById("subscriptionSummary"),
+  subscriptionFinePrint: document.getElementById("subscriptionFinePrint"),
   promoForm: document.getElementById("promoForm"),
   promoCode: document.getElementById("promoCode"),
   checkoutButton: document.getElementById("checkoutButton"),
+  workspaceAccessNotice: document.getElementById("workspaceAccessNotice"),
   toastRegion: document.getElementById("toastRegion"),
 };
 
@@ -344,6 +353,10 @@ function localDemoMode() {
     && new URLSearchParams(window.location.search).has("demo");
 }
 
+function readOnlyPreviewMode() {
+  return localDemoMode() && new URLSearchParams(window.location.search).get("demo") === "readonly";
+}
+
 function localAuthPreviewMode() {
   return ["localhost", "127.0.0.1"].includes(window.location.hostname)
     && new URLSearchParams(window.location.search).has("authPreview");
@@ -354,8 +367,21 @@ function publicError(error, fallback = "Could not complete. Please try again.") 
   if (/already|exists|registered/i.test(message)) return "That email may already have an account.";
   if (/invalid login|credentials/i.test(message)) return "Email or password did not match.";
   if (/rate limit/i.test(message)) return "Too many attempts. Please wait a few minutes and try again.";
+  if (/read.?only|billing.*restored|trial.*ended/i.test(message)) return "Your trial has ended. The workspace is read-only until billing is restored.";
   if (/network|fetch|timeout/i.test(message)) return "Connection issue. Please try again.";
   return fallback;
+}
+
+function workspaceCanWrite() {
+  if (readOnlyPreviewMode()) return false;
+  if (!backend.live) return true;
+  return backend.entitlement?.can_write ?? state.settings.canWrite ?? true;
+}
+
+function requireWorkspaceWriteAccess() {
+  if (workspaceCanWrite()) return true;
+  showToast("Your trial has ended. The workspace is read-only until billing is restored.", "error");
+  return false;
 }
 
 async function edgeFunctionErrorMessage(error, fallback) {
@@ -762,7 +788,12 @@ async function loadLiveState() {
   const previousSelectedJobId = selectedJobId;
   const previousPortalJobId = state.portalAccess.jobId;
   const companyId = backend.company.id;
-  const [{ data: company, error: companyError }, { data: fields, error: fieldsError }, { data: jobs, error: jobsError }] =
+  const [
+    { data: company, error: companyError },
+    { data: fields, error: fieldsError },
+    { data: jobs, error: jobsError },
+    { data: entitlement, error: entitlementError },
+  ] =
     await Promise.all([
       backend.client.from("companies").select("*").eq("id", companyId).single(),
       backend.client.from("custom_fields").select("*").eq("company_id", companyId).order("created_at"),
@@ -771,24 +802,35 @@ async function loadLiveState() {
         .select("*, customers(*), documents(*), estimate_acceptances(*), mileage_entries(*)")
         .eq("company_id", companyId)
         .order("created_at", { ascending: false }),
+      backend.client.rpc("get_my_company_entitlement").maybeSingle(),
     ]);
 
   if (companyError) throw companyError;
   if (fieldsError) throw fieldsError;
   if (jobsError) throw jobsError;
+  if (entitlementError) throw entitlementError;
 
   backend.company = company;
+  backend.entitlement = entitlement || null;
   state.settings = {
     billingProvider: company.billing_provider || "QuickBooks Online",
     billingAccount: company.billing_account || company.name || "",
     billingSync: company.billing_sync || "Invoice links only",
     billingConnected: Boolean(company.billing_provider),
-    subscriptionStatus: company.subscription_status || "trialing",
-    trialStartedAt: company.trial_started_at || company.created_at,
-    trialEndsAt: company.trial_ends_at || "",
-    planPriceCents: company.plan_price_cents || monthlyPlanCents,
-    promoCode: company.promo_code || "",
-    promoPercentOff: company.promo_percent_off || 0,
+    billingMode: entitlement?.billing_mode || "off",
+    subscriptionProvider: entitlement?.provider || "none",
+    subscriptionStatus: entitlement?.status || company.subscription_status || "trialing",
+    canWrite: entitlement?.can_write ?? true,
+    trialStartedAt: entitlement?.trial_started_at || company.trial_started_at || company.created_at,
+    trialEndsAt: entitlement?.trial_ends_at || company.trial_ends_at || "",
+    currentPeriodEndsAt: entitlement?.current_period_ends_at || "",
+    graceEndsAt: entitlement?.grace_ends_at || "",
+    cancelAtPeriodEnd: Boolean(entitlement?.cancel_at_period_end),
+    checkoutUrl: entitlement?.checkout_url || "",
+    basePlanPriceCents: entitlement?.base_plan_price_cents || monthlyPlanCents,
+    planPriceCents: entitlement?.plan_price_cents || monthlyPlanCents,
+    promoCode: entitlement?.promo_code || "",
+    promoPercentOff: entitlement?.promo_percent_off || 0,
     mileageTrackingEnabled: Boolean(company.mileage_tracking_enabled),
     customFields: (fields || []).map((field) => ({
       id: field.id,
@@ -862,10 +904,18 @@ async function loadCustomerPortal(token, actionPayload = { action: "payload" }) 
     body: { token, ...actionPayload },
   });
   if (error || !data?.job) {
+    if (actionPayload.action && actionPayload.action !== "payload") {
+      const message = await edgeFunctionErrorMessage(error, "Could not save that change. Please try again.");
+      showToast(message, "error");
+      render();
+      activateCustomerPortalView();
+      return;
+    }
     els.customerPortal.innerHTML = `<div class="empty-state">This portal link is invalid or expired. Please ask the contractor to send a new link.</div>`;
     return;
   }
   applyPortalCompany(data.company);
+  portalMode.canWrite = data.can_write !== false;
   applyPortalJob(data.job);
   render();
   activateCustomerPortalView();
@@ -1007,7 +1057,9 @@ function safeExternalUrl(value) {
 
 function formatDate(value) {
   if (!value) return "Not scheduled";
-  const date = new Date(`${value}T12:00:00`);
+  const text = String(value);
+  const date = /^\d{4}-\d{2}-\d{2}$/.test(text) ? new Date(`${text}T12:00:00`) : new Date(text);
+  if (Number.isNaN(date.getTime())) return "Not scheduled";
   return new Intl.DateTimeFormat(undefined, { month: "short", day: "numeric", year: "numeric" }).format(date);
 }
 
@@ -1064,6 +1116,7 @@ function render() {
   renderCustomerAccessSummary();
   renderCustomerPortal();
   renderSettings();
+  renderWorkspaceAccess();
   refreshIcons();
 }
 
@@ -1095,7 +1148,16 @@ function renderBranding() {
 function renderMetrics() {
   const active = state.jobs.filter((job) => job.jobStatus !== "Complete").length;
   els.activeJobCount.textContent = `${active} active ${active === 1 ? "job" : "jobs"}`;
-  els.billingProviderSummary.textContent = "Early access";
+  const status = state.settings.subscriptionStatus;
+  els.billingProviderSummary.textContent = state.settings.billingMode === "off"
+    ? "Early access"
+    : status === "trialing"
+      ? `${trialDaysLeft()} trial ${trialDaysLeft() === 1 ? "day" : "days"} left`
+      : status === "active"
+        ? "Plan active"
+        : workspaceCanWrite()
+          ? "Payment needs attention"
+          : "Read-only";
 }
 
 function renderAttentionQueue() {
@@ -1174,10 +1236,10 @@ function renderJobDetail() {
   els.jobDetail.classList.remove("empty-state");
   els.jobDetail.innerHTML = `
     <div class="detail-actions">
-      <button class="primary-button" data-action="edit-job" type="button">${iconMarkup("pencil-line")}<span>Edit job</span></button>
-      <button class="ghost-button" data-action="send-email" type="button">${iconMarkup("mail")}<span>Email customer</span></button>
-      <button class="ghost-button" data-action="upload-estimate" type="button">${iconMarkup("file-up")}<span>Upload estimate</span></button>
-      <button class="ghost-button" data-action="upload-staff-doc" type="button">${iconMarkup("paperclip")}<span>Add shared file</span></button>
+      <button class="primary-button" data-action="edit-job" data-requires-write type="button">${iconMarkup("pencil-line")}<span>Edit job</span></button>
+      <button class="ghost-button" data-action="send-email" data-requires-write type="button">${iconMarkup("mail")}<span>Email customer</span></button>
+      <button class="ghost-button" data-action="upload-estimate" data-requires-write type="button">${iconMarkup("file-up")}<span>Upload estimate</span></button>
+      <button class="ghost-button" data-action="upload-staff-doc" data-requires-write type="button">${iconMarkup("paperclip")}<span>Add shared file</span></button>
     </div>
     ${job.actionMessage ? `<div class="action-feedback" role="status">${iconMarkup("info")}<span>${escapeHtml(job.actionMessage)}</span></div>` : ""}
     <div class="stat-grid">
@@ -1302,20 +1364,20 @@ function renderMileageTracker(job) {
       <form class="mileage-entry-form" data-mileage-form>
         <label>
           Date
-          <input name="mileageDate" type="date" value="${todayInputValue()}" required />
+          <input name="mileageDate" data-requires-write type="date" value="${todayInputValue()}" required />
         </label>
         <label>
           Miles
-          <input name="mileageMiles" type="number" min="0.1" max="10000" step="0.1" inputmode="decimal" placeholder="0.0" required />
+          <input name="mileageMiles" data-requires-write type="number" min="0.1" max="10000" step="0.1" inputmode="decimal" placeholder="0.0" required />
         </label>
-        <button class="primary-button" type="submit">${iconMarkup("plus")}<span>Add mileage</span></button>
+        <button class="primary-button" data-requires-write type="submit">${iconMarkup("plus")}<span>Add mileage</span></button>
       </form>
       <div class="mileage-list">
         ${entries.length ? entries.map((entry) => `
           <div class="mileage-row">
             <span>${escapeHtml(formatDate(entry.date))}</span>
             <strong>${escapeHtml(formatMiles(entry.miles))} mi</strong>
-            <button class="icon-button" data-action="delete-mileage" data-mileage-id="${escapeHtml(entry.id)}" type="button" aria-label="Remove mileage entry" title="Remove mileage entry">${iconMarkup("trash-2")}</button>
+            <button class="icon-button" data-action="delete-mileage" data-mileage-id="${escapeHtml(entry.id)}" data-requires-write type="button" aria-label="Remove mileage entry" title="Remove mileage entry">${iconMarkup("trash-2")}</button>
           </div>
         `).join("") : `<div class="empty-state">No mileage recorded for this job.</div>`}
       </div>
@@ -1339,7 +1401,7 @@ function renderDocumentList(documents, archived = false) {
           <span class="document-row-actions">
             ${fileAction}
             <em>${escapeHtml(doc.status)}</em>
-            <button class="text-button document-archive-button" data-action="${archived ? "restore-document" : "archive-document"}" data-doc-id="${escapeHtml(doc.id)}" type="button">${iconMarkup(archived ? "archive-restore" : "archive")}<span>${archived ? "Restore" : "Archive"}</span></button>
+            <button class="text-button document-archive-button" data-action="${archived ? "restore-document" : "archive-document"}" data-doc-id="${escapeHtml(doc.id)}" data-requires-write type="button">${iconMarkup(archived ? "archive-restore" : "archive")}<span>${archived ? "Restore" : "Archive"}</span></button>
           </span>
         </div>
       `;
@@ -1459,6 +1521,7 @@ function renderCustomerPortal() {
       </div>
       <span class="status-pill" data-status="${escapeHtml(job.jobStatus)}">${escapeHtml(job.jobStatus)}</span>
     </div>
+    ${portalMode.active && !portalMode.canWrite ? `<div class="action-feedback" role="status">${iconMarkup("lock-keyhole")}<span>This portal is temporarily read-only. Files and job details remain available.</span></div>` : ""}
     <div class="stat-grid">
       <div><span>Material or parts status</span><strong>${escapeHtml(job.materialStatus)}</strong></div>
       <div><span>Projected service date</span><strong>${formatDate(job.projectedDate)}</strong></div>
@@ -1476,7 +1539,7 @@ function renderCustomerPortal() {
       <p>Upload the insurance claim packet or letter for this job.</p>
       ${portalMode.active ? `
         <div class="customer-upload-actions">
-          <button class="ghost-button" data-action="customer-upload" data-doc-type="Insurance Claim" type="button">${iconMarkup("upload")}<span>Upload insurance claim</span></button>
+          <button class="ghost-button" data-action="customer-upload" data-doc-type="Insurance Claim" type="button" ${portalMode.canWrite ? "" : "disabled"}>${iconMarkup("upload")}<span>Upload insurance claim</span></button>
         </div>
       ` : `<p class="fine-print">Upload controls appear in the secure customer portal sent by email.</p>`}
       <div id="customerUploadStatus"></div>
@@ -1550,9 +1613,9 @@ function renderEstimateAcceptance(job, estimate) {
     }
     ${portalMode.active ? `
       <div class="estimate-decision-actions">
-        <button class="accept-button" data-action="estimate-decision" data-decision="accept" data-doc-id="${escapeHtml(estimate.id)}" type="button" ${viewed ? "" : "disabled"}>${iconMarkup("check")}<span>I accept</span></button>
-        <button class="ghost-button" data-action="estimate-decision" data-decision="changes" data-doc-id="${escapeHtml(estimate.id)}" type="button" ${viewed ? "" : "disabled"}>${iconMarkup("message-square-text")}<span>Accept with changes</span></button>
-        <button class="danger-button" data-action="estimate-decision" data-decision="reject" data-doc-id="${escapeHtml(estimate.id)}" type="button" ${viewed ? "" : "disabled"}>${iconMarkup("x-circle")}<span>Do not accept</span></button>
+        <button class="accept-button" data-action="estimate-decision" data-decision="accept" data-doc-id="${escapeHtml(estimate.id)}" type="button" ${viewed && portalMode.canWrite ? "" : "disabled"}>${iconMarkup("check")}<span>I accept</span></button>
+        <button class="ghost-button" data-action="estimate-decision" data-decision="changes" data-doc-id="${escapeHtml(estimate.id)}" type="button" ${viewed && portalMode.canWrite ? "" : "disabled"}>${iconMarkup("message-square-text")}<span>Accept with changes</span></button>
+        <button class="danger-button" data-action="estimate-decision" data-decision="reject" data-doc-id="${escapeHtml(estimate.id)}" type="button" ${viewed && portalMode.canWrite ? "" : "disabled"}>${iconMarkup("x-circle")}<span>Do not accept</span></button>
         <small>Your response will be saved with this estimate version.</small>
       </div>
     ` : `<p class="fine-print">Response controls appear in the secure customer portal sent by email.</p>`}
@@ -1585,7 +1648,7 @@ function renderSettings() {
                 <strong>${escapeHtml(field.label)}</strong>
                 <small>${escapeHtml(field.type)}${field.options.length ? ` / ${escapeHtml(field.options.join(", "))}` : ""}</small>
               </span>
-              <button class="ghost-button" data-field-id="${field.id}" type="button">${iconMarkup("trash-2")}<span>Remove</span></button>
+              <button class="ghost-button" data-field-id="${field.id}" data-requires-write type="button">${iconMarkup("trash-2")}<span>Remove</span></button>
             </div>
           `,
         )
@@ -1625,7 +1688,7 @@ function normalizePromoCode(value) {
 }
 
 function promoPercentFor(value) {
-  return promoCodes[normalizePromoCode(value)] || 0;
+  return previewPromoCodes[normalizePromoCode(value)] || 0;
 }
 
 function formatMoney(cents) {
@@ -1639,15 +1702,103 @@ function trialDaysLeft() {
 }
 
 function renderSubscriptionSettings() {
-  els.subscriptionStatus.textContent = "Early access";
+  const billingMode = state.settings.billingMode || "off";
+  const status = state.settings.subscriptionStatus || "trialing";
+  const canWrite = workspaceCanWrite();
+  const basePrice = Number(state.settings.basePlanPriceCents || monthlyPlanCents);
+  const planPrice = Number(state.settings.planPriceCents || basePrice);
+  const checkoutUrl = safeExternalUrl(state.settings.checkoutUrl || window.SERVICE_PORTAL_CONFIG?.waveCheckoutUrl);
+  const promoPercent = Number(state.settings.promoPercentOff || 0);
+  const daysLeft = trialDaysLeft();
+
   els.promoCode.value = state.settings.promoCode || "";
-  els.subscriptionSummary.innerHTML = `
-    <span>
-      <strong>Free early access</strong>
-      <small>No payment is collected in this version.</small>
-    </span>
-    <small>We will give advance notice before any paid plan begins.</small>
-  `;
+  els.subscriptionStatus.dataset.status = canWrite ? "Active" : "On Hold";
+
+  if (billingMode === "off") {
+    els.subscriptionStatus.textContent = "Early access";
+    els.subscriptionSummary.innerHTML = `
+      <span>
+        <strong>Free early access</strong>
+        <small>Billing is prepared but has not been activated.</small>
+      </span>
+      <small>You will receive notice before the 14-day paid trial begins.</small>
+    `;
+    els.promoForm.hidden = true;
+    els.checkoutButton.hidden = true;
+    els.subscriptionFinePrint.textContent = "Early access remains free until billing is deliberately activated.";
+    return;
+  }
+
+  if (status === "active") {
+    els.subscriptionStatus.textContent = "Active";
+    els.subscriptionSummary.innerHTML = `
+      <span>
+        <strong>${formatMoney(planPrice)} per month</strong>
+        <small>${promoPercent ? `${promoPercent}% promo applied. ` : ""}${state.settings.cancelAtPeriodEnd ? "Cancellation is scheduled." : "Payment is current."}</small>
+      </span>
+      <small>${state.settings.currentPeriodEndsAt ? `Current access runs through ${formatDate(state.settings.currentPeriodEndsAt)}.` : "Monthly access is active."}</small>
+    `;
+  } else if (status === "trialing" && canWrite) {
+    els.subscriptionStatus.textContent = "Free trial";
+    els.subscriptionSummary.innerHTML = `
+      <span>
+        <strong>${daysLeft} ${daysLeft === 1 ? "day" : "days"} left in your 14-day trial</strong>
+        <small>Then ${formatMoney(planPrice)} per month${promoPercent ? ` with ${promoPercent}% off` : ""}.</small>
+      </span>
+      <small>No payment is collected until you complete Wave checkout.</small>
+    `;
+  } else if (status === "past_due" && canWrite) {
+    els.subscriptionStatus.textContent = "Payment due";
+    els.subscriptionSummary.innerHTML = `
+      <span>
+        <strong>Payment needs attention</strong>
+        <small>Your workspace remains editable during the grace period.</small>
+      </span>
+      <small>${state.settings.graceEndsAt ? `Grace access ends ${formatDate(state.settings.graceEndsAt)}.` : "Please restore payment soon."}</small>
+    `;
+  } else if (status === "cancelled" && canWrite) {
+    els.subscriptionStatus.textContent = "Ending";
+    els.subscriptionSummary.innerHTML = `
+      <span>
+        <strong>Cancellation is scheduled</strong>
+        <small>Your workspace remains editable through the paid period.</small>
+      </span>
+      <small>${state.settings.currentPeriodEndsAt ? `Access continues through ${formatDate(state.settings.currentPeriodEndsAt)}.` : "Access will end after the current period."}</small>
+    `;
+  } else {
+    els.subscriptionStatus.textContent = "Read-only";
+    els.subscriptionSummary.innerHTML = `
+      <span>
+        <strong>Your records are still here</strong>
+        <small>Jobs and files remain viewable, but changes are paused.</small>
+      </span>
+      <small>Restore the ${formatMoney(planPrice)} monthly plan to continue working.</small>
+    `;
+  }
+
+  els.promoForm.hidden = status === "active" || state.settings.cancelAtPeriodEnd;
+  els.checkoutButton.hidden = !checkoutUrl || status === "active";
+  els.checkoutButton.dataset.checkoutUrl = checkoutUrl;
+  els.checkoutButton.textContent = status === "trialing"
+    ? "Set up monthly payment"
+    : status === "cancelled" && canWrite
+      ? "Restart monthly access"
+      : "Restore monthly access";
+  els.subscriptionFinePrint.textContent = "Payments are handled securely by Wave. The app does not store card or bank details.";
+}
+
+function renderWorkspaceAccess() {
+  const readOnly = (backend.live || readOnlyPreviewMode()) && !workspaceCanWrite();
+  els.workspaceAccessNotice.hidden = !readOnly || portalMode.active;
+  document.querySelectorAll("[data-requires-write]").forEach((control) => {
+    control.disabled = readOnly || (control === els.quickUpdateJob && !selectedJob());
+  });
+  [els.billingForm, els.fieldForm].forEach((form) => {
+    form?.querySelectorAll("input, select, textarea, button").forEach((control) => {
+      control.disabled = readOnly;
+    });
+  });
+  els.mileageTrackingEnabled.disabled = readOnly;
 }
 
 function renderCustomFieldInputs(job = null) {
@@ -1676,6 +1827,7 @@ function renderCustomFieldInputs(job = null) {
 }
 
 function openJobDialog(job = null) {
+  if (!requireWorkspaceWriteAccess()) return;
   const isEdit = Boolean(job);
   els.jobDialogMode.textContent = isEdit ? "Update" : "Start";
   els.jobDialogTitle.textContent = isEdit ? "Update a job" : "Start a job";
@@ -1697,6 +1849,7 @@ function openJobDialog(job = null) {
 }
 
 async function saveJobFromForm() {
+  if (!requireWorkspaceWriteAccess()) throw new Error("Workspace is read-only");
   const id = els.jobId.value || createId();
   const existing = state.jobs.find((job) => job.id === id);
   const customValues = {};
@@ -1766,6 +1919,7 @@ async function saveJobFromForm() {
 }
 
 async function sendCustomerAccessEmail() {
+  if (!requireWorkspaceWriteAccess()) return;
   const job = selectedJob();
   if (!job) return;
   if (backend.live) {
@@ -1956,6 +2110,7 @@ async function addDocuments(files, uploadedBy, docType = "Other") {
     await uploadPortalDocuments(Array.from(files), docType);
     return;
   }
+  if (!requireWorkspaceWriteAccess()) return;
   if (docType === "Estimate") {
     job.estimateAcceptedAt = null;
     job.acceptedEstimate = null;
@@ -2038,6 +2193,7 @@ async function addDocuments(files, uploadedBy, docType = "Other") {
 }
 
 async function setDocumentArchived(docId, archived) {
+  if (!requireWorkspaceWriteAccess()) return;
   const job = selectedJob();
   const doc = job?.documents.find((item) => item.id === docId);
   if (!job || !doc) return;
@@ -2055,6 +2211,7 @@ async function setDocumentArchived(docId, archived) {
 }
 
 async function addMileageEntry(job, date, milesValue) {
+  if (!requireWorkspaceWriteAccess()) return;
   const miles = Number(milesValue);
   if (!job || !date || !Number.isFinite(miles) || miles <= 0 || miles > 10000) {
     showToast("Enter a date and mileage greater than zero.", "error");
@@ -2089,6 +2246,7 @@ async function addMileageEntry(job, date, milesValue) {
 }
 
 async function deleteMileageEntry(entryId) {
+  if (!requireWorkspaceWriteAccess()) return;
   const job = selectedJob();
   if (!job || !job.mileageEntries.some((entry) => entry.id === entryId)) return;
   if (mileageMutationBusy) return;
@@ -2450,9 +2608,15 @@ function bindEvents() {
     els.documentPicker.value = "";
   });
 
-  els.chooseWorkspaceLogo.addEventListener("click", () => els.workspaceLogo.click());
+  els.chooseWorkspaceLogo.addEventListener("click", () => {
+    if (requireWorkspaceWriteAccess()) els.workspaceLogo.click();
+  });
 
   els.workspaceLogo.addEventListener("change", () => {
+    if (!requireWorkspaceWriteAccess()) {
+      els.workspaceLogo.value = "";
+      return;
+    }
     const file = els.workspaceLogo.files?.[0];
     if (!file) return;
     const validationError = logoValidationError(file);
@@ -2470,6 +2634,7 @@ function bindEvents() {
   });
 
   els.removeWorkspaceLogo.addEventListener("click", () => {
+    if (!requireWorkspaceWriteAccess()) return;
     if (pendingLogoPreviewUrl) URL.revokeObjectURL(pendingLogoPreviewUrl);
     pendingLogoPreviewUrl = "";
     pendingLogoRemoval = true;
@@ -2481,6 +2646,7 @@ function bindEvents() {
 
   els.workspaceForm.addEventListener("submit", async (event) => {
     event.preventDefault();
+    if (!requireWorkspaceWriteAccess()) return;
     const name = els.workspaceName.value.trim();
     if (!name) return;
     if (!backend.live) {
@@ -2526,6 +2692,10 @@ function bindEvents() {
   });
 
   els.mileageTrackingEnabled.addEventListener("change", async () => {
+    if (!requireWorkspaceWriteAccess()) {
+      els.mileageTrackingEnabled.checked = Boolean(state.settings.mileageTrackingEnabled);
+      return;
+    }
     const enabled = els.mileageTrackingEnabled.checked;
     const previous = Boolean(state.settings.mileageTrackingEnabled);
     els.mileageTrackingEnabled.disabled = true;
@@ -2553,6 +2723,7 @@ function bindEvents() {
 
   els.billingForm.addEventListener("submit", async (event) => {
     event.preventDefault();
+    if (!requireWorkspaceWriteAccess()) return;
     if (backend.live) {
       const { error } = await backend.client
         .from("companies")
@@ -2583,36 +2754,44 @@ function bindEvents() {
   els.promoForm.addEventListener("submit", async (event) => {
     event.preventDefault();
     const code = normalizePromoCode(els.promoCode.value);
-    const percent = promoPercentFor(code);
-    if (code && !percent) {
-      showToast("That promo code is not active yet.", "error");
+    if (!code) {
+      showToast("Enter a promo code.", "error");
       return;
     }
     if (backend.live) {
-      const { error } = await backend.client
-        .from("companies")
-        .update({ promo_code: code || null, promo_percent_off: percent })
-        .eq("id", backend.company.id);
+      const { error } = await backend.client.rpc("apply_billing_promo_code", { input_code: code });
       if (error) {
         console.warn("Promo save failed", error);
-        showToast("Could not save the promo code.", "error");
+        showToast("That promo code is not active.", "error");
         return;
       }
       await loadLiveState();
     } else {
+      const percent = promoPercentFor(code);
+      if (!percent) {
+        showToast("That promo code is not active.", "error");
+        return;
+      }
       state.settings.promoCode = code;
       state.settings.promoPercentOff = percent;
+      state.settings.planPriceCents = Math.round(monthlyPlanCents * (100 - percent) / 100);
     }
-    showToast(code ? "Promo code saved." : "Promo code removed.", "success");
+    showToast("Promo code applied.", "success");
     render();
   });
 
   els.checkoutButton.addEventListener("click", () => {
-    showToast("Billing is off during early access.", "info");
+    const checkoutUrl = safeExternalUrl(els.checkoutButton.dataset.checkoutUrl);
+    if (!checkoutUrl) {
+      showToast("Billing is off during early access.", "info");
+      return;
+    }
+    window.open(checkoutUrl, "_blank", "noopener,noreferrer");
   });
 
   els.fieldForm.addEventListener("submit", async (event) => {
     event.preventDefault();
+    if (!requireWorkspaceWriteAccess()) return;
     const label = els.fieldLabel.value.trim();
     if (!label) return;
     if (state.settings.customFields.some((field) => field.label.toLowerCase() === label.toLowerCase())) {
@@ -2657,6 +2836,7 @@ function bindEvents() {
   els.customFieldList.addEventListener("click", async (event) => {
     const button = event.target.closest("[data-field-id]");
     if (!button) return;
+    if (!requireWorkspaceWriteAccess()) return;
     if (backend.live) {
       const { error } = await backend.client.from("custom_fields").delete().eq("id", button.dataset.fieldId);
       if (error) {
@@ -2676,6 +2856,7 @@ function bindEvents() {
 
   els.jobForm.addEventListener("submit", async (event) => {
     event.preventDefault();
+    if (!requireWorkspaceWriteAccess()) return;
     if (jobSaveBusy) return;
     jobSaveBusy = true;
     els.saveJob.disabled = true;
@@ -2710,6 +2891,7 @@ function bindEvents() {
   });
 
   els.deleteJob.addEventListener("click", async () => {
+    if (!requireWorkspaceWriteAccess()) return;
     const id = els.jobId.value;
     const job = state.jobs.find((item) => item.id === id);
     if (!job) return;

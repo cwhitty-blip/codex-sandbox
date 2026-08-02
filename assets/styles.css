@@ -374,6 +374,34 @@ body.contractor-locked main {
   padding-bottom: 18px;
 }
 
+.workspace-access-notice {
+  display: flex;
+  align-items: flex-start;
+  gap: 11px;
+  margin: -4px 0 20px;
+  border: 1px solid rgba(148, 101, 29, 0.34);
+  border-radius: 8px;
+  padding: 12px 14px;
+  background: var(--warning-soft);
+  color: var(--warning);
+}
+
+.workspace-access-notice > svg {
+  margin-top: 1px;
+}
+
+.workspace-access-notice span,
+.workspace-access-notice strong,
+.workspace-access-notice small {
+  display: block;
+}
+
+.workspace-access-notice small {
+  margin-top: 3px;
+  color: #70511f;
+  line-height: 1.4;
+}
+
 .eyebrow {
   margin-bottom: 6px;
   color: var(--copper);
@@ -1638,6 +1666,10 @@ body.customer-portal-mode .customer-layout {
     min-height: 58px;
     margin-bottom: 14px;
     padding-bottom: 14px;
+  }
+
+  .workspace-access-notice {
+    margin-bottom: 14px;
   }
 
   .action-band {

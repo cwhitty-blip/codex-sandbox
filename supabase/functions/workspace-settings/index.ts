@@ -16,6 +16,14 @@ function serviceRoleKey() {
   return Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
 }
 
+async function companyCanWrite(supabase: ReturnType<typeof createClient>, companyId: string) {
+  const { data, error } = await supabase.rpc("company_has_write_access", {
+    target_company_id: companyId,
+  });
+  if (error) throw error;
+  return data === true;
+}
+
 function corsHeaders(req: Request) {
   const configuredBase = Deno.env.get("APP_BASE_URL") || "";
   const configuredOrigin = configuredBase ? new URL(configuredBase).origin : "";
@@ -79,6 +87,14 @@ serve(async (req) => {
     .limit(1)
     .single();
   if (membershipError || !membership) return jsonResponse(req, { error: "Workspace not found" }, 404);
+
+  try {
+    if (!await companyCanWrite(serviceClient, String(membership.company_id))) {
+      return jsonResponse(req, { error: "This workspace is read-only until billing is restored" }, 402);
+    }
+  } catch {
+    return jsonResponse(req, { error: "Could not verify workspace access" }, 500);
+  }
 
   if (logoPath !== undefined && logoPath !== null && !logoPath.startsWith(`${membership.company_id}/`)) {
     return jsonResponse(req, { error: "Company logo path is invalid" }, 400);

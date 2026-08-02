@@ -62,6 +62,14 @@ function serviceRoleKey() {
   return Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
 }
 
+async function companyCanWrite(supabase: ReturnType<typeof createClient>, companyId: string) {
+  const { data, error } = await supabase.rpc("company_has_write_access", {
+    target_company_id: companyId,
+  });
+  if (error) throw error;
+  return data === true;
+}
+
 function classifyResendFailure(status: number, body: string) {
   if (status === 429) {
     return {
@@ -136,6 +144,14 @@ serve(async (req) => {
     .eq("user_id", authData.user.id)
     .single();
   if (memberError || !member) return jsonResponse(req, { error: "You do not have access to this job" }, 403);
+
+  try {
+    if (!await companyCanWrite(supabase, String(job.company_id))) {
+      return jsonResponse(req, { error: "This workspace is read-only until billing is restored" }, 402);
+    }
+  } catch {
+    return jsonResponse(req, { error: "Could not verify workspace access" }, 500);
+  }
 
   const { data: company } = await supabase
     .from("companies")
