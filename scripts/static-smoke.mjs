@@ -113,6 +113,9 @@ assert(app.includes('jobStatusFilter === "attention"'), "Job filtering must supp
 assert(app.includes('${count ? "" : "disabled"}'), "Empty attention categories must not act like filters");
 assert(html.includes('id="upcomingSchedule"'), "Dashboard must include the upcoming schedule");
 assert(html.includes('id="scheduleSettingsForm"'), "Settings must include company availability");
+assert(html.includes('id="recurrenceEnabled"'), "Recurring visits must use an explicit opt-in switch");
+assert(app.includes("function updateRecurrenceControls"), "The recurrence switch must control the repeat fields");
+assert(app.includes("els.recurrenceEnabled.checked"), "One-time visits must remain the recurrence default");
 assert(app.includes("function createDemoSchedule"), "The review demo must keep sample visits in the future");
 assert(/function demoMode\(\)\s*{\s*return new URLSearchParams/.test(app), "The published review link must support demo mode");
 assert(/function loadState\(\)\s*{\s*if \(demoMode\(\)\)/.test(app), "The review demo must not reuse stale browser data");

@@ -295,6 +295,8 @@ const els = {
   projectedDate: document.getElementById("projectedDate"),
   scheduledTime: document.getElementById("scheduledTime"),
   estimatedHours: document.getElementById("estimatedHours"),
+  recurrenceEnabled: document.getElementById("recurrenceEnabled"),
+  recurrenceControls: document.getElementById("recurrenceControls"),
   recurrencePattern: document.getElementById("recurrencePattern"),
   recurrenceUntilLabel: document.getElementById("recurrenceUntilLabel"),
   recurrenceUntil: document.getElementById("recurrenceUntil"),
@@ -2289,6 +2291,13 @@ async function skipSelectedOccurrence() {
   await notifyCustomerOfJobUpdate(job.id, "Visit skipped.");
 }
 
+function updateRecurrenceControls() {
+  const enabled = els.recurrenceEnabled.checked;
+  els.recurrenceControls.hidden = !enabled;
+  els.recurrenceUntilLabel.hidden = !enabled;
+  els.recurrenceEnabled.setAttribute("aria-checked", String(enabled));
+}
+
 function openJobDialog(job = null) {
   if (!requireWorkspaceWriteAccess()) return;
   const isEdit = Boolean(job);
@@ -2306,11 +2315,13 @@ function openJobDialog(job = null) {
   els.projectedDate.value = job?.scheduledStart ? dateInputInTimezone(job.scheduledStart) : job?.projectedDate || "";
   els.scheduledTime.value = job?.scheduledStart ? timeInputInTimezone(job.scheduledStart) : "";
   els.estimatedHours.value = String(Math.max(0.5, Number(job?.estimatedDurationMinutes || 60) / 60));
-  els.recurrencePattern.value = job?.recurrenceFrequency && job.recurrenceFrequency !== "none"
+  const recurrenceEnabled = Boolean(job?.recurrenceFrequency && job.recurrenceFrequency !== "none");
+  els.recurrenceEnabled.checked = recurrenceEnabled;
+  els.recurrencePattern.value = recurrenceEnabled
     ? `${job.recurrenceFrequency}:${Math.max(1, Number(job.recurrenceInterval || 1))}`
-    : "none";
+    : "weekly:1";
   els.recurrenceUntil.value = job?.recurrenceUntil || "";
-  els.recurrenceUntilLabel.hidden = els.recurrencePattern.value === "none";
+  updateRecurrenceControls();
   els.scheduleSuggestionStatus.textContent = "Suggestions use the company availability in Settings.";
   els.invoiceUrl.value = job?.invoiceUrl || "";
   els.nextAction.value = job?.nextAction || "";
@@ -2328,9 +2339,9 @@ async function saveJobFromForm() {
     customValues[input.dataset.customField] = input.value;
   });
   const estimatedDurationMinutes = Math.round(Math.max(0.5, Number(els.estimatedHours.value || 1)) * 60);
-  const [recurrenceFrequency, recurrenceIntervalText] = els.recurrencePattern.value === "none"
-    ? ["none", "1"]
-    : els.recurrencePattern.value.split(":");
+  const [recurrenceFrequency, recurrenceIntervalText] = els.recurrenceEnabled.checked
+    ? els.recurrencePattern.value.split(":")
+    : ["none", "1"];
   const hasScheduleDate = Boolean(els.projectedDate.value);
   const hasScheduleTime = Boolean(els.scheduledTime.value);
   if (hasScheduleDate !== hasScheduleTime) {
@@ -2362,7 +2373,9 @@ async function saveJobFromForm() {
     recurrenceFrequency,
     recurrenceInterval: Math.max(1, Number(recurrenceIntervalText || 1)),
     recurrenceUntil: recurrenceFrequency === "none" ? "" : els.recurrenceUntil.value,
-    scheduleExceptions: existing?.scheduleExceptions || [],
+    scheduleExceptions: existing?.recurrenceFrequency === recurrenceFrequency
+      ? existing?.scheduleExceptions || []
+      : [],
     invoiceUrl: els.invoiceUrl.value,
     nextAction: els.nextAction.value,
     internalNotes: els.internalNotes.value,
@@ -2969,9 +2982,7 @@ function bindEvents() {
   els.startJob?.addEventListener("click", () => openJobDialog());
   els.quickStartJob.addEventListener("click", () => openJobDialog());
   els.quickUpdateJob.addEventListener("click", () => openJobDialog(selectedJob()));
-  els.recurrencePattern.addEventListener("change", () => {
-    els.recurrenceUntilLabel.hidden = els.recurrencePattern.value === "none";
-  });
+  els.recurrenceEnabled.addEventListener("change", updateRecurrenceControls);
   els.suggestNextAvailable.addEventListener("click", applySuggestedSchedule);
   els.resetDemo?.addEventListener("click", () => {
     state = normalizeState(structuredClone(demoState));

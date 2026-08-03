@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="referrer" content="no-referrer" />
     <title>Service Portal</title>
-    <link rel="stylesheet" href="assets/styles.css?v=scheduling-v1" />
+    <link rel="stylesheet" href="assets/styles.css?v=scheduling-v2" />
   </head>
   <body>
     <div class="app-shell">
@@ -439,19 +439,27 @@
               Estimated hours
               <input id="estimatedHours" type="number" min="0.5" max="24" step="0.5" inputmode="decimal" value="1" />
             </label>
-            <label>
-              Repeats
-              <select id="recurrencePattern">
-                <option value="none">Does not repeat</option>
-                <option value="weekly:1">Every week</option>
-                <option value="weekly:2">Every 2 weeks</option>
-                <option value="monthly:1">Every month</option>
-              </select>
+            <label class="setting-toggle schedule-repeat-toggle">
+              <span>
+                <strong>Recurring visits</strong>
+                <small>Leave off for a one-time appointment.</small>
+              </span>
+              <input id="recurrenceEnabled" type="checkbox" role="switch" />
             </label>
-            <label id="recurrenceUntilLabel" hidden>
-              Repeat through
-              <input id="recurrenceUntil" type="date" />
-            </label>
+            <div id="recurrenceControls" class="recurrence-controls" hidden>
+              <label>
+                Repeat schedule
+                <select id="recurrencePattern">
+                  <option value="weekly:1">Every week</option>
+                  <option value="weekly:2">Every 2 weeks</option>
+                  <option value="monthly:1">Every month</option>
+                </select>
+              </label>
+              <label id="recurrenceUntilLabel">
+                Repeat through (optional)
+                <input id="recurrenceUntil" type="date" />
+              </label>
+            </div>
           </div>
           <div class="schedule-suggestion-row">
             <button id="suggestNextAvailable" class="ghost-button" type="button"><i data-lucide="calendar-search"></i><span>Suggest next available</span></button>
@@ -537,6 +545,6 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.110.1"></script>
     <script src="https://unpkg.com/lucide@1.24.0/dist/umd/lucide.js"></script>
     <script src="assets/config.js?v=accounts-v3"></script>
-    <script src="assets/app.js?v=scheduling-v2"></script>
+    <script src="assets/app.js?v=scheduling-v3"></script>
   </body>
 </html>
