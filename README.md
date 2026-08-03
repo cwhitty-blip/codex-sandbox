@@ -19,7 +19,7 @@ GitHub Pages serves the frontend. Supabase handles contractor authentication, te
    - `APP_BASE_URL`
    - `FROM_EMAIL`
    Supabase provides `SUPABASE_URL` and `SUPABASE_SECRET_KEYS` by default.
-4. Deploy `supabase/functions/send-magic-link`, `supabase/functions/customer-portal`, `supabase/functions/workspace-settings`, and the dormant `supabase/functions/wave-webhook` endpoint.
+4. Deploy `supabase/functions/send-magic-link`, `supabase/functions/send-job-digests`, `supabase/functions/customer-portal`, `supabase/functions/workspace-settings`, and the dormant `supabase/functions/wave-webhook` endpoint.
 
 The publishable Supabase key in `assets/config.js` is intended for browser use. Database row-level security protects company records. Secret Supabase and Resend keys belong only in Edge Function secrets.
 
@@ -40,7 +40,7 @@ This build does not collect cards directly. Wave will host the recurring checkou
 - Company profile and custom job field setup
 - Custom job field builder
 - Customer access email flow through Resend
-- Automatic customer email after successful contractor job changes
+- Batched customer update emails at 10 AM, 4 PM, and 9 PM in the company timezone
 - Contractor logo branding in the workspace, customer portal, and customer emails
 - Optional company-wide mileage tracking with private per-job date and mileage records
 - Shared company schedule with working days, hours, time zone, and between-job buffers

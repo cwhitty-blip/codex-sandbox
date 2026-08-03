@@ -155,7 +155,7 @@ serve(async (req) => {
 
   const { data: company } = await supabase
     .from("companies")
-    .select("name,logo_path")
+    .select("name,logo_path,scheduling_timezone")
     .eq("id", job.company_id)
     .single();
 
@@ -173,6 +173,25 @@ serve(async (req) => {
       .limit(1)
       .maybeSingle();
     if (recentLink) return jsonResponse(req, { error: "Please wait one minute before sending another customer email" }, 429);
+  }
+
+  if (messageType === "job_update") {
+    const { error: queueError } = await supabase.from("job_update_events").insert({
+      company_id: job.company_id,
+      job_id: job.id,
+      customer_id: job.customer_id,
+    });
+    if (queueError) {
+      console.error("Could not queue customer job update", { jobId: job.id, code: queueError.code });
+      return jsonResponse(req, { error: "Could not queue the customer update" }, 500);
+    }
+    return jsonResponse(req, {
+      ok: true,
+      queued: true,
+      messageType,
+      deliveryWindows: ["10:00", "16:00", "21:00"],
+      timeZone: company?.scheduling_timezone || "America/Chicago",
+    });
   }
 
   const token = crypto.randomUUID() + crypto.randomUUID().replaceAll("-", "");
@@ -194,9 +213,7 @@ serve(async (req) => {
   if (insertError || !newLink) return jsonResponse(req, { error: "Could not create customer link" }, 500);
 
   const companyName = company?.name || "Service Portal";
-  const subject = messageType === "job_update"
-    ? `${companyName}: Your job has been updated`
-    : `${job.name || "Your project"} portal link`;
+  const subject = `${job.name || "Your project"} portal link`;
   const safePortalLink = escapeHtml(portalLink);
   const logoUrl = company?.logo_path
     ? supabase.storage.from(brandingBucket).getPublicUrl(company.logo_path).data.publicUrl
@@ -204,13 +221,9 @@ serve(async (req) => {
   const logoMarkup = logoUrl
     ? `<img src="${escapeHtml(logoUrl)}" alt="${escapeHtml(companyName)}" style="display:block;max-width:180px;max-height:72px;margin:0 0 24px;object-fit:contain;" />`
     : `<p style="margin:0 0 24px;font-size:18px;font-weight:700;color:#172326;">${escapeHtml(companyName)}</p>`;
-  const message = messageType === "job_update"
-    ? "Your job has been updated."
-    : "Your secure project portal is ready.";
-  const linkLabel = messageType === "job_update" ? "View your job" : "Open your project portal";
-  const securityNote = messageType === "access"
-    ? `<p style="margin:24px 0 0;color:#65736f;font-size:13px;">This link expires in 7 days. A newer email will replace this link.</p>`
-    : "";
+  const message = "Your secure project portal is ready.";
+  const linkLabel = "Open your project portal";
+  const securityNote = `<p style="margin:24px 0 0;color:#65736f;font-size:13px;">This link expires in 7 days. A newer email will replace this link.</p>`;
   const emailResult = await fetch("https://api.resend.com/emails", {
     method: "POST",
     headers: {

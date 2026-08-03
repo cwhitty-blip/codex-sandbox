@@ -9,5 +9,8 @@ verify_jwt = false
 [functions.workspace-settings]
 verify_jwt = true
 
+[functions.send-job-digests]
+verify_jwt = false
+
 [functions.wave-webhook]
 verify_jwt = false

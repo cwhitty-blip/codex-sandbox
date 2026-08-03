@@ -16,12 +16,15 @@ const app = read("assets/app.js");
 const config = read("assets/config.js");
 const edge = read("supabase/functions/customer-portal/index.ts");
 const emailEdge = read("supabase/functions/send-magic-link/index.ts");
+const digestEdge = read("supabase/functions/send-job-digests/index.ts");
 const workspaceEdge = read("supabase/functions/workspace-settings/index.ts");
 const brandingMigration = read("supabase/migrations/20260719090000_company_branding_and_job_notifications.sql");
 const mileageMigration = read("supabase/migrations/20260719120000_mileage_tracking.sql");
 const atomicJobMigration = read("supabase/migrations/20260719183000_atomic_job_save.sql");
 const subscriptionMigration = read("supabase/migrations/20260802090000_subscription_access_and_trial.sql");
 const schedulingMigration = read("supabase/migrations/20260802130000_scheduling_foundation.sql");
+const digestMigration = read("supabase/migrations/20260803001000_batched_job_update_notifications.sql");
+const digestScheduleMigration = read("supabase/migrations/20260803002500_digest_exact_delivery_windows.sql");
 const waveEdge = read("supabase/functions/wave-webhook/index.ts");
 const supabaseConfig = read("supabase/config.toml");
 
@@ -61,6 +64,7 @@ assert(waveEdge.includes('Deno.env.get("WAVE_ACCESS_TOKEN")'), "Wave renewals mu
 assert(waveEdge.includes("verifyWaveSignature"), "Wave callbacks must verify their signatures");
 assert(waveEdge.includes('["processed", "ignored", "unmatched"]'), "Completed Wave events must be idempotent while failed events remain retryable");
 assert(/\[functions\.customer-portal\][\s\S]*?verify_jwt\s*=\s*false/.test(supabaseConfig), "Customer portal token function must allow public invocation");
+assert(/\[functions\.send-job-digests\][\s\S]*?verify_jwt\s*=\s*false/.test(supabaseConfig), "Digest worker must use its custom cron authentication");
 assert(/\[functions\.wave-webhook\][\s\S]*?verify_jwt\s*=\s*false/.test(supabaseConfig), "Wave webhook must allow provider callbacks");
 
 const customerSafeStart = edge.indexOf("async function customerSafeJob");
@@ -77,7 +81,13 @@ assert(app.includes("portalMode.active ?"), "Customer mutation controls must be 
 assert(html.includes('id="workspaceLogo"'), "Company profile must include a logo picker");
 assert(html.includes('id="portalCompanyLogo"'), "Customer portal must include contractor branding");
 assert(app.includes('emailType: "job_update"'), "Contractor job changes must request customer update emails");
-assert(emailEdge.includes("Your job has been updated."), "Update email must use the approved customer wording");
+assert(emailEdge.includes('.from("job_update_events").insert'), "Contractor updates must be queued instead of sent immediately");
+assert(digestEdge.includes("Your job has been updated."), "Digest email must use the approved customer wording");
+assert(digestEdge.includes('rpc("validate_job_digest_cron_secret"'), "Digest delivery must authenticate the scheduled caller");
+assert(digestEdge.includes('rpc("claim_due_job_update_digests"'), "Digest delivery must atomically claim due updates");
+assert(digestMigration.includes("in (10, 16, 21)"), "Customer digests must run at 10 AM, 4 PM, and 9 PM company time");
+assert(digestScheduleMigration.includes("'0 * * * *'"), "The digest worker must check due company windows at the start of each hour");
+assert(digestMigration.includes("enable row level security"), "Queued update events must have row-level security enabled");
 assert(emailEdge.includes("text: `${message}"), "Customer email must include a plain-text alternative");
 assert(emailEdge.includes('message_type: messageType'), "Customer email records must identify the message type");
 assert(edge.includes("customerSafeCompany"), "Customer portal must return safe company branding");

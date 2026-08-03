@@ -2469,13 +2469,13 @@ async function notifyCustomerOfJobUpdate(jobId, savedMessage = "Change saved.") 
   if (!job) return false;
   if (!backend.live) {
     activatePortalAccess(job, "email");
-    job.timeline.push("Customer update email prepared");
-    showToast(`${savedMessage} Customer update prepared in preview mode.`, "success");
+    job.timeline.push("Customer update queued for the next digest");
+    showToast(`${savedMessage} Customer update queued for the next email window.`, "success");
     render();
     return true;
   }
 
-  const { error } = await backend.client.functions.invoke("send-magic-link", {
+  const { data, error } = await backend.client.functions.invoke("send-magic-link", {
     body: { jobId, emailType: "job_update" },
   });
   if (error) {
@@ -2487,9 +2487,12 @@ async function notifyCustomerOfJobUpdate(jobId, savedMessage = "Change saved.") 
     return false;
   }
 
-  job.magicLinkLastSent = new Date().toISOString();
-  job.actionMessage = `Customer update emailed to ${job.customerEmail}.`;
-  showToast(`${savedMessage} Customer notified.`, "success");
+  if (!data?.queued) {
+    showToast(`${savedMessage} Customer update could not be confirmed.`, "error");
+    return false;
+  }
+  job.actionMessage = "Customer update queued for 10 AM, 4 PM, or 9 PM.";
+  showToast(`${savedMessage} Customer update queued for the next email window.`, "success");
   render();
   return true;
 }
