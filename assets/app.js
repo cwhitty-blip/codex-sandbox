@@ -331,6 +331,8 @@ const els = {
   authForm: document.getElementById("authForm"),
   authEmail: document.getElementById("authEmail"),
   authPassword: document.getElementById("authPassword"),
+  authConfirmPasswordLabel: document.getElementById("authConfirmPasswordLabel"),
+  authConfirmPassword: document.getElementById("authConfirmPassword"),
   authCompany: document.getElementById("authCompany"),
   authPromoCode: document.getElementById("authPromoCode"),
   authSubmit: document.getElementById("authSubmit"),
@@ -547,6 +549,7 @@ function renderAuth() {
   els.authForm.hidden = backend.recovery;
   els.recoveryForm.hidden = !backend.recovery;
   els.forgotPassword.hidden = backend.recovery || backend.authMode === "signup";
+  els.authConfirmPasswordLabel.hidden = backend.recovery || backend.authMode !== "signup";
   els.authSubmit.disabled = backend.authBusy;
   els.authCreate.disabled = backend.authBusy;
   els.recoverySubmit.disabled = backend.authBusy;
@@ -560,6 +563,7 @@ function renderAuth() {
     els.authSubmit.value = "signup";
     setButtonLabel(els.authCreate, "arrow-left", "Back to sign in");
     els.authPassword.autocomplete = "new-password";
+    els.authConfirmPassword.autocomplete = "new-password";
   } else {
     els.authStatus.textContent = "Contractor sign in";
     els.backendStatus.textContent = "Enter your contractor email and password.";
@@ -567,6 +571,7 @@ function renderAuth() {
     els.authSubmit.value = "signin";
     setButtonLabel(els.authCreate, "user-plus", "Create account");
     els.authPassword.autocomplete = "current-password";
+    els.authConfirmPassword.value = "";
   }
   if (backend.authFeedback) {
     els.authStatus.textContent = backend.authFeedback.title;
@@ -654,12 +659,21 @@ async function performAuth(mode = backend.authMode) {
   if (!backend.client || backend.authBusy) return;
   const email = els.authEmail.value.trim();
   const password = els.authPassword.value;
+  const confirmPassword = els.authConfirmPassword.value;
   if (!email || !password) {
     els.backendStatus.textContent = "Enter your email and password.";
     return;
   }
   if (password.length < 6) {
     els.backendStatus.textContent = "Use at least 6 characters for the password.";
+    return;
+  }
+  if (mode === "signup" && !confirmPassword) {
+    els.backendStatus.textContent = "Enter the password again to confirm it.";
+    return;
+  }
+  if (mode === "signup" && password !== confirmPassword) {
+    els.backendStatus.textContent = "Passwords do not match.";
     return;
   }
 
