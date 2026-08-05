@@ -13,6 +13,7 @@ const assert = (condition, message) => {
 
 const html = read("index.html");
 const app = read("assets/app.js");
+const styles = read("assets/styles.css");
 const config = read("assets/config.js");
 const edge = read("supabase/functions/customer-portal/index.ts");
 const emailEdge = read("supabase/functions/send-magic-link/index.ts");
@@ -54,6 +55,12 @@ assert(app.includes('rpc("get_my_company_entitlement")'), "The browser must load
 assert(html.includes('id="workspaceAccessNotice"'), "Expired workspaces must show a read-only notice");
 assert(html.includes('id="authConfirmPassword"'), "Account creation must include password confirmation");
 assert(app.includes('password !== confirmPassword'), "Mismatched account passwords must be rejected before signup");
+assert(html.includes("data-theme-toggle"), "The app must expose an appearance control");
+assert(app.includes('const THEME_STORAGE_KEY = "servicePortal.theme"'), "Appearance preference must persist on the device");
+assert(styles.includes('html[data-theme="dark"]'), "Dark mode must define a complete color theme");
+assert(styles.includes("height: calc(100dvh - 32px)"), "Desktop layout must use the full vertical viewport");
+assert(styles.includes("body.customer-portal-mode .portal-masthead"), "Customer portal must retain its compact branded masthead");
+assert(app.includes('classList.remove("contractor-locked")'), "Customer links must never inherit the contractor sign-in lock");
 assert(app.includes("function requireWorkspaceWriteAccess"), "Browser mutations must have a read-only guard");
 assert(subscriptionMigration.includes("now() + interval '14 days'"), "New company trials must last 14 days in the database");
 assert(subscriptionMigration.includes("public.company_member_can_write"), "Database writes must enforce membership and subscription access");

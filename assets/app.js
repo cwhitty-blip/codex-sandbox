@@ -1,4 +1,5 @@
 const STORAGE_KEY = "serviceJobPortal.v2";
+const THEME_STORAGE_KEY = "servicePortal.theme";
 const DOCUMENT_BUCKET = "job-documents";
 const BRANDING_BUCKET = "company-branding";
 const MAX_DOCUMENT_BYTES = 10 * 1024 * 1024;
@@ -226,6 +227,7 @@ let jobAttentionFilter = "";
 
 const els = {
   tabs: document.querySelectorAll(".nav-tab"),
+  themeToggles: document.querySelectorAll("[data-theme-toggle]"),
   settingsGear: document.querySelector(".settings-gear"),
   views: {
     dashboard: document.getElementById("dashboardView"),
@@ -987,7 +989,8 @@ function portalTokenFromUrl() {
 }
 
 function activateCustomerPortalView() {
-  document.body.classList.add("customer-portal-mode");
+  document.body.classList.remove("contractor-locked");
+  document.body.classList.add("customer-portal-mode", "customer-view-active");
   els.tabs.forEach((item) => item.classList.toggle("active", item.dataset.view === "customer"));
   Object.entries(els.views).forEach(([view, node]) => node.classList.toggle("active", view === "customer"));
   els.viewTitle.textContent = "Customer View";
@@ -2917,6 +2920,29 @@ async function recordEstimateDecision(docId, decision, notes = "") {
 }
 
 function bindEvents() {
+  function applyTheme(theme, persist = true) {
+    const nextTheme = theme === "dark" ? "dark" : "light";
+    document.documentElement.dataset.theme = nextTheme;
+    if (persist) {
+      try {
+        localStorage.setItem(THEME_STORAGE_KEY, nextTheme);
+      } catch (_) {}
+    }
+    const buttonLabel = nextTheme === "dark" ? "Use light mode" : "Use dark mode";
+    els.themeToggles.forEach((button) => {
+      button.setAttribute("aria-label", buttonLabel);
+      button.setAttribute("title", buttonLabel);
+      button.setAttribute("aria-pressed", String(nextTheme === "dark"));
+    });
+  }
+
+  applyTheme(document.documentElement.dataset.theme, false);
+  els.themeToggles.forEach((button) => {
+    button.addEventListener("click", () => {
+      applyTheme(document.documentElement.dataset.theme === "dark" ? "light" : "dark");
+    });
+  });
+
   function setView(viewName) {
     els.tabs.forEach((item) => {
       const active = item.dataset.view === viewName;
@@ -2927,6 +2953,7 @@ function bindEvents() {
     els.settingsGear.classList.toggle("active", viewName === "settings");
     els.settingsGear.setAttribute("aria-pressed", String(viewName === "settings"));
     Object.entries(els.views).forEach(([view, node]) => node.classList.toggle("active", view === viewName));
+    document.body.classList.toggle("customer-view-active", viewName === "customer");
     els.viewTitle.textContent = viewName === "dashboard" ? "Jobs" : viewName === "customer" ? "Customer View" : "Setup";
   }
 

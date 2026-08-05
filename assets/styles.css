@@ -24,6 +24,33 @@
   --shadow-soft: 0 8px 24px rgba(24, 35, 33, 0.07);
 }
 
+html[data-theme="dark"] {
+  color-scheme: dark;
+  --canvas: #0f1513;
+  --surface: #18211e;
+  --surface-subtle: #131a18;
+  --surface-strong: #24302c;
+  --ink: #edf3f0;
+  --muted: #a8b6b1;
+  --line: #35423e;
+  --line-strong: #465650;
+  --accent: #61b8bf;
+  --accent-hover: #78cbd1;
+  --accent-soft: #17373a;
+  --copper: #d8a16e;
+  --copper-soft: #35271d;
+  --success: #91bb82;
+  --success-soft: #22321f;
+  --warning: #e1b461;
+  --warning-soft: #392f1c;
+  --danger: #e0837b;
+  --danger-soft: #3b2322;
+  --sidebar: #0d1412;
+  --sidebar-hover: #25312d;
+  --shadow: 0 18px 50px rgba(0, 0, 0, 0.45);
+  --shadow-soft: 0 8px 24px rgba(0, 0, 0, 0.28);
+}
+
 * {
   box-sizing: border-box;
 }
@@ -137,8 +164,9 @@ small {
   display: grid;
   grid-template-columns: 232px minmax(0, 1fr);
   width: min(1440px, calc(100vw - 32px));
-  height: min(960px, calc(100vh - 32px));
-  min-height: 680px;
+  height: calc(100vh - 32px);
+  height: calc(100dvh - 32px);
+  min-height: 620px;
   overflow: hidden;
   border: 1px solid var(--line-strong);
   border-radius: 12px;
@@ -374,6 +402,40 @@ body.contractor-locked main {
   padding-bottom: 18px;
 }
 
+.theme-toggle {
+  position: relative;
+  width: 38px;
+  min-height: 38px;
+  flex: 0 0 38px;
+  padding: 0;
+}
+
+.theme-icon-dark {
+  display: none;
+}
+
+html[data-theme="dark"] .theme-icon-light {
+  display: none;
+}
+
+html[data-theme="dark"] .theme-icon-dark {
+  display: block;
+}
+
+body.customer-view-active:not(.customer-portal-mode) .topbar {
+  min-height: 48px;
+  margin-bottom: 12px;
+  padding-bottom: 10px;
+}
+
+body.customer-view-active:not(.customer-portal-mode) .topbar .eyebrow {
+  display: none;
+}
+
+body.customer-view-active:not(.customer-portal-mode) .topbar h1 {
+  font-size: 1.35rem;
+}
+
 .workspace-access-notice {
   display: flex;
   align-items: flex-start;
@@ -398,7 +460,7 @@ body.contractor-locked main {
 
 .workspace-access-notice small {
   margin-top: 3px;
-  color: #70511f;
+  color: var(--warning);
   line-height: 1.4;
 }
 
@@ -460,12 +522,12 @@ body.contractor-locked main {
 
 .ghost-button:hover,
 .icon-button:hover {
-  border-color: #a9bbb4;
+  border-color: var(--line-strong);
   background: var(--surface-strong);
 }
 
 .danger-button {
-  border-color: #ecc5c1;
+  border-color: color-mix(in srgb, var(--danger) 38%, var(--line));
   background: var(--danger-soft);
   color: var(--danger);
 }
@@ -681,7 +743,7 @@ body.contractor-locked main {
 
 .choice-button:hover {
   border-color: rgba(13, 111, 120, 0.4);
-  background: #fbfdfc;
+  background: var(--surface-strong);
 }
 
 .choice-icon {
@@ -958,7 +1020,7 @@ body.contractor-locked main {
 }
 
 .plain-section p {
-  color: #34413e;
+  color: var(--ink);
   line-height: 1.5;
 }
 
@@ -1063,7 +1125,7 @@ body.contractor-locked main {
 
 .schedule-repeat-toggle {
   grid-column: 1 / -1;
-  background: #ffffff;
+  background: var(--surface);
 }
 
 .recurrence-controls {
@@ -1099,7 +1161,7 @@ body.contractor-locked main {
   border: 1px solid rgba(13, 111, 120, 0.2);
   border-radius: 8px;
   padding: 14px;
-  background: #f3f9f8;
+  background: var(--accent-soft);
 }
 
 .estimate-status-card {
@@ -1213,7 +1275,7 @@ body.contractor-locked main {
 }
 
 .internal-note {
-  border-left: 3px solid #d1a65f;
+  border-left: 3px solid var(--copper);
   padding-left: 13px;
 }
 
@@ -1441,7 +1503,7 @@ body.contractor-locked main {
 }
 
 .form-label {
-  color: #4d5b57;
+  color: var(--muted);
   font-size: 0.82rem;
   font-weight: 760;
 }
@@ -1522,7 +1584,7 @@ body.contractor-locked main {
   border: 1px solid var(--line-strong);
   border-radius: 13px;
   padding: 2px;
-  background: #c6cfcc;
+  background: var(--line-strong);
   cursor: pointer;
   transition: background 160ms ease, border-color 160ms ease;
 }
@@ -1555,7 +1617,7 @@ body.contractor-locked main {
 label {
   display: grid;
   gap: 6px;
-  color: #4d5b57;
+  color: var(--muted);
   font-size: 0.82rem;
   font-weight: 760;
 }
@@ -1579,7 +1641,8 @@ select {
 
 input::placeholder,
 textarea::placeholder {
-  color: #8b9793;
+  color: var(--muted);
+  opacity: 0.82;
 }
 
 input:disabled {
@@ -1710,6 +1773,7 @@ body.customer-portal-mode .app-shell {
   width: 100%;
   height: auto;
   min-height: 100vh;
+  min-height: 100dvh;
   max-height: none;
   border: 0;
   border-radius: 0;
@@ -1727,21 +1791,47 @@ body.customer-portal-mode main {
   max-width: 780px;
   margin: 0 auto;
   overflow: visible;
-  padding: 26px 18px 48px;
+  padding: 16px 18px 48px;
 }
 
 body.customer-portal-mode .portal-masthead {
   display: flex;
   align-items: center;
-  gap: 11px;
-  margin-bottom: 18px;
+  gap: 9px;
+  margin-bottom: 12px;
   border-bottom: 1px solid var(--line);
-  padding-bottom: 16px;
+  padding-bottom: 11px;
 }
 
-body.customer-portal-mode .portal-masthead span:last-child {
+body.customer-portal-mode .portal-masthead-copy {
+  min-width: 0;
   display: grid;
   gap: 2px;
+}
+
+body.customer-portal-mode .portal-masthead-copy strong,
+body.customer-portal-mode .portal-masthead-copy small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+body.customer-portal-mode .portal-masthead-copy strong {
+  font-size: 0.9rem;
+}
+
+body.customer-portal-mode .portal-masthead-copy small {
+  font-size: 0.7rem;
+}
+
+body.customer-portal-mode .portal-masthead-mark {
+  width: 34px;
+  height: 34px;
+  flex: 0 0 34px;
+}
+
+body.customer-portal-mode .portal-theme-toggle {
+  margin-left: auto;
 }
 
 body.customer-portal-mode .portal-masthead-mark {
@@ -1778,6 +1868,7 @@ body.customer-portal-mode .customer-layout {
     width: 100%;
     height: auto;
     min-height: 100vh;
+    min-height: 100dvh;
     max-height: none;
     grid-template-columns: 1fr;
     overflow: visible;
@@ -1896,6 +1987,35 @@ body.customer-portal-mode .customer-layout {
     min-height: 58px;
     margin-bottom: 14px;
     padding-bottom: 14px;
+  }
+
+  body.customer-portal-mode main {
+    padding: 10px 12px 32px;
+  }
+
+  body.customer-portal-mode .portal-masthead {
+    margin-bottom: 9px;
+    padding-bottom: 8px;
+  }
+
+  body.customer-portal-mode .portal-masthead-mark {
+    width: 30px;
+    height: 30px;
+    flex-basis: 30px;
+  }
+
+  body.customer-portal-mode .portal-theme-toggle {
+    width: 34px;
+    min-height: 34px;
+    flex-basis: 34px;
+  }
+
+  body.customer-portal-mode .customer-hero {
+    padding: 14px;
+  }
+
+  body.customer-portal-mode .customer-hero h2 {
+    font-size: 1.25rem;
   }
 
   .workspace-access-notice {

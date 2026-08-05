@@ -5,7 +5,20 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="referrer" content="no-referrer" />
     <title>Service Portal</title>
-    <link rel="stylesheet" href="assets/styles.css?v=scheduling-v2" />
+    <script>
+      (() => {
+        const storageKey = "servicePortal.theme";
+        let savedTheme = "";
+        try {
+          savedTheme = localStorage.getItem(storageKey) || "";
+        } catch (_) {}
+        const theme = savedTheme === "light" || savedTheme === "dark"
+          ? savedTheme
+          : window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+        document.documentElement.dataset.theme = theme;
+      })();
+    </script>
+    <link rel="stylesheet" href="assets/styles.css?v=appearance-v1" />
   </head>
   <body>
     <div class="app-shell">
@@ -85,6 +98,10 @@
             <p class="eyebrow">Workspace</p>
             <h1 id="viewTitle">Jobs</h1>
           </div>
+          <button class="icon-button theme-toggle" data-theme-toggle type="button" aria-label="Use dark mode" title="Use dark mode">
+            <i class="theme-icon theme-icon-light" data-lucide="moon" aria-hidden="true"></i>
+            <i class="theme-icon theme-icon-dark" data-lucide="sun" aria-hidden="true"></i>
+          </button>
         </header>
 
         <aside id="workspaceAccessNotice" class="workspace-access-notice" role="status" hidden>
@@ -187,7 +204,11 @@
               <img id="portalCompanyLogo" alt="" hidden />
               <i id="portalBrandFallback" data-lucide="shield-check"></i>
             </span>
-            <span><strong id="portalCompanyName">Service Portal</strong><small>Secure customer job access</small></span>
+            <span class="portal-masthead-copy"><strong id="portalCompanyName">Service Portal</strong><small>Secure customer access</small></span>
+            <button class="icon-button theme-toggle portal-theme-toggle" data-theme-toggle type="button" aria-label="Use dark mode" title="Use dark mode">
+              <i class="theme-icon theme-icon-light" data-lucide="moon" aria-hidden="true"></i>
+              <i class="theme-icon theme-icon-dark" data-lucide="sun" aria-hidden="true"></i>
+            </button>
           </div>
           <section class="customer-layout">
             <div class="customer-selector">
@@ -549,6 +570,6 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.110.1"></script>
     <script src="https://unpkg.com/lucide@1.24.0/dist/umd/lucide.js"></script>
     <script src="assets/config.js?v=accounts-v3"></script>
-    <script src="assets/app.js?v=accounts-v4"></script>
+    <script src="assets/app.js?v=appearance-v1"></script>
   </body>
 </html>
