@@ -1,224 +1,45 @@
 <!doctype html>
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no" />
-  <meta name="theme-color" content="#000000" />
-  <meta name="apple-mobile-web-app-capable" content="yes" />
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-  <meta name="apple-mobile-web-app-title" content="Calculator" />
-  <link rel="manifest" href="./manifest.webmanifest" />
-  <link rel="apple-touch-icon" href="./icon.svg" />
-  <title>Calculator</title>
-  <style>
-    :root{font-family:-apple-system,BlinkMacSystemFont,"SF Pro Display","SF Pro Text",system-ui,sans-serif;color-scheme:dark}
-    *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
-    html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#000;color:#fff}
-    button,input,textarea{font:inherit}
-    button{border:0}
-    .screen{position:fixed;inset:0;display:none;background:#000;overflow:auto}
-    .screen.active{display:block}
-    #calculator{padding:env(safe-area-inset-top) 14px calc(14px + env(safe-area-inset-bottom));display:none;flex-direction:column;justify-content:flex-end}
-    #calculator.active{display:flex}
-    .calc-wrap{width:min(100%,430px);margin:0 auto}
-    .display{height:150px;display:flex;align-items:flex-end;justify-content:flex-end;padding:0 12px 18px;font-weight:300;font-size:clamp(62px,18vw,92px);line-height:1;white-space:nowrap;overflow:hidden}
-    .keys{display:grid;grid-template-columns:repeat(4,1fr);gap:11px}
-    .key{aspect-ratio:1;border-radius:50%;background:#333;color:white;font-size:32px;display:flex;align-items:center;justify-content:center;user-select:none}
-    .key:active{filter:brightness(1.35)}
-    .key.light{background:#a5a5a5;color:#000}
-    .key.orange{background:#ff9f0a;color:#fff}
-    .key.zero{grid-column:span 2;aspect-ratio:auto;border-radius:999px;justify-content:flex-start;padding-left:28px}
-    .home-bg{min-height:100%;padding:calc(env(safe-area-inset-top) + 28px) 18px calc(env(safe-area-inset-bottom) + 26px);background:linear-gradient(160deg,#101522,#1f2840 50%,#111827)}
-    .topbar{display:flex;align-items:center;justify-content:space-between;margin-bottom:28px}
-    .topbar h1{margin:0;font-size:28px;letter-spacing:-.6px}
-    .ghost{background:rgba(255,255,255,.13);color:#fff;padding:10px 14px;border-radius:14px;font-weight:600}
-    .app-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:26px 14px}
-    .app-icon-btn{background:none;color:#fff;padding:0;text-align:center;min-width:0}
-    .app-icon{width:min(15.5vw,66px);height:min(15.5vw,66px);border-radius:16px;margin:0 auto 7px;display:flex;align-items:center;justify-content:center;font-size:31px;box-shadow:0 4px 16px #0005}
-    .app-name{font-size:12px;line-height:1.15;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-    .store{background:linear-gradient(145deg,#2d7dff,#48b8ff)}
-    .notes{background:linear-gradient(#ffe769 0 24%,#fff7d3 24%)}
-    .photos{background:linear-gradient(145deg,#ff5e78,#ffb33e 45%,#6fd65b 70%,#4b8dff)}
-    .browser{background:linear-gradient(145deg,#5bd4ff,#1267ff)}
-    .game{background:linear-gradient(145deg,#9a5cff,#4c25b7)}
-    .space{background:linear-gradient(145deg,#242424,#656565)}
-    .app-page{min-height:100%;background:#f2f2f7;color:#111;padding:calc(env(safe-area-inset-top) + 10px) 14px calc(env(safe-area-inset-bottom) + 18px)}
-    .app-header{display:flex;align-items:center;gap:10px;position:sticky;top:0;padding:8px 0 13px;background:#f2f2f7;z-index:2}
-    .back{background:#e0e0e7;color:#0a66ff;border-radius:12px;padding:9px 12px;font-weight:700}
-    .app-header h2{margin:0;font-size:24px}
-    .card{background:#fff;border-radius:18px;padding:15px;margin-bottom:12px;box-shadow:0 1px 3px #0001}
-    .store-row{display:flex;align-items:center;gap:12px}
-    .store-row .app-icon{width:58px;height:58px;flex:0 0 58px;margin:0}
-    .grow{flex:1;min-width:0}
-    .grow strong{display:block;font-size:17px}
-    .grow small{display:block;color:#777;margin-top:3px}
-    .install{background:#e9f1ff;color:#0565e8;padding:8px 14px;border-radius:999px;font-weight:800}
-    .installed{background:#eee;color:#666}
-    textarea.note{width:100%;height:60vh;border:0;background:#fff;color:#111;border-radius:18px;padding:16px;font-size:18px;resize:none;outline:none}
-    .photo-tools{display:flex;gap:10px;align-items:center;margin-bottom:12px}
-    .photo-tools label{background:#0a66ff;color:#fff;padding:11px 14px;border-radius:13px;font-weight:700}
-    .photo-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:5px}
-    .photo-grid img{width:100%;aspect-ratio:1;object-fit:cover;border-radius:7px;background:#ddd}
-    .urlbar{display:flex;gap:8px;margin-bottom:10px}
-    .urlbar input{flex:1;border:1px solid #ccc;background:#fff;color:#111;border-radius:12px;padding:11px}
-    .go{background:#0a66ff;color:white;border-radius:12px;padding:0 15px;font-weight:800}
-    iframe{width:100%;height:68vh;border:0;background:#fff;border-radius:16px}
-    .ttt{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;max-width:350px;margin:35px auto 15px}
-    .ttt button{aspect-ratio:1;background:#fff;border-radius:18px;font-size:54px;color:#111;box-shadow:0 1px 4px #0002}
-    .status{text-align:center;font-weight:700;min-height:24px}
-    .reset{display:block;margin:18px auto;background:#0a66ff;color:#fff;border-radius:13px;padding:10px 16px;font-weight:800}
-    .lock-card{max-width:420px;margin:20vh auto 0;background:#fff;padding:22px;border-radius:22px;text-align:center}
-    .lock-card input{width:100%;padding:14px;border:1px solid #bbb;border-radius:12px;font-size:22px;text-align:center;color:#111;background:#fff;margin:10px 0}
-    .primary{width:100%;padding:13px;background:#0a66ff;color:#fff;border-radius:13px;font-weight:800}
-    .muted{color:#777;font-size:13px}
-    .second-bg{background:linear-gradient(160deg,#1a071e,#31143a 50%,#120b20)}
-    .toast{position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom) + 24px);transform:translateX(-50%) translateY(20px);background:#111;color:#fff;padding:10px 14px;border-radius:999px;opacity:0;pointer-events:none;transition:.2s;z-index:20;font-weight:700;font-size:13px}
-    .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
-  </style>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+<meta name="theme-color" content="#000"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"><meta name="apple-mobile-web-app-title" content="Calculator">
+<link rel="manifest" href="./manifest.webmanifest"><link rel="apple-touch-icon" href="./icon.svg"><title>Calculator</title>
+<style>
+:root{font-family:-apple-system,BlinkMacSystemFont,"SF Pro Display","SF Pro Text",system-ui,sans-serif;color-scheme:dark}*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#000;color:#fff}button,input,textarea{font:inherit}button{border:0}.screen{position:fixed;inset:0;display:none;overflow:auto;background:#000}.screen.active{display:block}#calc{padding:env(safe-area-inset-top) 14px calc(14px + env(safe-area-inset-bottom));flex-direction:column;justify-content:flex-end}#calc.active{display:flex}.calcbox{width:min(100%,430px);margin:0 auto}.display{height:150px;display:flex;align-items:flex-end;justify-content:flex-end;padding:0 12px 18px;font-weight:300;font-size:clamp(62px,18vw,92px);line-height:1;white-space:nowrap;overflow:hidden}.keys{display:grid;grid-template-columns:repeat(4,1fr);gap:11px}.key{aspect-ratio:1;border-radius:50%;background:#333;color:#fff;font-size:32px;display:flex;align-items:center;justify-content:center}.key:active{filter:brightness(1.35)}.light{background:#a5a5a5;color:#000}.orange{background:#ff9f0a}.zero{grid-column:span 2;aspect-ratio:auto;border-radius:999px;justify-content:flex-start;padding-left:28px}.homebg{min-height:100%;padding:calc(env(safe-area-inset-top) + 28px) 18px calc(env(safe-area-inset-bottom) + 26px);background:linear-gradient(160deg,#101522,#1f2840 50%,#111827)}.secondbg{background:linear-gradient(160deg,#1a071e,#31143a 50%,#120b20)}.top{display:flex;align-items:center;justify-content:space-between;margin-bottom:28px}.top h1{margin:0;font-size:28px}.ghost{background:#ffffff20;color:#fff;padding:10px 14px;border-radius:14px;font-weight:700}.grid{display:grid;grid-template-columns:repeat(4,1fr);gap:26px 14px}.appbtn{background:none;color:#fff;padding:0;text-align:center;min-width:0}.ico{width:min(15.5vw,66px);height:min(15.5vw,66px);border-radius:16px;margin:0 auto 7px;display:flex;align-items:center;justify-content:center;font-size:31px;box-shadow:0 4px 16px #0005}.nm{font-size:12px;line-height:1.15;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.store{background:linear-gradient(145deg,#2d7dff,#48b8ff)}.notes{background:linear-gradient(#ffe769 0 24%,#fff7d3 24%)}.photos{background:linear-gradient(145deg,#ff5e78,#ffb33e 45%,#6fd65b 70%,#4b8dff)}.browser{background:linear-gradient(145deg,#5bd4ff,#1267ff)}.game{background:linear-gradient(145deg,#9a5cff,#4c25b7)}.space{background:linear-gradient(145deg,#242424,#656565)}.page{min-height:100%;background:#f2f2f7;color:#111;padding:calc(env(safe-area-inset-top) + 10px) 14px calc(env(safe-area-inset-bottom) + 18px)}.head{display:flex;align-items:center;gap:10px;position:sticky;top:0;padding:8px 0 13px;background:#f2f2f7;z-index:2}.back{background:#e0e0e7;color:#0a66ff;border-radius:12px;padding:9px 12px;font-weight:800}.head h2{margin:0;font-size:24px}.card{background:#fff;border-radius:18px;padding:15px;margin-bottom:12px;box-shadow:0 1px 3px #0001}.row{display:flex;align-items:center;gap:12px}.row .ico{width:58px;height:58px;flex:0 0 58px;margin:0}.grow{flex:1;min-width:0}.grow strong{display:block;font-size:17px}.grow small{display:block;color:#777;margin-top:3px}.get{background:#e9f1ff;color:#0565e8;padding:8px 14px;border-radius:999px;font-weight:800}.get.on{background:#eee;color:#666}.note{width:100%;height:62vh;border:0;background:#fff;color:#111;border-radius:18px;padding:16px;font-size:18px;resize:none;outline:none}.tools{display:flex;gap:10px;align-items:center;margin-bottom:12px}.tools label{background:#0a66ff;color:#fff;padding:11px 14px;border-radius:13px;font-weight:800}.pics{display:grid;grid-template-columns:repeat(3,1fr);gap:5px}.pics img{width:100%;aspect-ratio:1;object-fit:cover;border-radius:7px;background:#ddd}.url{display:flex;gap:8px;margin-bottom:10px}.url input{flex:1;border:1px solid #ccc;background:#fff;color:#111;border-radius:12px;padding:11px}.go,.primary,.reset{background:#0a66ff;color:#fff;border-radius:13px;font-weight:800}.go{padding:0 15px}iframe{width:100%;height:68vh;border:0;background:#fff;border-radius:16px}.ttt{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;max-width:350px;margin:35px auto 15px}.ttt button{aspect-ratio:1;background:#fff;border-radius:18px;font-size:54px;color:#111;box-shadow:0 1px 4px #0002}.status{text-align:center;font-weight:700;min-height:24px}.reset{display:block;margin:18px auto;padding:10px 16px}.lockcard{max-width:420px;margin:20vh auto 0;background:#fff;padding:22px;border-radius:22px;text-align:center}.lockcard input{width:100%;padding:14px;border:1px solid #bbb;border-radius:12px;font-size:22px;text-align:center;color:#111;background:#fff;margin:10px 0}.primary{width:100%;padding:13px}.muted{color:#777;font-size:13px}.toast{position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom) + 24px);transform:translateX(-50%) translateY(20px);background:#111;color:#fff;padding:10px 14px;border-radius:999px;opacity:0;pointer-events:none;transition:.2s;z-index:20;font-weight:700;font-size:13px}.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+</style>
 </head>
 <body>
-  <main id="calculator" class="screen active" aria-label="Calculator">
-    <div class="calc-wrap">
-      <div id="calcDisplay" class="display">0</div>
-      <div class="keys">
-        <button class="key light" data-action="clear">AC</button><button class="key light" data-value="+/-">+/−</button><button class="key light" data-value="%">%</button><button class="key orange" data-value="÷">÷</button>
-        <button class="key" data-value="7">7</button><button class="key" data-value="8">8</button><button class="key" data-value="9">9</button><button class="key orange" data-value="×">×</button>
-        <button class="key" data-value="4">4</button><button class="key" data-value="5">5</button><button class="key" data-value="6">6</button><button class="key orange" data-value="−">−</button>
-        <button class="key" data-value="1">1</button><button class="key" data-value="2">2</button><button class="key" data-value="3">3</button><button class="key orange" data-value="+">+</button>
-        <button class="key zero" data-value="0">0</button><button class="key" data-value=".">.</button><button class="key orange" data-action="equals">=</button>
-      </div>
-    </div>
-  </main>
-
-  <section id="home" class="screen"><div class="home-bg"><div class="topbar"><h1>Home</h1><button class="ghost" data-lock>Lock</button></div><div id="homeGrid" class="app-grid"></div></div></section>
-  <section id="app" class="screen"></section>
-  <section id="second" class="screen"></section>
-  <div id="toast" class="toast"></div>
-
+<main id="calc" class="screen active"><div class="calcbox"><div id="disp" class="display">0</div><div class="keys">
+<button class="key light" data-a="clear">AC</button><button class="key light" data-v="+/-">+/−</button><button class="key light" data-v="%">%</button><button class="key orange" data-v="÷">÷</button>
+<button class="key" data-v="7">7</button><button class="key" data-v="8">8</button><button class="key" data-v="9">9</button><button class="key orange" data-v="×">×</button>
+<button class="key" data-v="4">4</button><button class="key" data-v="5">5</button><button class="key" data-v="6">6</button><button class="key orange" data-v="−">−</button>
+<button class="key" data-v="1">1</button><button class="key" data-v="2">2</button><button class="key" data-v="3">3</button><button class="key orange" data-v="+">+</button>
+<button class="key zero" data-v="0">0</button><button class="key" data-v=".">.</button><button class="key orange" data-a="eq">=</button>
+</div></div></main>
+<section id="home" class="screen"><div class="homebg"><div class="top"><h1>Home</h1><button class="ghost" data-lock>Lock</button></div><div id="grid" class="grid"></div></div></section>
+<section id="app" class="screen"></section><section id="second" class="screen"></section><div id="toast" class="toast"></div>
 <script>
 (()=>{
-  const PASS_HASH='6fe2d8b9318d7a73bcce8c53d2b1c1e69cb0084aa2973f1d18dfe9d18ce9b33a';
-  const $=s=>document.querySelector(s);
-  const calc=$('#calculator'), home=$('#home'), app=$('#app'), second=$('#second'), display=$('#calcDisplay');
-  let expr='';
-  const appDefs={
-    notes:{name:'Notes',icon:'📝',cls:'notes',desc:'Private notes saved on this phone'},
-    photos:{name:'Photos',icon:'🌈',cls:'photos',desc:'Store pictures inside this app'},
-    browser:{name:'Browser',icon:'🧭',cls:'browser',desc:'A simple private browser window'},
-    game:{name:'Tic-Tac-Toe',icon:'✕',cls:'game',desc:'A small game'},
-    space:{name:'Second Space',icon:'◉',cls:'space',desc:'Another locked home screen with its own apps'}
-  };
-  const secondDefs={
-    notes2:{name:'Notes',icon:'📝',cls:'notes',desc:'Notes only inside Second Space'},
-    photos2:{name:'Photos',icon:'🌈',cls:'photos',desc:'Photos only inside Second Space'},
-    game2:{name:'Tic-Tac-Toe',icon:'✕',cls:'game',desc:'A game inside Second Space'}
-  };
-  const getInstalled=(key,defs)=>{try{const v=JSON.parse(localStorage.getItem(key));return Array.isArray(v)?v.filter(x=>defs[x]):[]}catch{return[]}};
-  const setInstalled=(key,v)=>localStorage.setItem(key,JSON.stringify(v));
-  if(!localStorage.getItem('installed')) setInstalled('installed',['notes','photos','game','space']);
-  if(!localStorage.getItem('second-installed')) setInstalled('second-installed',['notes2']);
-
-  function show(el){document.querySelectorAll('.screen').forEach(x=>x.classList.remove('active'));el.classList.add('active');}
-  function lock(){expr='';display.textContent='0';app.innerHTML='';second.innerHTML='';show(calc)}
-  document.addEventListener('click',e=>{if(e.target.closest('[data-lock]'))lock()});
-  document.addEventListener('visibilitychange',()=>{if(document.hidden) lock()});
-  window.addEventListener('pagehide',lock);
-
-  async function sha256(text){const data=new TextEncoder().encode(text);const h=await crypto.subtle.digest('SHA-256',data);return [...new Uint8Array(h)].map(b=>b.toString(16).padStart(2,'0')).join('')}
-  function pretty(v){return String(v).replace(/−/g,'-').replace(/×/g,'*').replace(/÷/g,'/')}
-  function evaluate(){
-    try{
-      let s=pretty(expr).replace(/%/g,'/100');
-      if(!/^[0-9+\-*/.() ]+$/.test(s)) throw 0;
-      const n=Function('"use strict";return ('+s+')')();
-      if(!Number.isFinite(n)) throw 0;
-      expr=String(Math.round((n+Number.EPSILON)*1e10)/1e10);display.textContent=expr;
-    }catch{expr='';display.textContent='Error'}
-  }
-  calc.addEventListener('click',async e=>{
-    const b=e.target.closest('.key');if(!b)return;
-    if(b.dataset.action==='clear'){expr='';display.textContent='0';return}
-    if(b.dataset.action==='equals'){
-      if(await sha256(expr)===PASS_HASH){expr='';display.textContent='0';renderHome();show(home);return}
-      evaluate();return;
-    }
-    const v=b.dataset.value;
-    if(v==='+/-'){
-      if(expr && /^-?\d*\.?\d+$/.test(pretty(expr))) expr=expr.startsWith('−')?expr.slice(1):'−'+expr;
-    } else {
-      if(expr.length<30) expr+=v;
-    }
-    display.textContent=expr||'0';
-  });
-
-  function iconButton(id,d,handler){const b=document.createElement('button');b.className='app-icon-btn';b.innerHTML=`<span class="app-icon ${d.cls}">${d.icon}</span><span class="app-name"></span>`;b.querySelector('.app-name').textContent=d.name;b.onclick=handler;return b}
-  function renderHome(){
-    const grid=$('#homeGrid');grid.innerHTML='';
-    grid.append(iconButton('store',{name:'App Store',icon:'A',cls:'store'},()=>renderStore(false)));
-    getInstalled('installed',appDefs).forEach(id=>grid.append(iconButton(id,appDefs[id],()=>openApp(id,false))));
-  }
-  function header(title,backFn){const h=document.createElement('div');h.className='app-header';const back=document.createElement('button');back.className='back';back.textContent='‹ Home';back.onclick=backFn;const t=document.createElement('h2');t.textContent=title;h.append(back,t);return h}
-  function appShell(title,backFn){app.innerHTML='';const page=document.createElement('div');page.className='app-page';page.append(header(title,backFn));app.append(page);show(app);return page}
-  function secondShell(title,backFn){second.innerHTML='';const page=document.createElement('div');page.className='app-page';page.append(header(title,backFn));second.append(page);show(second);return page}
-  function toast(msg){const t=$('#toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),1200)}
-
-  function renderStore(isSecond){
-    const defs=isSecond?secondDefs:appDefs,key=isSecond?'second-installed':'installed';
-    const back=isSecond?renderSecondHome:()=>{renderHome();show(home)};
-    const page=isSecond?secondShell('App Store',back):appShell('Private App Store',back);
-    Object.entries(defs).forEach(([id,d])=>{
-      const card=document.createElement('div');card.className='card store-row';
-      const icon=document.createElement('div');icon.className=`app-icon ${d.cls}`;icon.textContent=d.icon;
-      const grow=document.createElement('div');grow.className='grow';const strong=document.createElement('strong');strong.textContent=d.name;const sm=document.createElement('small');sm.textContent=d.desc;grow.append(strong,sm);
-      const btn=document.createElement('button');btn.className='install';
-      const refresh=()=>{const ins=getInstalled(key,defs);const yes=ins.includes(id);btn.textContent=yes?'REMOVE':'GET';btn.classList.toggle('installed',yes)};
-      btn.onclick=()=>{let ins=getInstalled(key,defs);if(ins.includes(id)){ins=ins.filter(x=>x!==id);toast('Removed')}else{ins.push(id);toast('Installed')}setInstalled(key,ins);refresh()};refresh();card.append(icon,grow,btn);page.append(card);
-    });
-  }
-
-  function openApp(id,isSecond){
-    if(id==='space'){openSecondSpace();return}
-    if(id==='notes'||id==='notes2') return openNotes(isSecond);
-    if(id==='photos'||id==='photos2') return openPhotos(isSecond);
-    if(id==='browser') return openBrowser();
-    if(id==='game'||id==='game2') return openGame(isSecond);
-  }
-  function backFor(isSecond){return isSecond?renderSecondHome:()=>{renderHome();show(home)}}
-  function openNotes(isSecond){
-    const key=isSecond?'second-note':'private-note';const page=isSecond?secondShell('Notes',renderSecondHome):appShell('Notes',()=>{renderHome();show(home)});
-    const ta=document.createElement('textarea');ta.className='note';ta.placeholder='Write something…';ta.value=localStorage.getItem(key)||'';ta.oninput=()=>localStorage.setItem(key,ta.value);page.append(ta);ta.focus();
-  }
-  function db(){return new Promise((res,rej)=>{const r=indexedDB.open('calculator-private',1);r.onupgradeneeded=()=>r.result.createObjectStore('photos',{keyPath:'id'});r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error)})}
-  async function listPhotos(prefix){const d=await db();return new Promise((res,rej)=>{const tx=d.transaction('photos','readonly');const r=tx.objectStore('photos').getAll();r.onsuccess=()=>res(r.result.filter(x=>x.space===prefix));r.onerror=()=>rej(r.error)})}
-  async function savePhoto(prefix,file){const data=await new Promise((res,rej)=>{const fr=new FileReader();fr.onload=()=>res(fr.result);fr.onerror=rej;fr.readAsDataURL(file)});const d=await db();return new Promise((res,rej)=>{const tx=d.transaction('photos','readwrite');tx.objectStore('photos').put({id:crypto.randomUUID(),space:prefix,data,created:Date.now()});tx.oncomplete=res;tx.onerror=()=>rej(tx.error)})}
-  async function openPhotos(isSecond){
-    const prefix=isSecond?'second':'main';const page=isSecond?secondShell('Photos',renderSecondHome):appShell('Photos',()=>{renderHome();show(home)});
-    const tools=document.createElement('div');tools.className='photo-tools';const label=document.createElement('label');label.textContent='Add Photos';const input=document.createElement('input');input.type='file';input.accept='image/*';input.multiple=true;input.hidden=true;label.append(input);const info=document.createElement('span');info.className='muted';info.textContent='Saved on this device';tools.append(label,info);const grid=document.createElement('div');grid.className='photo-grid';page.append(tools,grid);
-    async function refresh(){grid.innerHTML='';for(const p of (await listPhotos(prefix)).sort((a,b)=>b.created-a.created)){const img=document.createElement('img');img.src=p.data;grid.append(img)}}
-    input.onchange=async()=>{for(const f of input.files){try{await savePhoto(prefix,f)}catch{toast('Could not save photo')}}await refresh();input.value=''};refresh();
-  }
-  function openBrowser(){
-    const page=appShell('Browser',()=>{renderHome();show(home)});const bar=document.createElement('div');bar.className='urlbar';const inp=document.createElement('input');inp.placeholder='Search or enter website';const go=document.createElement('button');go.className='go';go.textContent='Go';bar.append(inp,go);const frame=document.createElement('iframe');frame.setAttribute('sandbox','allow-forms allow-scripts allow-same-origin allow-popups');frame.src='https://www.google.com/webhp?igu=1';page.append(bar,frame);
-    const nav=()=>{let v=inp.value.trim();if(!v)return;if(!/^https?:\/\//i.test(v)){if(v.includes('.')&&!v.includes(' '))v='https://'+v;else v='https://www.google.com/search?q='+encodeURIComponent(v)}frame.src=v};go.onclick=nav;inp.addEventListener('keydown',e=>{if(e.key==='Enter')nav()});
-  }
-  function openGame(isSecond){
-    const page=isSecond?secondShell('Tic-Tac-Toe',renderSecondHome):appShell('Tic-Tac-Toe',()=>{renderHome();show(home)});const board=document.createElement('div');board.className='ttt';const status=document.createElement('div');status.className='status';let cells=Array(9).fill(''),turn='X',done=false;const win=[[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]];
-    function render(){board.innerHTML='';cells.forEach((v,i)=>{const b=document.createElement('button');b.textContent=v;b.onclick=()=>{if(done||cells[i])return;cells[i]=turn;const w=win.find(a=>a.every(j=>cells[j]===turn));if(w){done=true;status.textContent=turn+' wins!'}else if(cells.every(Boolean)){done=true;status.textContent='Draw'}else{turn=turn==='X'?'O':'X';status.textContent=turn+"'s turn"}render()};board.append(b)})}status.textContent="X's turn";render();const reset=document.createElement('button');reset.className='reset';reset.textContent='New Game';reset.onclick=()=>{cells=Array(9).fill('');turn='X';done=false;status.textContent="X's turn";render()};page.append(board,status,reset);
-  }
-
-  async function openSecondSpace(){
-    const stored=localStorage.getItem('second-pin-hash');
-    if(!stored){
-      const page=secondShell('Second Space',()=>{renderHome();show(home)});const card=document.createElement('div');card.className='lock-card';card.innerHTML='<h2>Create Second PIN</h2><p class="muted">Choose a different PIN for this deeper space.</p>';const inp=document.createElement('input');inp.type='password';inp.inputMode='numeric';inp.maxLength=8;inp.placeholder='New PIN';const btn=document.createElement('button');btn.className='primary';btn.textContent='Create PIN';btn.onclick=async()=>{if(inp.value.length<4){toast('Use at least 4 digits');return}localStorage.setItem('second-pin-hash',await sha256(inp.value));inp.value='';renderSecondHome()};card.append(inp,btn);page.append(card);return;
-    }
-    const page=secondShell('Second Space',()=>{renderHome();show(home)});const card=document.createElement('div');card.className='lock-card';card.innerHTML='<h2>Second Space</h2>';const inp=document.createElement('input');inp.type='password';inp.inputMode='numeric';inp.maxLength=8;inp.placeholder='PIN';const btn=document.createElement('button');btn.className='primary';btn.textContent='Unlock';btn.onclick=async()=>{if(await sha256(inp.value)===stored){inp.value='';renderSecondHome()}else{inp.value='';toast('Wrong PIN')}};card.append(inp,btn);page.append(card);inp.focus();
-  }
-  function renderSecondHome(){
-    second.innerHTML='';const wrap=document.createElement('div');wrap.className='home-bg second-bg';const tb=document.createElement('div');tb.className='topbar';const h=document.createElement('h1');h.textContent='Second Space';const exit=document.createElement('button');exit.className='ghost';exit.textContent='Back';exit.onclick=()=>{renderHome();show(home)};tb.append(h,exit);const grid=document.createElement('div');grid.className='app-grid';grid.append(iconButton('store2',{name:'App Store',icon:'A',cls:'store'},()=>renderStore(true)));getInstalled('second-installed',secondDefs).forEach(id=>grid.append(iconButton(id,secondDefs[id],()=>openApp(id,true))));wrap.append(tb,grid);second.append(wrap);show(second);
-  }
-
-  if('serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js').catch(()=>{});
+const PASS_HASH='3c94c0b1c3ce114c39b16272a86b47e0ed7de7c13a67b6b93eff0130ccd408f9';
+const $=s=>document.querySelector(s),calc=$('#calc'),home=$('#home'),app=$('#app'),second=$('#second'),disp=$('#disp');let expr='';
+const defs={notes:{name:'Notes',icon:'📝',cls:'notes',desc:'Private notes saved on this phone'},photos:{name:'Photos',icon:'🌈',cls:'photos',desc:'Pictures stored inside this app'},browser:{name:'Browser',icon:'🧭',cls:'browser',desc:'A simple browser window'},game:{name:'Tic-Tac-Toe',icon:'✕',cls:'game',desc:'A small game'},space:{name:'Second Space',icon:'◉',cls:'space',desc:'Another locked home screen with its own apps'}};
+const defs2={notes2:{name:'Notes',icon:'📝',cls:'notes',desc:'Notes only inside Second Space'},photos2:{name:'Photos',icon:'🌈',cls:'photos',desc:'Photos only inside Second Space'},game2:{name:'Tic-Tac-Toe',icon:'✕',cls:'game',desc:'A game inside Second Space'}};
+const installed=(k,d)=>{try{let x=JSON.parse(localStorage.getItem(k));return Array.isArray(x)?x.filter(i=>d[i]):[]}catch{return[]}},saveInstalled=(k,v)=>localStorage.setItem(k,JSON.stringify(v));if(!localStorage.getItem('installed'))saveInstalled('installed',['notes','photos','game','space']);if(!localStorage.getItem('second-installed'))saveInstalled('second-installed',['notes2']);
+function show(el){document.querySelectorAll('.screen').forEach(x=>x.classList.remove('active'));el.classList.add('active')}function lock(){expr='';disp.textContent='0';app.innerHTML='';second.innerHTML='';show(calc)}document.addEventListener('click',e=>{if(e.target.closest('[data-lock]'))lock()});document.addEventListener('visibilitychange',()=>{if(document.hidden)lock()});
+async function sha(t){let h=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(t));return [...new Uint8Array(h)].map(b=>b.toString(16).padStart(2,'0')).join('')}
+function evalCalc(){try{let s=expr.replace(/−/g,'-').replace(/×/g,'*').replace(/÷/g,'/').replace(/%/g,'/100');if(!/^[0-9+\-*/.() ]+$/.test(s))throw 0;let n=Function('"use strict";return ('+s+')')();if(!Number.isFinite(n))throw 0;expr=String(Math.round((n+Number.EPSILON)*1e10)/1e10);disp.textContent=expr}catch{expr='';disp.textContent='Error'}}
+calc.onclick=async e=>{let b=e.target.closest('.key');if(!b)return;if(b.dataset.a==='clear'){expr='';disp.textContent='0';return}if(b.dataset.a==='eq'){if(await sha(expr)===PASS_HASH){expr='';disp.textContent='0';renderHome();show(home)}else evalCalc();return}let v=b.dataset.v;if(v==='+/-'){if(expr&&/^-?\d*\.?\d+$/.test(expr.replace(/−/g,'-')))expr=expr.startsWith('−')?expr.slice(1):'−'+expr}else if(expr.length<30)expr+=v;disp.textContent=expr||'0'};
+function icon(d,fn){let b=document.createElement('button');b.className='appbtn';b.innerHTML=`<span class="ico ${d.cls}">${d.icon}</span><span class="nm"></span>`;b.querySelector('.nm').textContent=d.name;b.onclick=fn;return b}function renderHome(){let g=$('#grid');g.innerHTML='';g.append(icon({name:'App Store',icon:'A',cls:'store'},()=>store(false)));installed('installed',defs).forEach(id=>g.append(icon(defs[id],()=>open(id,false))))}
+function header(title,back){let h=document.createElement('div');h.className='head';let b=document.createElement('button');b.className='back';b.textContent='‹ Home';b.onclick=back;let t=document.createElement('h2');t.textContent=title;h.append(b,t);return h}function shell(which,title,back){which.innerHTML='';let p=document.createElement('div');p.className='page';p.append(header(title,back));which.append(p);show(which);return p}function toast(m){let t=$('#toast');t.textContent=m;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),1100)}
+function store(is2){let d=is2?defs2:defs,k=is2?'second-installed':'installed',back=is2?renderSecond:()=>{renderHome();show(home)},p=shell(is2?second:app,'App Store',back);Object.entries(d).forEach(([id,x])=>{let c=document.createElement('div');c.className='card row';let i=document.createElement('div');i.className=`ico ${x.cls}`;i.textContent=x.icon;let g=document.createElement('div');g.className='grow';g.innerHTML='<strong></strong><small></small>';g.querySelector('strong').textContent=x.name;g.querySelector('small').textContent=x.desc;let b=document.createElement('button');b.className='get';function r(){let a=installed(k,d),on=a.includes(id);b.textContent=on?'REMOVE':'GET';b.classList.toggle('on',on)}b.onclick=()=>{let a=installed(k,d);if(a.includes(id)){a=a.filter(y=>y!==id);toast('Removed')}else{a.push(id);toast('Installed')}saveInstalled(k,a);r()};r();c.append(i,g,b);p.append(c)})}
+function open(id,is2){if(id==='space')return openSecond();if(id==='notes'||id==='notes2')return notes(is2);if(id==='photos'||id==='photos2')return photos(is2);if(id==='browser')return browser();if(id==='game'||id==='game2')return game(is2)}
+function notes(is2){let k=is2?'second-note':'private-note',back=is2?renderSecond:()=>{renderHome();show(home)},p=shell(is2?second:app,'Notes',back),ta=document.createElement('textarea');ta.className='note';ta.placeholder='Write something…';ta.value=localStorage.getItem(k)||'';ta.oninput=()=>localStorage.setItem(k,ta.value);p.append(ta)}
+function photoList(k){try{return JSON.parse(localStorage.getItem(k))||[]}catch{return[]}}function photos(is2){let k=is2?'second-pics':'private-pics',back=is2?renderSecond:()=>{renderHome();show(home)},p=shell(is2?second:app,'Photos',back),tools=document.createElement('div');tools.className='tools';let label=document.createElement('label');label.textContent='Add Photos';let inp=document.createElement('input');inp.type='file';inp.accept='image/*';inp.multiple=true;inp.hidden=true;label.append(inp);let info=document.createElement('span');info.className='muted';info.textContent='Stored on this device';tools.append(label,info);let grid=document.createElement('div');grid.className='pics';function render(){grid.innerHTML='';photoList(k).forEach(src=>{let im=document.createElement('img');im.src=src;grid.append(im)})}inp.onchange=async()=>{let a=photoList(k);for(let f of inp.files){if(a.length>=18)break;let src=await new Promise(res=>{let fr=new FileReader();fr.onload=()=>res(fr.result);fr.readAsDataURL(f)});a.unshift(src)}try{localStorage.setItem(k,JSON.stringify(a));render()}catch{toast('Storage is full')}};p.append(tools,grid);render()}
+function browser(){let p=shell(app,'Browser',()=>{renderHome();show(home)}),bar=document.createElement('div');bar.className='url';let inp=document.createElement('input');inp.placeholder='Search or enter website';let go=document.createElement('button');go.className='go';go.textContent='Go';bar.append(inp,go);let f=document.createElement('iframe');f.setAttribute('sandbox','allow-forms allow-scripts allow-same-origin allow-popups');f.src='https://www.google.com/webhp?igu=1';function nav(){let v=inp.value.trim();if(!v)return;if(!/^https?:\/\//i.test(v))v=v.includes('.')&&!v.includes(' ')?'https://'+v:'https://www.google.com/search?q='+encodeURIComponent(v);f.src=v}go.onclick=nav;inp.onkeydown=e=>{if(e.key==='Enter')nav()};p.append(bar,f)}
+function game(is2){let back=is2?renderSecond:()=>{renderHome();show(home)},p=shell(is2?second:app,'Tic-Tac-Toe',back),board=document.createElement('div');board.className='ttt';let st=document.createElement('div');st.className='status',cells=Array(9).fill(''),turn='X',done=false,wins=[[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]];function r(){board.innerHTML='';cells.forEach((v,i)=>{let b=document.createElement('button');b.textContent=v;b.onclick=()=>{if(done||cells[i])return;cells[i]=turn;if(wins.some(a=>a.every(j=>cells[j]===turn))){done=true;st.textContent=turn+' wins!'}else if(cells.every(Boolean)){done=true;st.textContent='Draw'}else{turn=turn==='X'?'O':'X';st.textContent=turn+"'s turn"}r()};board.append(b)})}st.textContent="X's turn";r();let reset=document.createElement('button');reset.className='reset';reset.textContent='New Game';reset.onclick=()=>{cells=Array(9).fill('');turn='X';done=false;st.textContent="X's turn";r()};p.append(board,st,reset)}
+async function openSecond(){let stored=localStorage.getItem('second-pin-hash'),p=shell(second,'Second Space',()=>{renderHome();show(home)}),c=document.createElement('div');c.className='lockcard';let h=document.createElement('h2');h.textContent=stored?'Second Space':'Create Second PIN';let tip=document.createElement('p');tip.className='muted';tip.textContent=stored?'Enter the PIN for your deeper space.':'Choose at least 4 digits for this deeper space.';let inp=document.createElement('input');inp.type='password';inp.inputMode='numeric';inp.maxLength=8;inp.placeholder=stored?'PIN':'New PIN';let b=document.createElement('button');b.className='primary';b.textContent=stored?'Unlock':'Create PIN';b.onclick=async()=>{if(!stored){if(inp.value.length<4)return toast('Use at least 4 digits');localStorage.setItem('second-pin-hash',await sha(inp.value));renderSecond()}else if(await sha(inp.value)===stored)renderSecond();else{inp.value='';toast('Wrong PIN')}};c.append(h,tip,inp,b);p.append(c)}
+function renderSecond(){second.innerHTML='';let w=document.createElement('div');w.className='homebg secondbg';let t=document.createElement('div');t.className='top';let h=document.createElement('h1');h.textContent='Second Space';let back=document.createElement('button');back.className='ghost';back.textContent='Back';back.onclick=()=>{renderHome();show(home)};t.append(h,back);let g=document.createElement('div');g.className='grid';g.append(icon({name:'App Store',icon:'A',cls:'store'},()=>store(true)));installed('second-installed',defs2).forEach(id=>g.append(icon(defs2[id],()=>open(id,true))));w.append(t,g);second.append(w);show(second)}
+if('serviceWorker'in navigator)navigator.serviceWorker.register('./sw.js').catch(()=>{});
 })();
 </script>
-</body>
-</html>
+</body></html>
