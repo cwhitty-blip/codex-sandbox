@@ -1,0 +1,10 @@
+(()=>{
+if(!(window.matchMedia('(display-mode: standalone)').matches||window.navigator.standalone===true))return;
+let timeout=null;
+function stopMedia(root){try{root?.querySelectorAll('video,audio').forEach(el=>{const s=el.srcObject;if(s?.getTracks)s.getTracks().forEach(t=>t.stop());el.srcObject=null})}catch{}}
+function cleanup(){clearTimeout(timeout);timeout=null;const o=document.getElementById('calcCallOverlay');if(o){stopMedia(o);o.remove()}const sm=document.getElementById('smRemoteMedia');if(sm){stopMedia(sm);sm.remove()}try{navigator.vibrate?.(0)}catch{}document.documentElement.style.pointerEvents='';document.body.style.pointerEvents='';document.body.style.touchAction='';const home=document.getElementById('home'),pages=document.getElementById('phonePages');if(home){home.style.pointerEvents='auto';home.classList.remove('home-editing')}if(pages){pages.style.pointerEvents='auto';pages.querySelectorAll('.phone-app').forEach(x=>{x.style.pointerEvents='auto';x.draggable=false})}}
+function scheduleNoAnswer(){clearTimeout(timeout);timeout=setTimeout(()=>{const end=document.querySelector('#calcCallOverlay #callEnd');if(end)end.click();setTimeout(cleanup,350)},45000)}
+document.addEventListener('click',e=>{if(e.target.closest('.dial-call'))scheduleNoAnswer();if(e.target.closest('#callEnd,#decline'))setTimeout(cleanup,500);if(e.target.closest('.calculator-phone-launch,.calculator-contacts-launch,.secret-message-launch')){const home=document.getElementById('home');if(home?.classList.contains('active'))cleanup()}},true);
+const bodyObserver=new MutationObserver(()=>{const home=document.getElementById('home');if(home?.classList.contains('active')&&!document.getElementById('calcCallOverlay')){document.body.style.pointerEvents='';document.documentElement.style.pointerEvents=''}});bodyObserver.observe(document.body,{childList:true,subtree:true});
+window.addEventListener('calculator-private-home',cleanup);
+})();
