@@ -2,6 +2,7 @@
 const $=s=>document.querySelector(s);
 const home=$('#home'),app=$('#app'),calc=$('#calc'),disp=$('#disp');
 if(!home||!app||!calc||!disp)return;
+const X_URL='https://brainrot-movie-maker.cwhit.chatgpt.site';
 function codeHash(s){let h=2166136261>>>0;for(let i=0;i<s.length;i++){h^=s.charCodeAt(i);h=Math.imul(h,16777619)>>>0}return h.toString(16).padStart(8,'0')}
 function show(el){document.querySelectorAll('.screen').forEach(x=>x.classList.remove('active'));el.classList.add('active')}
 function backHome(){show(home);ensureHomeExtras()}
@@ -10,7 +11,8 @@ function toast(m){let t=$('#toast');if(!t)return;t.textContent=m;t.classList.add
 function iconButton(name,emoji,cls,fn){const b=document.createElement('button');b.className='appbtn upgrade-app';b.dataset.upgrade=name;b.innerHTML=`<span class="ico ${cls||'space'}">${emoji}</span><span class="nm"></span>`;b.querySelector('.nm').textContent=name;b.onclick=fn;return b}
 function getCustom(){try{const v=JSON.parse(localStorage.getItem('custom-mini-apps')||'[]');return Array.isArray(v)?v:[]}catch{return[]}}
 function setCustom(v){localStorage.setItem('custom-mini-apps',JSON.stringify(v))}
-function ensureHomeExtras(){const g=$('#grid');if(!g)return;if(!g.querySelector('[data-upgrade="App Maker"]'))g.append(iconButton('App Maker','＋','store',openMaker));if(!g.querySelector('[data-upgrade="Settings"]'))g.append(iconButton('Settings','⚙','space',openSettings));for(const a of getCustom()){if(!g.querySelector(`[data-custom-id="${CSS.escape(a.id)}"]`)){const b=iconButton(a.name,a.icon||'★',a.cls||'deep',()=>openCustom(a.id));b.dataset.customId=a.id;g.append(b)}}}
+function openX(){const w=window.open(X_URL,'_blank');if(w)w.opener=null;else window.location.assign(X_URL)}
+function ensureHomeExtras(){const g=$('#grid');if(!g)return;if(!g.querySelector('[data-upgrade="X"]'))g.append(iconButton('X','X','xapp',openX));if(!g.querySelector('[data-upgrade="App Maker"]'))g.append(iconButton('App Maker','＋','store',openMaker));if(!g.querySelector('[data-upgrade="Settings"]'))g.append(iconButton('Settings','⚙','space',openSettings));for(const a of getCustom()){if(!g.querySelector(`[data-custom-id="${CSS.escape(a.id)}"]`)){const b=iconButton(a.name,a.icon||'★',a.cls||'deep',()=>openCustom(a.id));b.dataset.customId=a.id;g.append(b)}}}
 const mo=new MutationObserver(()=>{if(home.classList.contains('active'))queueMicrotask(ensureHomeExtras)});mo.observe($('#grid'),{childList:true});
 const screenMo=new MutationObserver(()=>{if(home.classList.contains('active'))ensureHomeExtras()});screenMo.observe(home,{attributes:true,attributeFilter:['class']});
 function field(label,type='text',value=''){const w=document.createElement('div');w.className='card';const l=document.createElement('label');l.style.display='block';l.style.fontWeight='700';l.style.marginBottom='8px';l.textContent=label;const i=document.createElement(type==='textarea'?'textarea':'input');if(type!=='textarea')i.type=type;i.value=value;i.style.width='100%';i.style.padding='12px';i.style.border='1px solid #ccc';i.style.borderRadius='12px';i.style.background='#fff';i.style.color='#111';if(type==='textarea'){i.style.minHeight='150px';i.style.resize='vertical'}w.append(l,i);return{wrap:w,input:i}}
