@@ -1,63 +1,14 @@
 <!doctype html>
-<html lang="en">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
-<meta name="theme-color" content="#000000">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="Calculator">
-<link rel="manifest" href="./manifest.webmanifest">
-<link rel="apple-touch-icon" href="./icon.svg">
-<link rel="stylesheet" href="./app.css?v=8">
-<title>Calculator</title>
-</head>
-<body>
-<main id="calc" class="screen active" aria-label="Calculator">
-  <div class="calc-shell">
-    <div class="calc-display"><span id="disp">0</span></div>
-    <div class="keys">
-      <button class="key utility" data-a="clear">AC</button>
-      <button class="key utility" data-v="+/-">+/−</button>
-      <button class="key utility" data-v="%">%</button>
-      <button class="key operator" data-v="÷">÷</button>
-      <button class="key" data-v="7">7</button>
-      <button class="key" data-v="8">8</button>
-      <button class="key" data-v="9">9</button>
-      <button class="key operator" data-v="×">×</button>
-      <button class="key" data-v="4">4</button>
-      <button class="key" data-v="5">5</button>
-      <button class="key" data-v="6">6</button>
-      <button class="key operator" data-v="−">−</button>
-      <button class="key" data-v="1">1</button>
-      <button class="key" data-v="2">2</button>
-      <button class="key" data-v="3">3</button>
-      <button class="key operator" data-v="+">+</button>
-      <button class="key zero" data-v="0">0</button>
-      <button class="key" data-v=".">.</button>
-      <button class="key operator" data-a="eq">=</button>
-    </div>
-  </div>
-</main>
-<section id="home" class="screen">
-  <div class="phone-shell">
-    <div class="phone-status">
-      <span id="phoneTime">9:41</span>
-      <div class="phone-status-icons">● ◒ ▮</div>
-      <button id="phoneLock" class="status-lock">Lock</button>
-    </div>
-    <div id="phonePages" class="phone-pages"></div>
-    <div id="pageDots" class="page-dots"></div>
-    <div id="phoneDock" class="phone-dock"></div>
-  </div>
-</section>
-<section id="app" class="screen"></section>
-<section id="second" class="screen"></section>
-<section id="deep" class="screen"></section>
-<div id="toast" class="toast"></div>
-<script src="./app.js?v=8"></script>
-<script src="./personalize.js?v=8"></script>
-<script src="./project-links.js?v=8"></script>
-<script>document.getElementById('phoneLock').addEventListener('click',()=>location.reload());</script>
-</body>
-</html>
+<html lang="en"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no"><meta name="theme-color" content="#000000"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"><meta name="apple-mobile-web-app-title" content="Calculator"><link rel="manifest" href="./manifest.webmanifest"><link rel="apple-touch-icon" href="./icon.svg"><link rel="stylesheet" href="./app.css?v=12"><link rel="stylesheet" href="./upgrades.css?v=12"><title>Calculator</title>
+</head><body>
+<main id="calc" class="screen active" aria-label="Calculator"><div class="calc-shell"><div class="calc-display"><span id="disp">0</span></div><div class="keys">
+<button class="key utility" data-a="clear">AC</button><button class="key utility" data-v="+/-">+/−</button><button class="key utility" data-v="%">%</button><button class="key operator" data-v="÷">÷</button>
+<button class="key" data-v="7">7</button><button class="key" data-v="8">8</button><button class="key" data-v="9">9</button><button class="key operator" data-v="×">×</button>
+<button class="key" data-v="4">4</button><button class="key" data-v="5">5</button><button class="key" data-v="6">6</button><button class="key operator" data-v="−">−</button>
+<button class="key" data-v="1">1</button><button class="key" data-v="2">2</button><button class="key" data-v="3">3</button><button class="key operator" data-v="+">+</button>
+<button class="key zero" data-v="0">0</button><button class="key" data-v=".">.</button><button class="key operator" data-a="eq">=</button></div></div></main>
+<section id="home" class="screen"><div class="phone-shell"><div class="phone-status"><span id="phoneTime">9:41</span><div class="phone-status-icons">● ◒ ▮</div><button id="phoneLock" class="status-lock">Lock</button></div><div id="phonePages" class="phone-pages"></div><div id="pageDots" class="page-dots"></div><div id="phoneDock" class="phone-dock"></div></div></section>
+<section id="app" class="screen"></section><section id="second" class="screen"></section><section id="deep" class="screen"></section><div id="toast" class="toast"></div>
+<script src="./standalone-guard.js?v=12"></script><script src="./app.js?v=12"></script><script src="./personalize.js?v=12"></script><script src="./project-links.js?v=12"></script><script src="./clock-pro.js?v=12"></script><script src="./secret-message.js?v=12"></script><script src="./home-gesture.js?v=12"></script><script>document.getElementById('phoneLock').addEventListener('click',()=>location.reload());</script>
+</body></html>
