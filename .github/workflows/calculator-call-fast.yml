@@ -1,0 +1,27 @@
+name: Calculator call test
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'calculator/**'
+      - '.github/scripts/calculator-call-test.mjs'
+      - '.github/workflows/calculator-call-fast.yml'
+  workflow_dispatch:
+jobs:
+  call-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Install Playwright library
+        run: npm install playwright@1.55.0
+      - name: Start Calculator
+        run: |
+          python3 -m http.server 4173 >/tmp/calculator-http.log 2>&1 &
+          sleep 1
+          curl --fail http://127.0.0.1:4173/calculator/ >/dev/null
+      - name: Call between two Calculator phones
+        run: node .github/scripts/calculator-call-test.mjs
