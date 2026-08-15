@@ -1,4 +1,4 @@
-const CACHE='calculator-v20';
+const CACHE='calculator-v21';
 const ASSETS=['./','./index.html','./install.html','./manifest.webmanifest','./icon.svg','./app.css','./upgrades.css','./phone-polish.css','./standalone-guard.js','./app-mode.js','./core.js','./personalize.js','./project-links.js','./clock-pro.js','./phone-system.js','./message-launcher.js','./phone-polish.js','./call-ring.js','./home-gesture.js'];
 self.addEventListener('install',event=>event.waitUntil(caches.open(CACHE).then(c=>c.addAll(ASSETS)).then(()=>self.skipWaiting())));
 self.addEventListener('activate',event=>event.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(k=>k!==CACHE).map(k=>caches.delete(k)))).then(()=>self.clients.claim())));
