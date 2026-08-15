@@ -6,6 +6,7 @@ on:
     paths:
       - 'calculator/**'
       - '.github/scripts/calculator-smoke-test.mjs'
+      - '.github/scripts/calculator-call-test.mjs'
       - '.github/workflows/calculator-smoke-test.yml'
   workflow_dispatch:
 
@@ -37,3 +38,6 @@ jobs:
 
       - name: Run unlock and app test
         run: node .github/scripts/calculator-smoke-test.mjs
+
+      - name: Run two-phone call test
+        run: node .github/scripts/calculator-call-test.mjs
