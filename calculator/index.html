@@ -1,6 +1,6 @@
 <!doctype html>
 <html lang="en"><head>
-<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no"><meta name="theme-color" content="#000000"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"><meta name="apple-mobile-web-app-title" content="Calculator"><link rel="manifest" href="./manifest.webmanifest"><link rel="apple-touch-icon" href="./icon.svg"><link rel="stylesheet" href="./app.css?v=19"><link rel="stylesheet" href="./upgrades.css?v=19"><link rel="stylesheet" href="./phone-polish.css?v=19"><title>Calculator</title>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no"><meta name="theme-color" content="#000000"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"><meta name="apple-mobile-web-app-title" content="Calculator"><link rel="manifest" href="./manifest.webmanifest"><link rel="apple-touch-icon" href="./icon.svg"><link rel="stylesheet" href="./app.css?v=20"><link rel="stylesheet" href="./upgrades.css?v=20"><link rel="stylesheet" href="./phone-polish.css?v=20"><title>Calculator</title>
 </head><body>
 <main id="calc" class="screen active" aria-label="Calculator"><div class="calc-shell"><div class="calc-display"><span id="disp">0</span></div><div class="keys">
 <button class="key utility" data-a="clear">AC</button><button class="key utility" data-v="+/-">+/−</button><button class="key utility" data-v="%">%</button><button class="key operator" data-v="÷">÷</button>
@@ -10,5 +10,17 @@
 <button class="key zero" data-v="0">0</button><button class="key" data-v=".">.</button><button class="key operator" data-a="eq">=</button></div></div></main>
 <section id="home" class="screen"><div class="phone-shell"><div class="phone-status"><span id="phoneTime">9:41</span><div class="phone-status-icons">● ◒ ▮</div><button id="phoneLock" class="status-lock">Lock</button></div><div id="phonePages" class="phone-pages"></div><div id="pageDots" class="page-dots"></div><div id="phoneDock" class="phone-dock"></div></div></section>
 <section id="app" class="screen"></section><section id="second" class="screen"></section><section id="deep" class="screen"></section><div id="toast" class="toast"></div>
-<script src="./standalone-guard.js?v=19"></script><script src="./app-mode.js?v=19"></script><script src="./app.js?v=19"></script><script src="./pin-plus.js?v=19"></script><script src="./personalize.js?v=19"></script><script src="./project-links.js?v=19"></script><script src="./clock-pro.js?v=19"></script><script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script><script src="./phone-system.js?v=19"></script><script src="./message-launcher.js?v=19"></script><script src="./phone-polish.js?v=19"></script><script src="./call-ring.js?v=19"></script><script src="./call-stability.js?v=19"></script><script src="./home-gesture.js?v=19"></script><script src="./emergency-ui-fix.js?v=19"></script><script src="./tap-retry.js?v=19"></script><script>document.getElementById('phoneLock').addEventListener('click',()=>location.reload());</script>
+<script src="./standalone-guard.js?v=20"></script>
+<script src="./app-mode.js?v=20"></script>
+<script src="./core.js?v=20"></script>
+<script src="./personalize.js?v=20"></script>
+<script src="./project-links.js?v=20"></script>
+<script src="./clock-pro.js?v=20"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="./phone-system.js?v=20"></script>
+<script src="./message-launcher.js?v=20"></script>
+<script src="./phone-polish.js?v=20"></script>
+<script src="./call-ring.js?v=20"></script>
+<script src="./home-gesture.js?v=20"></script>
+<script>document.getElementById('phoneLock')?.addEventListener('click',()=>window.CalculatorCore?.lock());</script>
 </body></html>
