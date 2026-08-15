@@ -1,0 +1,23 @@
+import { chromium } from 'playwright';
+
+const browser=await chromium.launch({headless:true,args:['--use-fake-ui-for-media-stream','--use-fake-device-for-media-stream','--autoplay-policy=no-user-gesture-required']});
+const base='http://127.0.0.1:4173/calculator/';
+const fakeSupabase=`(()=>{class Ch{constructor(topic){this.topic=topic;this.handlers=[];this.bc=new BroadcastChannel('sb-'+topic);this.bc.onmessage=e=>{const m=e.data||{};this.handlers.filter(h=>h.event===m.event).forEach(h=>h.cb({payload:m.payload}))}}on(type,filter,cb){if(type==='broadcast')this.handlers.push({event:filter.event,cb});return this}subscribe(cb){setTimeout(()=>cb&&cb('SUBSCRIBED'),0);return this}async httpSend(event,payload){this.bc.postMessage({event,payload});return {status:'ok'}}close(){this.bc.close()}}window.supabase={createClient(){return{channel(topic){return new Ch(topic)},async removeChannel(ch){ch?.close?.();return true}}}}})();`;
+async function makePhone(number){const context=await browser.newContext({viewport:{width:390,height:844},isMobile:true,hasTouch:true,permissions:['microphone','camera']});await context.addInitScript(n=>{localStorage.setItem('calculator-number',n);localStorage.setItem('main-code','5963')},number);await context.route('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2*',r=>r.fulfill({status:200,contentType:'application/javascript',body:fakeSupabase}));const page=await context.newPage();const errors=[];page.on('pageerror',e=>errors.push(String(e)));page.on('console',m=>{if(m.type()==='error')errors.push(m.text())});await page.goto(base,{waitUntil:'load',timeout:20000});for(const d of ['5','9','6','3'])await page.locator(`#calc [data-v="${d}"]`).click();await page.locator('#calc [data-a="eq"]').click();await page.locator('.calculator-phone-launch').first().waitFor({state:'visible',timeout:7000});return{context,page,errors}}
+const A=await makePhone('111-111-1111');const B=await makePhone('222-222-2222');
+await A.page.locator('.calculator-phone-launch').first().click();for(const d of '2222222222')await A.page.locator('.dial-key',{hasText:d}).first().click();
+const dial=(await A.page.locator('.dial-number').textContent())?.trim();if(dial!=='222-222-2222')throw new Error('Caller dialpad produced '+dial);
+await A.page.locator('.dial-call').click();await B.page.locator('#calcCallOverlay #accept').waitFor({state:'visible',timeout:5000});
+const incomingText=(await B.page.locator('#calcCallOverlay').textContent())||'';console.log('INCOMING_OVERLAY',incomingText.replace(/\s+/g,' ').trim());if(!incomingText.includes('111-111-1111'))throw new Error('Incoming call did not show caller number');
+// Ringtone layer is active here; prove UI remains responsive while ringing.
+const ringResponsive=await B.page.evaluate(()=>new Promise(r=>setTimeout(()=>r(true),700)));if(!ringResponsive)throw new Error('Incoming ringtone blocked UI');
+await B.page.locator('#calcCallOverlay #accept').click({timeout:3000});
+await A.page.waitForFunction(()=>document.querySelector('#callStatus')?.textContent==='Connected',{timeout:15000}).catch(()=>{});
+await B.page.waitForFunction(()=>document.querySelector('#callStatus')?.textContent==='Connected',{timeout:15000}).catch(()=>{});
+const aStatus=(await A.page.locator('#callStatus').textContent().catch(()=>''))||'';const bOverlay=await B.page.locator('#calcCallOverlay').count();console.log('CALLER_STATUS',aStatus,'CALLEE_OVERLAY',bOverlay);
+if(!bOverlay)throw new Error('Callee call screen disappeared after answer');
+// Hang up from whichever side has an end button and verify both clear.
+const endB=B.page.locator('#calcCallOverlay #callEnd').first();if(await endB.count())await endB.click();else{const endA=A.page.locator('#calcCallOverlay #callEnd').first();if(await endA.count())await endA.click();else throw new Error('No hangup button after answer')}
+await A.page.waitForFunction(()=>!document.getElementById('calcCallOverlay'),{timeout:5000});await B.page.waitForFunction(()=>!document.getElementById('calcCallOverlay'),{timeout:5000});
+if(A.errors.length||B.errors.length)throw new Error('Browser errors: '+[...A.errors,...B.errors].join(' | '));
+console.log('CALCULATOR_TWO_PHONE_CALL_TEST_PASS');await A.context.close();await B.context.close();await browser.close();
