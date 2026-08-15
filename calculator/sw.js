@@ -1,5 +1,5 @@
-const CACHE='calculator-v24';
-const ASSETS=['./','./index.html','./install.html','./manifest.webmanifest','./icon.svg','./app.css','./upgrades.css','./phone-polish.css','./standalone-guard.js','./app-mode.js','./code-5963.js','./core.js','./personalize.js','./project-links.js','./clock-pro.js','./phone-system.js','./message-launcher.js','./phone-polish.js','./call-ring.js','./home-gesture.js'];
+const CACHE='calculator-v25';
+const ASSETS=['./','./index.html','./install.html','./manifest.webmanifest','./icon.svg','./app.css','./upgrades.css','./phone-polish.css','./standalone-guard.js','./app-mode.js','./code-5963.js','./core.js','./personalize.js','./project-links.js','./clock-pro.js','./home-gesture.js','./communications-loader.js','./phone-system.js','./message-launcher.js','./phone-polish.js','./call-ring.js'];
 self.addEventListener('install',event=>event.waitUntil(caches.open(CACHE).then(c=>c.addAll(ASSETS)).then(()=>self.skipWaiting())));
 self.addEventListener('activate',event=>event.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(k=>k!==CACHE).map(k=>caches.delete(k)))).then(()=>self.clients.claim())));
 self.addEventListener('fetch',event=>{if(event.request.method!=='GET')return;event.respondWith((async()=>{try{const r=await fetch(event.request,{cache:'no-store'});caches.open(CACHE).then(c=>c.put(event.request,r.clone()));return r}catch{return await caches.match(event.request)||await caches.match('./index.html')}})())});
