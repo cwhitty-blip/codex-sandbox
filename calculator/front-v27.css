@@ -1,0 +1,13 @@
+/* v27 Calculator face polish */
+#calc{background:#000;padding-left:14px;padding-right:14px;padding-bottom:max(12px,env(safe-area-inset-bottom));touch-action:manipulation;-webkit-user-select:none;user-select:none}
+#calc .calc-shell{max-width:420px;padding:0 2px 2px}
+#calc .calc-display{height:clamp(148px,27vh,245px);padding:0 9px 20px;align-items:flex-end}
+#calc .calc-display span{font-family:-apple-system,BlinkMacSystemFont,"SF Pro Display",system-ui,sans-serif;font-size:clamp(70px,21vw,100px);font-weight:200;letter-spacing:-4px;line-height:.88;font-variant-numeric:tabular-nums;text-rendering:geometricPrecision}
+#calc .keys{gap:clamp(10px,2.65vw,13px)}
+#calc .key{border:0;outline:0;background:#333336;box-shadow:none;font-size:clamp(29px,8.8vw,41px);font-weight:400;line-height:1;cursor:pointer;touch-action:manipulation;-webkit-user-select:none;user-select:none;transition:transform .045s ease,background-color .06s ease,filter .06s ease}
+#calc .key:active{transform:scale(.94);filter:brightness(1.55)}
+#calc .key.utility{background:#a5a5a7;color:#050505;font-weight:500}
+#calc .key.operator{background:#ff9f0a;color:#fff;font-size:clamp(31px,9vw,43px)}
+#calc .key.zero{padding-left:clamp(28px,8vw,39px);justify-content:flex-start}
+@media(min-width:700px){#calc .calc-shell{max-width:390px}}
+@media(max-height:690px){#calc .calc-display{height:112px;padding-bottom:12px}#calc .keys{gap:8px}#calc .key{font-size:30px}}
