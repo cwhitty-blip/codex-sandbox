@@ -6,7 +6,7 @@ async function makePhone(number){const context=await browser.newContext({viewpor
 const A=await makePhone('111-111-1111'),B=await makePhone('222-222-2222');
 await A.page.locator('.calculator-phone-launch').first().click({timeout:3000});await A.page.locator('#app.screen.active .phone-app-page').waitFor({state:'visible',timeout:3000});
 const keys=await A.page.locator('.dialpad .dial-key').allTextContents();console.log('DIAL_KEYS',JSON.stringify(keys));if(keys.length<10)throw new Error('Dialpad did not render');
-for(const d of '2222222222'){const key=A.page.locator('.dialpad .dial-key').filter({hasText:new RegExp('^'+d+'$')}).first();await key.click({timeout:2000})}
+const two=A.page.locator('.dialpad .dial-key').nth(1);for(let i=0;i<10;i++)await two.click({timeout:2000});
 const dial=(await A.page.locator('.dial-number').textContent())?.trim();if(dial!=='222-222-2222')throw new Error('Caller dialpad produced '+dial);
 await A.page.locator('.dial-call').click();await B.page.locator('#calcCallOverlay #accept').waitFor({state:'visible',timeout:5000});
 const incomingText=(await B.page.locator('#calcCallOverlay').textContent())||'';console.log('INCOMING_OVERLAY',incomingText.replace(/\s+/g,' ').trim());if(!incomingText.includes('111-111-1111'))throw new Error('Incoming call did not show caller number');
