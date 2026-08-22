@@ -1,5 +1,6 @@
 (()=>{
 const PROJECTS=[
+{id:'ava',name:'Ava',fixed:'https://chatgpt.com/'},
 {id:'ninja',name:'Ninja'},
 {id:'ninjay',name:'Ninja Y',fixed:'https://ninja-y-game.cwhit.chatgpt.site'},
 {id:'x',name:'X'},
