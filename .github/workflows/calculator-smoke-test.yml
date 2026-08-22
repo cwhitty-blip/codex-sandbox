@@ -7,13 +7,14 @@ on:
       - 'calculator/**'
       - '.github/scripts/calculator-smoke-test.mjs'
       - '.github/scripts/calculator-call-test.mjs'
+      - '.github/scripts/calculator-180-checks.mjs'
       - '.github/workflows/calculator-smoke-test.yml'
   workflow_dispatch:
 
 jobs:
   test:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 12
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -35,6 +36,9 @@ jobs:
           echo $! > /tmp/calculator-http.pid
           sleep 2
           curl --fail http://127.0.0.1:4173/calculator/ >/dev/null
+
+      - name: Run 180 Calculator checks
+        run: node .github/scripts/calculator-180-checks.mjs
 
       - name: Run unlock and app test
         run: node .github/scripts/calculator-smoke-test.mjs
