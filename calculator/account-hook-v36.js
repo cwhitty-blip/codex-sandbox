@@ -1,6 +1,5 @@
 (()=>{
-const app=document.getElementById('app');if(!app)return;
-function enhance(){const h=app.querySelector('.settings-head h2');if(!h||h.textContent!=='Settings')return;const p=app.querySelector('.settings-page');if(!p||p.querySelector('.calculator-account-row'))return;const profile=p.querySelector('.settings-profile');if(profile){const strong=profile.querySelector('strong'),span=profile.querySelector('span'),icon=profile.querySelector('.settings-profile-icon');if(strong)strong.textContent=window.CalculatorAccount?.name?.()||'Clayton Whitson';if(span)span.textContent='Calculator Account';if(icon)icon.textContent='CW';profile.style.cursor='pointer';profile.onclick=()=>window.CalculatorAccount?.open?.()}
-const sections=[...p.querySelectorAll('.settings-section')];const security=sections.find(s=>s.querySelector('.settings-section-title')?.textContent==='SECURITY');if(!security)return;const list=security.querySelector('.settings-list');const b=document.createElement('button');b.className='settings-row calculator-account-row';b.innerHTML='<span class="settings-row-icon">👤</span><span class="settings-row-text"><strong>Calculator Account</strong><small></small></span><span class="settings-chevron">›</span>';b.querySelector('small').textContent=(window.CalculatorAccount?.name?.()||'Clayton Whitson')+(window.CalculatorAccount?.hasPassword?.()?' · Password set':' · Set password');b.onclick=()=>window.CalculatorAccount?.open?.();list?.prepend(b)}
-new MutationObserver(enhance).observe(app,{childList:true,subtree:true});enhance();
+// Account is intentionally NOT injected into Settings.
+// The Calculator phone uses its Calculator Number for Phone/Messages and works without an account.
+// The optional Account app is installed from the private App Store.
 })();
