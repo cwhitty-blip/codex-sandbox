@@ -1,4 +1,4 @@
-const CACHE='calculator-v34';
+const CACHE='calculator-v35';
 const ASSETS=['./','./index.html','./install.html','./manifest.webmanifest','./icon.svg','./app.css','./upgrades.css','./phone-polish.css','./reorder.css','./front-v27.css','./builtins-v30.css','./camera-v33.css','./settings-v34.css','./standalone-guard.js','./app-mode.js','./code-5963.js','./project-hardlinks-v34.js','./core-v28.js','./builtins-v30.js','./photos-direct-v33.js','./personalize.js','./project-links.js','./settings-v34.js','./clock-pro.js','./home-gesture.js','./share-reorder.js','./communications-loader.js','./phone-system.js','./message-launcher.js','./phone-polish.js','./phone-keypad-fix.js','./call-ring-safe.js','./signal-v29.js'];
 self.addEventListener('install',event=>event.waitUntil(caches.open(CACHE).then(c=>c.addAll(ASSETS)).then(()=>self.skipWaiting())));
 self.addEventListener('activate',event=>event.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(k=>k!==CACHE).map(k=>caches.delete(k)))).then(()=>self.clients.claim())));
