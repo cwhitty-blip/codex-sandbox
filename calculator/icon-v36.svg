@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+<defs>
+ <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#151517"/><stop offset="1" stop-color="#050506"/></linearGradient>
+ <linearGradient id="screen" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#303034"/><stop offset="1" stop-color="#1f1f22"/></linearGradient>
+</defs>
+<rect width="1024" height="1024" rx="220" fill="url(#bg)"/>
+<rect x="118" y="105" width="788" height="210" rx="54" fill="url(#screen)"/>
+<text x="846" y="255" fill="#fff" font-family="Arial,sans-serif" font-size="126" text-anchor="end">5963</text>
+<g font-family="Arial,sans-serif" text-anchor="middle" dominant-baseline="central">
+ <circle cx="228" cy="446" r="93" fill="#a6a6aa"/><text x="228" y="446" font-size="72" fill="#050506">AC</text>
+ <circle cx="512" cy="446" r="93" fill="#333336"/><text x="512" y="446" font-size="94" fill="#fff">7</text>
+ <circle cx="796" cy="446" r="93" fill="#ff9f0a"/><text x="796" y="446" font-size="110" fill="#fff">÷</text>
+ <circle cx="228" cy="680" r="93" fill="#333336"/><text x="228" y="680" font-size="94" fill="#fff">1</text>
+ <circle cx="512" cy="680" r="93" fill="#333336"/><text x="512" y="680" font-size="94" fill="#fff">2</text>
+ <circle cx="796" cy="680" r="93" fill="#ff9f0a"/><text x="796" y="680" font-size="110" fill="#fff">+</text>
+ <rect x="135" y="808" width="470" height="150" rx="75" fill="#333336"/><text x="225" y="883" font-size="94" fill="#fff">0</text>
+ <circle cx="796" cy="883" r="75" fill="#ff9f0a"/><text x="796" y="883" font-size="105" fill="#fff">=</text>
+</g>
+</svg>
