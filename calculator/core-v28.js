@@ -9,7 +9,7 @@ const projects=[
 {id:'x',name:'X',icon:'X',cls:'xapp'},
 {id:'mowing',name:"Malachi's Mowing",icon:'MM',cls:'mowing',url:'https://malachis-mowing-fort-scott.cwhit.chatgpt.site/'},
 {id:'brainrot',name:'Brainrot Movie Maker',icon:'🎬',cls:'brainrot',url:'https://brainrot-movie-maker.cwhit.chatgpt.site/'},
-{id:'deepscope',name:'Deep Scope',icon:'◉',cls:'scope'}];
+{id:'deepscope',name:'Deep Scope',icon:'◉',cls:'scope',url:'https://deepscope-research.cwhit.chatgpt.site/'}];
 const builtins=[
 {id:'photos',name:'Photos',icon:'🌈',cls:'photos'},{id:'notes',name:'Notes',icon:'📝',cls:'notes'},{id:'files',name:'Files',icon:'📁',cls:'files'},{id:'sketch',name:'Sketch',icon:'✎',cls:'sketch'},{id:'clock',name:'Clock',icon:'◷',cls:'clock'},{id:'game',name:'Tic-Tac-Toe',icon:'✕',cls:'game'},{id:'browser',name:'Browser',icon:'🧭',cls:'browser'},{id:'store',name:'App Store',icon:'A',cls:'store'},{id:'second',name:'Second Space',icon:'◉',cls:'space'},{id:'settings',name:'Settings',icon:'⚙',cls:'settings'}];
 const dockIds=['browser','notes','store','settings'];
