@@ -1,12 +1,12 @@
 (()=>{
 if(!(window.matchMedia('(display-mode: standalone)').matches||window.navigator.standalone===true||window.__calculatorStandalone===true))return;
-const INSTALL='https://cwhitty-blip.github.io/codex-sandbox/calculator/install.html?v=37';
+const INSTALL='https://cwhitty-blip.github.io/codex-sandbox/calculator/install.html?v=38';
 const pages=document.getElementById('phonePages'),home=document.getElementById('home'),toastEl=document.getElementById('toast');if(!pages||!home)return;
 let edit=false,drag=null,hold=null,startX=0,startY=0,edgeTimer=null,edgeDir=0,applying=false,scheduled=false;
 function toast(m){if(!toastEl)return;toastEl.textContent=m;toastEl.classList.add('show');setTimeout(()=>toastEl.classList.remove('show'),1200)}
 function labelOf(el){return el?.querySelector('.phone-label')?.textContent?.trim()||''}
 function keyOf(el){return labelOf(el).toLowerCase().replace(/[^a-z0-9]+/g,'-')}
-async function share(){const data={title:'Calculator v37',text:'Add the latest Calculator v37 to your iPhone Home Screen:',url:INSTALL};try{if(navigator.share)await navigator.share(data);else{await navigator.clipboard.writeText(INSTALL);toast('v37 install link copied')}}catch(e){if(e?.name!=='AbortError')toast('Could not open Share')}}
+async function share(){const data={title:'Calculator v38',text:'Add the latest Calculator v38 to your iPhone Home Screen:',url:INSTALL};try{if(navigator.share)await navigator.share(data);else{await navigator.clipboard.writeText(INSTALL);toast('v38 install link copied')}}catch(e){if(e?.name!=='AbortError')toast('Could not open Share')}}
 function shareIcon(){const b=document.createElement('button');b.type='button';b.className='phone-app share-calculator-app';b.innerHTML='<span class="phone-icon share-icon">↗</span><span class="phone-label">Share Calculator</span>';b.onclick=share;return b}
 function injectShare(){if(pages.querySelector('.share-calculator-app'))return false;const grids=pages.querySelectorAll('.phone-grid');const g=grids[1]||grids[0];if(!g)return false;g.append(shareIcon());return true}
 function savedOrder(){try{return JSON.parse(localStorage.getItem('phone-app-order')||'[]')}catch{return[]}}
