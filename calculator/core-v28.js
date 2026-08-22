@@ -3,6 +3,7 @@ const $=s=>document.querySelector(s),calc=$('#calc'),disp=$('#disp'),home=$('#ho
 if(!calc||!disp||!home||!app)return;
 let expr='';
 const projects=[
+{id:'ava',name:'Ava',icon:'✦',cls:'ava',url:'https://chatgpt.com/'},
 {id:'ninja',name:'Ninja',icon:'🥷',cls:'ninja'},
 {id:'ninjay',name:'Ninja Y',icon:'Y',cls:'ninjay',url:'https://ninja-y-game.cwhit.chatgpt.site'},
 {id:'x',name:'X',icon:'X',cls:'xapp'},
