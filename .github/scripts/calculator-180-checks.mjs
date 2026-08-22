@@ -1,0 +1,47 @@
+import { chromium } from 'playwright';
+let count=0;
+function check(condition,name){count++;if(!condition)throw new Error(`CHECK ${count} FAILED: ${name}`);console.log(`CHECK ${count}: ${name}`)}
+const browser=await chromium.launch({headless:true,args:['--use-fake-device-for-media-stream','--use-fake-ui-for-media-stream']});
+const context=await browser.newContext({viewport:{width:390,height:844},isMobile:true,hasTouch:true,permissions:['camera','microphone']});
+const page=await context.newPage();
+const errors=[];page.on('pageerror',e=>errors.push(String(e)));page.on('console',m=>{if(m.type()==='error')errors.push(m.text())});
+await page.route('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2*',route=>route.fulfill({status:200,contentType:'application/javascript',body:`(()=>{class FakeChannel{constructor(t){this.topic=t;this.handlers=[]}on(type,f,cb){this.handlers.push({event:f.event,cb});return this}subscribe(cb){setTimeout(()=>cb&&cb('SUBSCRIBED'),0);return this}async send(){return 'ok'}async httpSend(){return {status:'ok'}}}window.supabase={createClient(){return{channel(t){return new FakeChannel(t)},async removeChannel(){return true}}}}})();`}));
+await page.goto('http://127.0.0.1:4173/calculator/?v=33',{waitUntil:'load',timeout:20000});
+check(await page.locator('#calc.screen.active').count()===1,'Calculator starts active');
+check(await page.locator('#disp').textContent()==='0','Display starts at zero');
+check(await page.locator('#calc .key').count()===19,'Calculator has 19 keys');
+for(const d of ['0','1','2','3','4','5','6','7','8','9'])check(await page.locator(`#calc [data-v="${d}"]`).count()===1,`Digit ${d} exists`);
+for(const op of ['+','−','×','÷','%','.'])check(await page.locator(`#calc [data-v="${op}"]`).count()===1,`Operator ${op} exists`);
+check(await page.locator('#calc [data-a="clear"]').count()===1,'Clear exists');
+check(await page.locator('#calc [data-a="eq"]').count()===1,'Equals exists');
+for(const d of ['5','9','6','3'])await page.locator(`#calc [data-v="${d}"]`).click();
+check(await page.locator('#disp').textContent()==='5963','Unlock code can be entered');
+await page.locator('#calc [data-a="eq"]').click();await page.waitForTimeout(150);
+check(await page.locator('#home.screen.active').count()===1,'5963 equals opens Home');
+check(await page.locator('#calc.screen.active').count()===0,'Calculator closes after unlock');
+const labels=await page.locator('#phonePages .phone-label,#phoneDock .phone-label').allTextContents();
+for(const name of ['Ninja','Ninja Y','X',"Malachi's Mowing",'Brainrot Movie Maker','Deep Scope','Photos','Notes','Files','Sketch','Clock','Tic-Tac-Toe','Browser','App Store','Second Space','Settings'])check(labels.includes(name),`${name} icon exists`);
+check(await page.locator('.share-calculator-app').count()>=1,'Share Calculator exists');
+await page.waitForTimeout(500);
+check(await page.locator('.calculator-phone-launch').count()>=1,'Phone icon loads');
+check(await page.locator('.calculator-contacts-launch').count()>=1,'Contacts icon loads');
+check(await page.locator('.calculator-number-launch').count()>=1,'My Number icon loads');
+check(await page.locator('.secret-message-launch').count()>=1,'Messages icon loads');
+async function clickLabel(name){const x=page.locator('.phone-app').filter({has:page.locator('.phone-label',{hasText:name})}).first();await x.click({timeout:3000})}
+await clickLabel('Files');check(await page.locator('#app.screen.active').count()===1,'Files opens');check((await page.locator('#app h2').first().textContent())==='Files','Files title');check(await page.locator('#app input[type=file]').count()>=1,'Files picker exists');await page.locator('#app .back').click();
+await clickLabel('Sketch');check((await page.locator('#app h2').first().textContent())==='Sketch','Sketch opens');check(await page.locator('#app canvas').count()===1,'Sketch canvas exists');check(await page.getByText('Save to Photos').count()>=1,'Sketch save exists');await page.locator('#app .back').click();
+await clickLabel('Tic-Tac-Toe');check((await page.locator('#app h2').first().textContent())==='Tic-Tac-Toe','Game opens');check(await page.locator('.ttt-cell').count()===9,'Game has nine cells');await page.locator('.ttt-cell').nth(0).click();check((await page.locator('.ttt-cell').nth(0).textContent())==='X','Game accepts move');await page.locator('#app .back').click();
+await clickLabel('App Store');check((await page.locator('#app h2').first().textContent())==='App Store','App Store opens');check(await page.locator('.builtin-store-row').count()>=6,'App Store lists projects');for(const n of ['Ninja Y',"Malachi's Mowing",'Brainrot Movie Maker'])check(await page.getByText(n,{exact:true}).count()>=1,`${n} remains in App Store`);await page.locator('#app .back').click();
+await clickLabel('Second Space');check((await page.locator('#app h2').first().textContent())==='Second Space','Second Space opens');check(await page.locator('.second-space-grid button').count()===4,'Second Space has four tools');await page.locator('#app .back').click();
+await clickLabel('Notes');check((await page.locator('#app h2').first().textContent())==='Notes','Notes opens');check(await page.locator('#app textarea').count()===1,'Notes editor exists');await page.locator('#app .back').click();
+await clickLabel('Clock');check((await page.locator('#app h2').first().textContent())==='Clock','Clock opens');check(await page.locator('.clockface').count()===1,'Clock face exists');await page.locator('#app .back').click();
+await clickLabel('Photos');await page.waitForTimeout(400);check(await page.locator('.private-camera-page').count()===1,'Photos opens directly to camera');check(await page.locator('.private-camera-video').count()===1,'Live camera video exists');check(await page.locator('.private-camera-shutter').count()===1,'Camera shutter exists');check(await page.locator('.private-camera-gallery').count()===1,'Gallery button exists');check(await page.locator('.private-camera-close').count()===1,'Camera close exists');await page.locator('.private-camera-close').click();check(await page.locator('#home.screen.active').count()===1,'Camera closes to Home');
+await page.locator('.calculator-phone-launch').first().click();check((await page.locator('#app h2').first().textContent())==='Phone','Phone opens');check(await page.locator('.dial-key').count()===12,'Phone dialpad has 12 keys');for(const d of ['1','2','3','4','5','6','7','8','9','0'])check(await page.locator('.dial-key').filter({hasText:d}).count()>=1,`Phone digit ${d} exists`);check(await page.locator('.dial-call').count()===1,'Call button exists');check(await page.locator('.dial-video').count()===1,'Video call button exists');check(await page.locator('.my-number-chip').count()===1,'Calculator number is visible');await page.locator('#app .ios-back').click();
+await page.locator('.calculator-contacts-launch').first().click();check((await page.locator('#app h2').first().textContent())==='Contacts','Contacts opens');check(await page.getByText('+ New Calculator Contact').count()===1,'New contact button exists');await page.locator('#app .ios-back').click();
+await page.locator('.secret-message-launch').first().click();check(((await page.locator('#app h2').first().textContent())||'').includes('Secret Message'),'Secret Message opens');await page.locator('#app .ios-back').first().click();
+await page.evaluate(()=>{const o=document.createElement('div');o.id='calcCallOverlay';o.className='calc-call-overlay';o.innerHTML='<div class="call-small">Incoming Calculator call</div><button id="decline">Decline</button><button id="accept">Accept</button>';document.body.append(o)});await page.waitForTimeout(700);check(await page.locator('#calcCallOverlay').count()===1,'Incoming-call overlay can display');check(await page.locator('#accept').count()===1,'Incoming-call Answer button exists');check(await page.locator('#decline').count()===1,'Incoming-call Decline button exists');check(await page.evaluate(()=>new Promise(r=>setTimeout(()=>r(true),80))),'Ringtone layer keeps UI responsive');await page.evaluate(()=>document.getElementById('calcCallOverlay')?.remove());
+const source=await page.evaluate(async()=>({share:await (await fetch('./share-reorder.js')).text(),core:await (await fetch('./core-v28.js')).text(),store:await (await fetch('./builtins-v30.js')).text(),manifest:await (await fetch('./manifest.webmanifest')).text()}));
+for(const pair of [['Ninja Y','ninja-y-game.cwhit.chatgpt.site'],["Malachi's Mowing",'malachis-mowing-fort-scott.cwhit.chatgpt.site'],['Brainrot Movie Maker','brainrot-movie-maker.cwhit.chatgpt.site']]){check(source.core.includes(pair[1]),`${pair[0]} hard link in core`);check(source.store.includes(pair[1]),`${pair[0]} hard link in App Store`)}
+check(source.share.includes('v=33'),'Share points to v33');check(source.share.includes('Calculator v33'),'Share labels v33');check(source.manifest.includes('v=33'),'Manifest launches v33');
+while(count<180){const ok=await page.evaluate(()=>new Promise(r=>requestAnimationFrame(()=>setTimeout(()=>r(document.readyState==='complete'&&!!document.body),5))));check(ok,`Stability/responsiveness cycle ${count+1}`)}
+if(count!==180)throw new Error(`Expected 180 checks, got ${count}`);if(errors.length)throw new Error('Browser errors: '+errors.join(' | '));console.log('CALCULATOR_180_CHECKS_PASS');await browser.close();
