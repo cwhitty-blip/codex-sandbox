@@ -4,11 +4,11 @@ if(!calc||!disp||!home||!app)return;
 let expr='';
 const projects=[
 {id:'ava',name:'Ava',icon:'✦',cls:'ava',url:'https://chatgpt.com/'},
-{id:'ninja',name:'Ninja',icon:'🥷',cls:'ninja'},
-{id:'ninjay',name:'Ninja Y',icon:'Y',cls:'ninjay',url:'https://ninja-y-game.cwhit.chatgpt.site'},
+{id:'ninja',name:'Ninja',icon:'🥷',cls:'ninja',url:'https://ninja-y-game.cwhit.chatgpt.site/'},
+{id:'ninjay',name:'Ninja Y',icon:'Y',cls:'ninjay',url:'https://ninja-y-game.cwhit.chatgpt.site/'},
 {id:'x',name:'X',icon:'X',cls:'xapp'},
-{id:'mowing',name:"Malachi's Mowing",icon:'MM',cls:'mowing',url:'https://malachis-mowing-fort-scott.cwhit.chatgpt.site'},
-{id:'brainrot',name:'Brainrot Movie Maker',icon:'🎬',cls:'brainrot',url:'https://brainrot-movie-maker.cwhit.chatgpt.site'},
+{id:'mowing',name:"Malachi's Mowing",icon:'MM',cls:'mowing',url:'https://malachis-mowing-fort-scott.cwhit.chatgpt.site/'},
+{id:'brainrot',name:'Brainrot Movie Maker',icon:'🎬',cls:'brainrot',url:'https://brainrot-movie-maker.cwhit.chatgpt.site/'},
 {id:'deepscope',name:'Deep Scope',icon:'◉',cls:'scope'}];
 const builtins=[
 {id:'photos',name:'Photos',icon:'🌈',cls:'photos'},{id:'notes',name:'Notes',icon:'📝',cls:'notes'},{id:'files',name:'Files',icon:'📁',cls:'files'},{id:'sketch',name:'Sketch',icon:'✎',cls:'sketch'},{id:'clock',name:'Clock',icon:'◷',cls:'clock'},{id:'game',name:'Tic-Tac-Toe',icon:'✕',cls:'game'},{id:'browser',name:'Browser',icon:'🧭',cls:'browser'},{id:'store',name:'App Store',icon:'A',cls:'store'},{id:'second',name:'Second Space',icon:'◉',cls:'space'},{id:'settings',name:'Settings',icon:'⚙',cls:'settings'}];
@@ -21,7 +21,7 @@ function evaluate(){try{const s=expr.replace(/−/g,'-').replace(/×/g,'*').repl
 calc.addEventListener('click',e=>{const b=e.target.closest('.key');if(!b)return;if(b.dataset.a==='clear'){expr='';disp.textContent='0';return}if((b.dataset.a==='eq'||b.dataset.v==='+')&&unlock()){e.preventDefault();return}if(b.dataset.a==='eq'){evaluate();return}const v=b.dataset.v;if(v==='+/-'){if(expr)expr=expr.startsWith('−')?expr.slice(1):'−'+expr}else if(expr.length<30)expr+=v;disp.textContent=expr||'0'});
 function icon(d,fn){const b=document.createElement('button');b.className='phone-app';b.type='button';b.innerHTML=`<span class="phone-icon ${d.cls}">${d.icon}</span><span class="phone-label"></span>`;b.querySelector('.phone-label').textContent=d.name;b.onclick=fn;return b}
 function shell(title){app.innerHTML='';const p=document.createElement('div');p.className='page';const h=document.createElement('div');h.className='head';const b=document.createElement('button');b.className='back';b.textContent='‹ Home';b.onclick=()=>show(home);const t=document.createElement('h2');t.textContent=title;h.append(b,t);p.append(h);app.append(p);show(app);return p}
-function project(d){const u=d.url||localStorage.getItem('project-url-'+d.id);if(u){location.href=u;return}const p=shell(d.name),c=document.createElement('div');c.className='card';c.textContent='This app link has not been connected yet.';p.append(c)}
+function project(d){const u=d.url||window.CalculatorProjectLinks?.[d.id]||localStorage.getItem('project-url-'+d.id);if(u){location.href=u;return}const p=shell(d.name),c=document.createElement('div');c.className='card';c.textContent='This app link has not been connected yet.';p.append(c)}
 function notes(){const p=shell('Notes'),ta=document.createElement('textarea');ta.className='note';ta.value=localStorage.getItem('note')||'';ta.placeholder='Write something…';ta.oninput=()=>localStorage.setItem('note',ta.value);p.append(ta)}
 function clock(){const p=shell('Clock'),f=document.createElement('div');f.className='clockface';p.append(f);const tick=()=>f.textContent=new Date().toLocaleTimeString([],{hour:'numeric',minute:'2-digit',second:'2-digit'});tick();setInterval(tick,1000)}
 function browser(){const p=shell('Browser'),bar=document.createElement('div');bar.className='url';const i=document.createElement('input');i.placeholder='Search or enter website';const b=document.createElement('button');b.className='go';b.textContent='Go';const go=()=>{let v=i.value.trim();if(!v)return;if(!/^https?:\/\//i.test(v))v=v.includes('.')&&!v.includes(' ')?'https://'+v:'https://www.google.com/search?q='+encodeURIComponent(v);location.href=v};b.onclick=go;i.onkeydown=e=>{if(e.key==='Enter')go()};bar.append(i,b);p.append(bar)}
