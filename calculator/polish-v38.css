@@ -1,0 +1,49 @@
+/* Calculator v38 — cohesive iPhone-style polish without changing app logic */
+:root{--ios-blue:#0a84ff;--ios-bg:#f2f2f7;--ios-card:#fff;--ios-line:rgba(60,60,67,.16);--ios-text:#111;--ios-muted:#6e6e73}
+button,input,textarea{font-family:-apple-system,BlinkMacSystemFont,"SF Pro Display","Helvetica Neue",Arial,sans-serif}
+button{-webkit-tap-highlight-color:transparent}
+.phone-shell{overflow:hidden;isolation:isolate}
+.phone-status{padding-left:max(18px,env(safe-area-inset-left));padding-right:max(18px,env(safe-area-inset-right));font-weight:700;letter-spacing:-.02em}
+.phone-pages{scroll-snap-type:x mandatory;overscroll-behavior-x:contain;-webkit-overflow-scrolling:touch}
+.phone-page{scroll-snap-align:start}
+.phone-grid{padding-left:18px!important;padding-right:18px!important;align-content:start}
+.phone-app{transform:translateZ(0);transition:transform .12s ease,filter .12s ease;touch-action:manipulation}
+.phone-app:active{transform:scale(.92);filter:brightness(.9)}
+.phone-icon{box-shadow:0 6px 18px rgba(0,0,0,.18),inset 0 1px 0 rgba(255,255,255,.18);border:1px solid rgba(255,255,255,.16);overflow:hidden}
+.phone-label{text-shadow:0 1px 3px rgba(0,0,0,.45);font-weight:600;letter-spacing:-.01em;max-width:78px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.phone-dock{margin-left:12px!important;margin-right:12px!important;margin-bottom:max(10px,env(safe-area-inset-bottom))!important;border:1px solid rgba(255,255,255,.26);box-shadow:0 12px 36px rgba(0,0,0,.22);backdrop-filter:blur(24px) saturate(1.5);-webkit-backdrop-filter:blur(24px) saturate(1.5)}
+.page-dots{opacity:.88}.page-dot{box-shadow:0 1px 2px rgba(0,0,0,.25)}
+.status-lock{background:rgba(255,255,255,.18)!important;border:1px solid rgba(255,255,255,.24)!important;backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);font-weight:700}
+/* Unified inside-app shell */
+.page,.ios-app,.phone-app-page,.pro-page,.settings-page,.account-page{background:var(--ios-bg)!important;color:var(--ios-text);min-height:100%;padding-bottom:calc(26px + env(safe-area-inset-bottom))}
+.head,.ios-nav,.pro-head,.settings-head,.account-head{position:sticky;top:0;z-index:10;background:rgba(242,242,247,.88)!important;backdrop-filter:blur(18px) saturate(1.35);-webkit-backdrop-filter:blur(18px) saturate(1.35);border-bottom:1px solid var(--ios-line)!important}
+.head h2,.ios-nav h2,.pro-head h2,.settings-head h2,.account-head h2{letter-spacing:-.035em;font-weight:800}
+.back,.ios-back,.pro-back,.account-back{color:var(--ios-blue)!important;background:transparent!important;border:0!important;font-weight:700!important}
+.card,.ios-card,.settings-form-card,.settings-info-card,.account-card,.journal-card,.check-row,.voice-row,.video-card,.store-list{background:var(--ios-card)!important;border:1px solid rgba(0,0,0,.035)!important;box-shadow:0 8px 28px rgba(0,0,0,.055)!important}
+.primary,.pro-primary,.account-primary,.settings-save{background:var(--ios-blue)!important;color:#fff!important;border:0!important;border-radius:14px!important;box-shadow:0 4px 14px rgba(10,132,255,.2)!important;min-height:46px}
+.primary:active,.pro-primary:active,.account-primary:active,.settings-save:active{transform:scale(.98);filter:brightness(.92)}
+.field,.pro-input,.account-field input,.settings-input-row input,.note,.journal-compose{border:1px solid var(--ios-line)!important;background:#fff!important;border-radius:14px!important;outline:none!important}
+.field:focus,.pro-input:focus,.account-field input:focus,.settings-input-row input:focus,.note:focus,.journal-compose:focus{border-color:rgba(10,132,255,.65)!important;box-shadow:0 0 0 3px rgba(10,132,255,.12)!important}
+/* App Store */
+.private-store-page{background:linear-gradient(#f7f7fa,#f2f2f7)!important}
+.store-search{position:sticky;top:74px;z-index:8;border:1px solid rgba(0,0,0,.04);box-shadow:0 6px 22px rgba(0,0,0,.06)!important}
+.store-hero{min-height:176px!important;border-radius:26px!important;box-shadow:0 18px 36px rgba(81,83,180,.23)!important}
+.store-list{border-radius:24px!important}
+.store-row{min-height:82px;transition:background .12s ease}
+.store-row:active{background:#f5f5f7}
+.store-app-icon{border-radius:16px!important;box-shadow:0 5px 14px rgba(0,0,0,.14)}
+.store-get{min-width:74px!important;background:#e9e9ee!important;color:var(--ios-blue)!important;font-weight:800!important}
+.store-get:active{transform:scale(.95)}
+/* Notes */
+.note{margin:14px!important;width:calc(100% - 28px)!important;min-height:calc(100vh - 150px)!important;padding:18px!important;font-size:18px!important;line-height:1.5!important;box-sizing:border-box}
+/* Phone */
+.dial-number{letter-spacing:-.035em!important}.dial-key{box-shadow:0 5px 14px rgba(0,0,0,.08);transition:transform .1s ease,background .1s ease}.dial-key:active{transform:scale(.92)}
+.dial-call{box-shadow:0 8px 18px rgba(52,199,89,.25)!important}.dial-video{box-shadow:0 8px 18px rgba(10,132,255,.2)!important}
+/* Settings */
+.settings-profile{border-radius:22px!important;margin:14px!important;box-shadow:0 8px 28px rgba(0,0,0,.06)!important}
+.settings-list{overflow:hidden;border-radius:18px!important;box-shadow:0 6px 22px rgba(0,0,0,.045)}
+.settings-row{min-height:58px!important}.settings-row:active{background:#eeeeF2!important}
+/* Camera/gallery */
+.camera-shell,.camera-view{background:#000!important}.camera-shutter{box-shadow:0 0 0 5px rgba(255,255,255,.26)!important;transition:transform .1s ease}.camera-shutter:active{transform:scale(.9)}
+/* Small device fit */
+@media(max-width:390px){.phone-grid{padding-left:12px!important;padding-right:12px!important}.phone-label{font-size:11px!important}.phone-icon{transform:scale(.96)}.store-row{grid-template-columns:56px minmax(0,1fr) auto!important}.store-app-icon{width:52px!important;height:52px!important}}
