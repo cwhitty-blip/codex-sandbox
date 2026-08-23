@@ -28,6 +28,12 @@ textarea{width:100%;height:150px;background:#090b0f;color:#fff;border:1px solid 
 .orb{width:120px;height:120px;border-radius:50%;background:#11151b;box-shadow:0 0 55px #4c1118}
 .flash{position:fixed;inset:0;background:#050608;z-index:20;display:grid;place-items:center;text-align:center;padding:20px}.flashActions{margin-top:26px;display:grid;gap:10px;min-width:min(320px,80vw)}.flashActions button{min-height:54px;border:0;border-radius:14px;font-weight:900;font-size:18px}.playAgain{background:#df3b46;color:#fff}.backSetup{background:#242932;color:#fff}
 .flash b{font-size:55px}.small{font-size:12px;color:#999}
+.modeRow{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 0;border-bottom:1px solid #292e36}
+.toggle{min-width:138px;min-height:44px;border:1px solid #3a414c;border-radius:12px;background:#20252d;color:#fff;font-weight:900;padding:8px 12px}
+.toggle.on{background:#3a301b;border-color:#67552b;color:#ffe0a0}
+.manualBox{margin-top:12px;padding:12px;border:1px solid #303640;border-radius:14px;background:#0b0e13}
+.manualBox label{display:block;font-size:12px;color:#aaa;margin:9px 0 5px}
+.manualBox select{width:100%;min-height:46px;border:1px solid #303640;border-radius:10px;background:#11151b;color:#fff;padding:8px;font-size:16px}
 @media(min-width:600px){.grid{grid-template-columns:repeat(3,1fr)}.passvote{grid-column:1/-1}}
 </style>
 </head>
@@ -40,6 +46,9 @@ textarea{width:100%;height:150px;background:#090b0f;color:#fff;border:1px solid 
 <div class="r"><b>🥷 Mafia</b><div class="st"><button id="mminus">−</button><span class="n" id="mafia">2</span><button id="mplus">+</button></div></div>
 <div class="r"><b>🧑‍⚕️ Doctor</b><div class="st"><button id="dminus">−</button><span class="n" id="doctor">1</span><button id="dplus">+</button></div></div>
 <div class="r"><b>🕵️‍♀️ Detective</b><div class="st"><button id="tminus">−</button><span class="n" id="detective">1</span><button id="tplus">+</button></div></div>
+<div class="modeRow"><div><b>🥷 Mafia turns</b><div class="small">Together or separate turns</div></div><button id="separateToggle" class="toggle">TOGETHER</button></div>
+<div class="modeRow"><div><b>🎯 Mafia assignment</b><div class="small">Random or choose exactly who</div></div><button id="manualToggle" class="toggle">RANDOM</button></div>
+<div id="manualBox" class="manualBox hide"><b>Choose Mafia players</b><div id="manualMafia"></div></div>
 <p class="small">Players</p>
 <textarea id="names">Dad
 Mom
@@ -69,7 +78,7 @@ Malachi</textarea>
 <script>
 (()=>{
 const $=x=>document.getElementById(x);
-const S={p:6,r:{mafia:2,doctor:1,detective:1},names:[],deck:[],i:0,alive:[],round:1,v:[],mafiaTargets:[],doctorSaves:[],nightQueue:[],q:0};
+const S={p:6,r:{mafia:2,doctor:1,detective:1},names:[],deck:[],i:0,alive:[],round:1,v:[],mafiaTargets:[],doctorSaves:[],nightQueue:[],q:0,separateMafia:false,manualMafia:false,manualChoices:[]};
 const I={
  mafia:['🥷','MAFIA','At night, choose one person to eliminate.'],
  doctor:['🧑‍⚕️','DOCTOR','At night, choose one person to save.'],
@@ -77,13 +86,31 @@ const I={
  villager:['🧑','VILLAGER','Help the town find the Mafia.']
 };
 
-function upd(){$('pc').textContent=S.p;$('mafia').textContent=S.r.mafia;$('doctor').textContent=S.r.doctor;$('detective').textContent=S.r.detective}
-function role(k,d){let min=k==='mafia'?1:0;S.r[k]=Math.max(min,Math.min(S.p,S.r[k]+d));upd()}
+function currentNames(){let a=$('names').value.split(/\n/).map(x=>x.trim()).filter(Boolean);while(a.length<S.p)a.push('Player '+(a.length+1));return a.slice(0,S.p)}
+function renderManual(){
+ const box=$('manualBox'),wrap=$('manualMafia');
+ box.classList.toggle('hide',!S.manualMafia);wrap.innerHTML='';
+ if(!S.manualMafia)return;
+ const ns=currentNames();
+ for(let j=0;j<S.r.mafia;j++){
+   const lab=document.createElement('label');lab.textContent=S.r.mafia>1?'Mafia #'+(j+1):'Mafia';
+   const sel=document.createElement('select');sel.dataset.mi=j;
+   const blank=document.createElement('option');blank.value='';blank.textContent='Choose player';sel.appendChild(blank);
+   ns.forEach((n,i)=>{const o=document.createElement('option');o.value=i;o.textContent=n;if(String(S.manualChoices[j])===String(i))o.selected=true;sel.appendChild(o)});
+   sel.onchange=()=>{S.manualChoices[j]=sel.value===''?null:Number(sel.value)};
+   wrap.appendChild(lab);wrap.appendChild(sel);
+ }
+}
+function upd(){$('pc').textContent=S.p;$('mafia').textContent=S.r.mafia;$('doctor').textContent=S.r.doctor;$('detective').textContent=S.r.detective;renderManual()}
+function role(k,d){let min=k==='mafia'?1:0;S.r[k]=Math.max(min,Math.min(S.p,S.r[k]+d));if(k==='mafia')S.manualChoices=S.manualChoices.slice(0,S.r.mafia);upd()}
 $('pminus').onclick=()=>{S.p=Math.max(5,S.p-1);upd()};
 $('pplus').onclick=()=>{S.p=Math.min(24,S.p+1);upd()};
 $('mminus').onclick=()=>role('mafia',-1);$('mplus').onclick=()=>role('mafia',1);
 $('dminus').onclick=()=>role('doctor',-1);$('dplus').onclick=()=>role('doctor',1);
 $('tminus').onclick=()=>role('detective',-1);$('tplus').onclick=()=>role('detective',1);
+$('separateToggle').onclick=()=>{S.separateMafia=!S.separateMafia;$('separateToggle').textContent=S.separateMafia?'SEPARATE':'TOGETHER';$('separateToggle').classList.toggle('on',S.separateMafia)};
+$('manualToggle').onclick=()=>{S.manualMafia=!S.manualMafia;$('manualToggle').textContent=S.manualMafia?'CHOOSE':'RANDOM';$('manualToggle').classList.toggle('on',S.manualMafia);renderManual()};
+$('names').addEventListener('input',renderManual);
 
 let ac,nightTimer=null,dayTimer=null;
 function audio(){if(!ac)ac=new(window.AudioContext||window.webkitAudioContext)();if(ac.state==='suspended')ac.resume()}
@@ -104,20 +131,45 @@ function seq(a,c){let i=0;(function n(){if(i>=a.length)return c&&c();let z=a[i++
 
 $('test').onclick=()=>{audio();say('All right, everybody. Go to bed.',()=>{startCrickets();setTimeout(()=>{stopNight();say('All right, everybody, wake up.',()=>{rooster();setTimeout(()=>say('Good morning.',()=>startBirds()),900)})},1700)})};
 
-function names(){let a=$('names').value.split(/\n/).map(x=>x.trim()).filter(Boolean);while(a.length<S.p)a.push('Player '+(a.length+1));return a.slice(0,S.p)}
+function names(){return currentNames()}
 function sh(a){for(let i=a.length-1;i;i--){let j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}}
 
 $('deal').onclick=()=>{
  audio();stopNight();stopDay();
  let q=S.r.mafia+S.r.doctor+S.r.detective;if(q>S.p)return alert('Too many special roles for this number of players.');
- S.names=names();S.deck=[];
- for(let k in S.r)for(let i=0;i<S.r[k];i++)S.deck.push(k);
- while(S.deck.length<S.p)S.deck.push('villager');
- sh(S.deck);S.alive=S.names.map(()=>1);S.i=0;S.round=1;rd();
+ S.names=names();S.deck=Array(S.p).fill('villager');
+ if(S.manualMafia){
+   const chosen=S.manualChoices.slice(0,S.r.mafia);
+   if(chosen.length!==S.r.mafia||chosen.some(x=>x===null||x===undefined))return alert('Choose every Mafia player first.');
+   if(new Set(chosen).size!==chosen.length)return alert('Each Mafia must be a different player.');
+   chosen.forEach(i=>S.deck[i]='mafia');
+   let open=S.names.map((_,i)=>i).filter(i=>S.deck[i]==='villager');sh(open);
+   for(let i=0;i<S.r.doctor;i++){if(!open.length)return alert('Too many special roles.');S.deck[open.pop()]='doctor'}
+   for(let i=0;i<S.r.detective;i++){if(!open.length)return alert('Too many special roles.');S.deck[open.pop()]='detective'}
+ }else{
+   let roles=[];
+   for(let i=0;i<S.r.mafia;i++)roles.push('mafia');
+   for(let i=0;i<S.r.doctor;i++)roles.push('doctor');
+   for(let i=0;i<S.r.detective;i++)roles.push('detective');
+   while(roles.length<S.p)roles.push('villager');
+   sh(roles);S.deck=roles;
+ }
+ S.alive=S.names.map(()=>1);S.i=0;S.round=1;rd();
  $('setup').classList.add('hide');$('dealScreen').classList.remove('hide')
 };
+function roleNumberForPlayer(index,role){
+ const inds=S.deck.map((r,i)=>r===role?i:-1).filter(i=>i>=0);
+ return inds.indexOf(index)+1;
+}
+function roleDisplay(index){
+ const role=S.deck[index],x=I[role],count=S.deck.filter(r=>r===role).length;
+ let name=x[1];
+ if(role==='mafia'&&S.separateMafia&&count>1)name+=' #'+roleNumberForPlayer(index,role);
+ else if((role==='doctor'||role==='detective')&&count>1)name+=' #'+roleNumberForPlayer(index,role);
+ return [x[0],name,x[2]];
+}
 function rd(){$('who').textContent=S.names[S.i];$('cover').classList.remove('hide');$('role').classList.add('hide')}
-$('reveal').onclick=()=>{audio();let x=I[S.deck[S.i]];$('rolePic').textContent=x[0];$('roleName').textContent=x[1];$('roleDesc').textContent=x[2];$('cover').classList.add('hide');$('role').classList.remove('hide');$('pass').textContent=S.i===S.p-1?'Start Game':'Hide & pass phone'};
+$('reveal').onclick=()=>{audio();let x=roleDisplay(S.i);$('rolePic').textContent=x[0];$('roleName').textContent=x[1];$('roleDesc').textContent=x[2];$('cover').classList.add('hide');$('role').classList.remove('hide');$('pass').textContent=S.i===S.p-1?'Start Game':'Hide & pass phone'};
 $('pass').onclick=()=>{audio();if(++S.i>=S.p)startRound();else rd()};
 
 function wait(){$('grid').classList.add('hide');$('orb').classList.remove('hide')}
@@ -132,9 +184,13 @@ function livingRoleCount(role){return S.names.filter((_,i)=>S.alive[i]&&S.deck[i
 
 function makeNightQueue(){
  S.nightQueue=[];
- for(let i=1;i<=livingRoleCount('mafia');i++)S.nightQueue.push({role:'mafia',num:i});
- for(let i=1;i<=livingRoleCount('doctor');i++)S.nightQueue.push({role:'doctor',num:i});
- for(let i=1;i<=livingRoleCount('detective');i++)S.nightQueue.push({role:'detective',num:i});
+ const mc=livingRoleCount('mafia');
+ if(mc>0){
+   if(S.separateMafia&&mc>1){for(let i=1;i<=mc;i++)S.nightQueue.push({role:'mafia',num:i,count:mc})}
+   else S.nightQueue.push({role:'mafia',num:null,count:mc,together:true});
+ }
+ const dc=livingRoleCount('doctor');for(let i=1;i<=dc;i++)S.nightQueue.push({role:'doctor',num:dc>1?i:null,count:dc});
+ const tc=livingRoleCount('detective');for(let i=1;i<=tc;i++)S.nightQueue.push({role:'detective',num:tc>1?i:null,count:tc});
  S.q=0;
 }
 
@@ -144,34 +200,35 @@ function startRound(){
  seq(['Round '+S.round+'.',150,'All right, everybody. Go to bed.'],()=>{startCrickets();setTimeout(()=>say('Close your eyes.',()=>setTimeout(nextNightTurn,350)),180)})
 }
 
+function turnName(turn){
+ let label=turn.role.charAt(0).toUpperCase()+turn.role.slice(1);
+ return turn.num?label+' number '+turn.num:label;
+}
 function nextNightTurn(){
  if(S.q>=S.nightQueue.length)return sunrise();
- let turn=S.nightQueue[S.q];
- let label=turn.role.charAt(0).toUpperCase()+turn.role.slice(1);
- wait();
- say(label+' number '+turn.num+', open your eyes.',()=>setTimeout(()=>{
+ let turn=S.nightQueue[S.q],label=turnName(turn);wait();
+ say(label+', open your eyes.',()=>setTimeout(()=>{
    if(turn.role==='mafia'){
-     say('Who do you want to eliminate?',()=>picks(i=>{
+     say(turn.together&&turn.count>1?'All Mafia decide together. Who do you want to eliminate?':'Who do you want to eliminate?',()=>picks(i=>{
        S.mafiaTargets.push(i);wait();
-       say('Mafia number '+turn.num+', close your eyes.',()=>{S.q++;setTimeout(nextNightTurn,300)})
+       say(label+', close your eyes.',()=>{S.q++;setTimeout(nextNightTurn,300)})
      }))
    }else if(turn.role==='doctor'){
      say('Who do you want to save?',()=>picks(i=>{
        S.doctorSaves.push(i);wait();
-       say('Doctor number '+turn.num+', close your eyes.',()=>{S.q++;setTimeout(nextNightTurn,300)})
+       say(label+', close your eyes.',()=>{S.q++;setTimeout(nextNightTurn,300)})
      }))
    }else{
      say('Who do you want to investigate?',()=>picks(i=>{
        wait();let yes=S.deck[i]==='mafia';
        flash(yes?'YES':'NO',yes?'That person is the Mafia.':'That person is not the Mafia.');
        say(yes?'Yes. That person is the Mafia.':'No. That person is not the Mafia.',()=>setTimeout(()=>{
-         unflash();say('Detective number '+turn.num+', close your eyes.',()=>{S.q++;setTimeout(nextNightTurn,300)})
+         unflash();say(label+', close your eyes.',()=>{S.q++;setTimeout(nextNightTurn,300)})
        },650))
      }))
    }
  },180))
 }
-
 function sunrise(){
  wait();stopNight();
  let uniq=[...new Set(S.mafiaTargets)];
@@ -211,7 +268,7 @@ function unflash(){$('flash').classList.add('hide')}
 $('playAgain').onclick=()=>{stopNight();stopDay();speechSynthesis.cancel();$('flash').classList.add('hide');$('table').classList.add('hide');$('dealScreen').classList.add('hide');$('setup').classList.remove('hide');S.round=1;};
 $('backSetup').onclick=()=>{stopNight();stopDay();speechSynthesis.cancel();$('flash').classList.add('hide');$('table').classList.add('hide');$('dealScreen').classList.add('hide');$('setup').classList.remove('hide');S.round=1;};
 $('exit').onclick=()=>{stopNight();stopDay();speechSynthesis.cancel();$('table').classList.add('hide');$('dealScreen').classList.add('hide');$('flash').classList.add('hide');$('setup').classList.remove('hide');S.round=1;};
-upd();
+upd();renderManual();
 })();
 </script>
 </body>
