@@ -1,0 +1,12 @@
+{
+  "name": "Calculator",
+  "short_name": "Calculator",
+  "start_url": "./calculator-v40.html",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#000000",
+  "theme_color": "#000000",
+  "icons": [
+    { "src": "./calculator/icon-v36.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }
+  ]
+}
