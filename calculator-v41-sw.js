@@ -1,5 +1,5 @@
-const CACHE='calculator-v40-stable-1';
-const ENTRY='./calculator-v40.html';
+const CACHE='calculator-v41-stable-1';
+const ENTRY='./calculator-v41.html';
 self.addEventListener('install',event=>event.waitUntil(caches.open(CACHE).then(cache=>cache.add(ENTRY)).then(()=>self.skipWaiting())));
 self.addEventListener('activate',event=>event.waitUntil(self.clients.claim()));
 self.addEventListener('fetch',event=>{
