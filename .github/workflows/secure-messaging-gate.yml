@@ -1,0 +1,47 @@
+name: Secure messaging security gate
+
+on:
+  pull_request:
+    paths:
+      - 'calculator/**'
+      - 'supabase/migrations/**'
+      - 'supabase/functions/**'
+      - 'android/**'
+      - 'docs/secure-messaging-*.md'
+      - '.github/workflows/secure-messaging-gate.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  security-contract:
+    name: Security contract
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Confirm secure messaging design assets exist
+        run: |
+          test -f docs/secure-messaging-foundation.md
+          test -f docs/secure-messaging-delivery-plan.md
+          test -f supabase/migrations/20260825012000_secure_messaging_foundation.sql
+      - name: Reject plaintext storage fields in secure-message schema
+        run: |
+          ! rg -n --ignore-case 'message_text|plaintext|private_key|recovery_phrase' \
+            supabase/migrations/20260825012000_secure_messaging_foundation.sql
+      - name: Require explicit release warning until audit is complete
+        run: rg -n 'not released|not.*end-to-end encryption claim' docs/secure-messaging-foundation.md
+
+  android-build:
+    name: Android release build
+    if: ${{ hashFiles('android/gradlew') != '' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - name: Build release candidate
+        working-directory: android
+        run: ./gradlew --no-daemon test lint assembleRelease
