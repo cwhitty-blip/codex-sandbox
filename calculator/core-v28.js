@@ -28,14 +28,9 @@ function pressKey(button){
  else if(expr.length<30)expr+=value;
  disp.textContent=expr||'0';
 }
-// Bind to the keys themselves.  The rest of the phone uses delegated, capture
-// phase gesture handlers, so a bubble-only listener here can be skipped on iOS.
-// pointerup is the primary mobile path; click remains the keyboard/mouse fallback.
-let lastPointerKey=null,lastPointerAt=0;
-calc.querySelectorAll('.key').forEach(button=>{
- button.addEventListener('pointerup',event=>{lastPointerKey=button;lastPointerAt=Date.now();event.preventDefault();pressKey(button)});
- button.addEventListener('click',()=>{if(lastPointerKey===button&&Date.now()-lastPointerAt<500)return;pressKey(button)});
-});
+// Keep calculator input independent from the phone's delegated event handlers.
+// Native button clicks are the most reliable common path on Safari and iOS.
+calc.querySelectorAll('.key').forEach(button=>button.addEventListener('click',()=>pressKey(button)));
 function icon(d,fn){const b=document.createElement('button');b.className='phone-app';b.type='button';b.innerHTML=`<span class="phone-icon ${d.cls}">${d.icon}</span><span class="phone-label"></span>`;b.querySelector('.phone-label').textContent=d.name;b.onclick=fn;return b}
 function shell(title){app.innerHTML='';const p=document.createElement('div');p.className='page';const h=document.createElement('div');h.className='head';const b=document.createElement('button');b.className='back';b.textContent='‹ Home';b.onclick=()=>show(home);const t=document.createElement('h2');t.textContent=title;h.append(b,t);p.append(h);app.append(p);show(app);return p}
 function project(d){const u=d.url||window.CalculatorProjectLinks?.[d.id]||localStorage.getItem('project-url-'+d.id);if(u){location.href=u;return}const p=shell(d.name),c=document.createElement('div');c.className='card';c.textContent='This app link has not been connected yet.';p.append(c)}
