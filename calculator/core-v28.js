@@ -18,7 +18,24 @@ function toast(t){if(!toastEl)return;toastEl.textContent=t;toastEl.classList.add
 function lock(){expr='';disp.textContent='0';document.getElementById('calcCallOverlay')?.remove();show(calc)}
 function unlock(){if(expr!==(localStorage.getItem('main-code')||'5963'))return false;expr='';disp.textContent='0';show(home);window.dispatchEvent(new CustomEvent('calculator-private-home'));return true}
 function evaluate(){try{const s=expr.replace(/−/g,'-').replace(/×/g,'*').replace(/÷/g,'/').replace(/%/g,'/100');if(!/^[0-9+\-*/.() ]+$/.test(s))throw 0;const n=Function('"use strict";return ('+s+')')();if(!Number.isFinite(n))throw 0;expr=String(Math.round(n*1e10)/1e10);disp.textContent=expr}catch{expr='';disp.textContent='Error'}}
-calc.addEventListener('click',e=>{const b=e.target.closest('.key');if(!b)return;if(b.dataset.a==='clear'){expr='';disp.textContent='0';return}if((b.dataset.a==='eq'||b.dataset.v==='+')&&unlock()){e.preventDefault();return}if(b.dataset.a==='eq'){evaluate();return}const v=b.dataset.v;if(v==='+/-'){if(expr)expr=expr.startsWith('−')?expr.slice(1):'−'+expr}else if(expr.length<30)expr+=v;disp.textContent=expr||'0'});
+function pressKey(button){
+ if(!button)return;
+ if(button.dataset.a==='clear'){expr='';disp.textContent='0';return}
+ if((button.dataset.a==='eq'||button.dataset.v==='+')&&unlock())return;
+ if(button.dataset.a==='eq'){evaluate();return}
+ const value=button.dataset.v;
+ if(value==='+/-'){if(expr)expr=expr.startsWith('−')?expr.slice(1):'−'+expr}
+ else if(expr.length<30)expr+=value;
+ disp.textContent=expr||'0';
+}
+// Bind to the keys themselves.  The rest of the phone uses delegated, capture
+// phase gesture handlers, so a bubble-only listener here can be skipped on iOS.
+// pointerup is the primary mobile path; click remains the keyboard/mouse fallback.
+let lastPointerKey=null,lastPointerAt=0;
+calc.querySelectorAll('.key').forEach(button=>{
+ button.addEventListener('pointerup',event=>{lastPointerKey=button;lastPointerAt=Date.now();event.preventDefault();pressKey(button)});
+ button.addEventListener('click',()=>{if(lastPointerKey===button&&Date.now()-lastPointerAt<500)return;pressKey(button)});
+});
 function icon(d,fn){const b=document.createElement('button');b.className='phone-app';b.type='button';b.innerHTML=`<span class="phone-icon ${d.cls}">${d.icon}</span><span class="phone-label"></span>`;b.querySelector('.phone-label').textContent=d.name;b.onclick=fn;return b}
 function shell(title){app.innerHTML='';const p=document.createElement('div');p.className='page';const h=document.createElement('div');h.className='head';const b=document.createElement('button');b.className='back';b.textContent='‹ Home';b.onclick=()=>show(home);const t=document.createElement('h2');t.textContent=title;h.append(b,t);p.append(h);app.append(p);show(app);return p}
 function project(d){const u=d.url||window.CalculatorProjectLinks?.[d.id]||localStorage.getItem('project-url-'+d.id);if(u){location.href=u;return}const p=shell(d.name),c=document.createElement('div');c.className='card';c.textContent='This app link has not been connected yet.';p.append(c)}
