@@ -4,6 +4,8 @@ on:
     branches: [main]
     paths:
       - 'calculator/**'
+      - 'calculator-v*.html'
+      - 'calculator-v*.webmanifest'
       - '.github/scripts/calculator-call-test.mjs'
       - '.github/workflows/calculator-call-fast.yml'
   workflow_dispatch:

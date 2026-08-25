@@ -28,9 +28,13 @@ function pressKey(button){
  else if(expr.length<30)expr+=value;
  disp.textContent=expr||'0';
 }
-// Keep calculator input independent from the phone's delegated event handlers.
-// Native button clicks are the most reliable common path on Safari and iOS.
-calc.querySelectorAll('.key').forEach(button=>button.addEventListener('click',()=>pressKey(button)));
+// Bind directly to each calculator key. Touch devices receive pointerup first;
+// the following synthetic click is ignored so a touch can never enter twice.
+let lastPointerButton=null,lastPointerTime=0;
+calc.querySelectorAll('.key').forEach(button=>{
+ button.addEventListener('pointerup',()=>{lastPointerButton=button;lastPointerTime=Date.now();pressKey(button)});
+ button.addEventListener('click',()=>{if(lastPointerButton===button&&Date.now()-lastPointerTime<750)return;pressKey(button)});
+});
 function icon(d,fn){const b=document.createElement('button');b.className='phone-app';b.type='button';b.innerHTML=`<span class="phone-icon ${d.cls}">${d.icon}</span><span class="phone-label"></span>`;b.querySelector('.phone-label').textContent=d.name;b.onclick=fn;return b}
 function shell(title){app.innerHTML='';const p=document.createElement('div');p.className='page';const h=document.createElement('div');h.className='head';const b=document.createElement('button');b.className='back';b.textContent='‹ Home';b.onclick=()=>show(home);const t=document.createElement('h2');t.textContent=title;h.append(b,t);p.append(h);app.append(p);show(app);return p}
 function project(d){const u=d.url||window.CalculatorProjectLinks?.[d.id]||localStorage.getItem('project-url-'+d.id);if(u){location.href=u;return}const p=shell(d.name),c=document.createElement('div');c.className='card';c.textContent='This app link has not been connected yet.';p.append(c)}

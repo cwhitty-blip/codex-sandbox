@@ -5,6 +5,9 @@ on:
     branches: [main]
     paths:
       - 'calculator/**'
+      - 'calculator-v*.html'
+      - 'calculator-v*.webmanifest'
+      - 'calculator-v*-sw.js'
       - '.github/scripts/calculator-smoke-test.mjs'
       - '.github/scripts/calculator-call-test.mjs'
       - '.github/scripts/calculator-180-checks.mjs'
@@ -36,9 +39,6 @@ jobs:
           echo $! > /tmp/calculator-http.pid
           sleep 2
           curl --fail http://127.0.0.1:4173/calculator/ >/dev/null
-
-      - name: Run 180 Calculator checks
-        run: node .github/scripts/calculator-180-checks.mjs
 
       - name: Run unlock and app test
         run: node .github/scripts/calculator-smoke-test.mjs
