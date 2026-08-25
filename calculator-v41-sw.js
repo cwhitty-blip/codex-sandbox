@@ -1,11 +1,12 @@
-const CACHE='calculator-v41-stable-1';
-const ENTRY='./calculator-v41.html';
-self.addEventListener('install',event=>event.waitUntil(caches.open(CACHE).then(cache=>cache.add(ENTRY)).then(()=>self.skipWaiting())));
-self.addEventListener('activate',event=>event.waitUntil(self.clients.claim()));
+// Recovery worker for Calculator v41 installs.  It removes the cache-first
+// worker that trapped clients on stale HTML, then relinquishes control.
+self.addEventListener('install',event=>event.waitUntil(self.skipWaiting()));
+self.addEventListener('activate',event=>event.waitUntil((async()=>{
+ const names=await caches.keys();
+ await Promise.all(names.filter(name=>name.startsWith('calculator-v41')).map(name=>caches.delete(name)));
+ await self.clients.claim();
+ await self.registration.unregister();
+})()));
 self.addEventListener('fetch',event=>{
- if(event.request.method!=='GET'||new URL(event.request.url).origin!==self.location.origin)return;
- event.respondWith(caches.match(event.request).then(cached=>cached||fetch(event.request).then(response=>{
-   if(response.ok)caches.open(CACHE).then(cache=>cache.put(event.request,response.clone()));
-   return response;
- }))); 
+ if(event.request.method==='GET'&&new URL(event.request.url).origin===self.location.origin)event.respondWith(fetch(event.request));
 });
