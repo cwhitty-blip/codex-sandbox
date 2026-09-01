@@ -1,0 +1,44 @@
+(()=>{
+const $=s=>document.querySelector(s);
+const home=$('#home'),app=$('#app'),calc=$('#calc'),disp=$('#disp');
+if(!home||!app||!calc||!disp)return;
+const X_URL='https://brainrot-movie-maker.cwhit.chatgpt.site';
+const DEEPSCOPE_URL='https://deepscope-research.cwhit.chatgpt.site';
+function codeHash(s){let h=2166136261>>>0;for(let i=0;i<s.length;i++){h^=s.charCodeAt(i);h=Math.imul(h,16777619)>>>0}return h.toString(16).padStart(8,'0')}
+function show(el){document.querySelectorAll('.screen').forEach(x=>x.classList.remove('active'));el.classList.add('active')}
+function backHome(){show(home);ensureHomeExtras()}
+function page(title){app.innerHTML='';const p=document.createElement('div');p.className='page';const h=document.createElement('div');h.className='head';const b=document.createElement('button');b.className='back';b.textContent='‹ Home';b.onclick=backHome;const t=document.createElement('h2');t.textContent=title;h.append(b,t);p.append(h);app.append(p);show(app);return p}
+function toast(m){let t=$('#toast');if(!t)return;t.textContent=m;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),1200)}
+function iconButton(name,emoji,cls,fn){const b=document.createElement('button');b.className='appbtn upgrade-app';b.dataset.upgrade=name;b.innerHTML=`<span class="ico ${cls||'space'}">${emoji}</span><span class="nm"></span>`;b.querySelector('.nm').textContent=name;b.onclick=fn;return b}
+function getCustom(){try{const v=JSON.parse(localStorage.getItem('custom-mini-apps')||'[]');return Array.isArray(v)?v:[]}catch{return[]}}
+function setCustom(v){localStorage.setItem('custom-mini-apps',JSON.stringify(v))}
+function openX(){const w=window.open(X_URL,'_blank');if(w)w.opener=null;else window.location.assign(X_URL)}
+function openDeepScope(){const w=window.open(DEEPSCOPE_URL,'_blank');if(w)w.opener=null;else window.location.assign(DEEPSCOPE_URL)}
+function ensureHomeExtras(){const g=$('#grid');if(!g)return;if(!g.querySelector('[data-upgrade="X"]'))g.append(iconButton('X','X','xapp',openX));if(!g.querySelector('[data-upgrade="DeepScope"]'))g.append(iconButton('DeepScope','⌕','scope',openDeepScope));if(!g.querySelector('[data-upgrade="App Maker"]'))g.append(iconButton('App Maker','＋','store',openMaker));if(!g.querySelector('[data-upgrade="Settings"]'))g.append(iconButton('Settings','⚙','space',openSettings));for(const a of getCustom()){if(!g.querySelector(`[data-custom-id="${CSS.escape(a.id)}"]`)){const b=iconButton(a.name,a.icon||'★',a.cls||'deep',()=>openCustom(a.id));b.dataset.customId=a.id;g.append(b)}}}
+const mo=new MutationObserver(()=>{if(home.classList.contains('active'))queueMicrotask(ensureHomeExtras)});mo.observe($('#grid'),{childList:true});
+const screenMo=new MutationObserver(()=>{if(home.classList.contains('active'))ensureHomeExtras()});screenMo.observe(home,{attributes:true,attributeFilter:['class']});
+function field(label,type='text',value=''){const w=document.createElement('div');w.className='card';const l=document.createElement('label');l.style.display='block';l.style.fontWeight='700';l.style.marginBottom='8px';l.textContent=label;const i=document.createElement(type==='textarea'?'textarea':'input');if(type!=='textarea')i.type=type;i.value=value;i.style.width='100%';i.style.padding='12px';i.style.border='1px solid #ccc';i.style.borderRadius='12px';i.style.background='#fff';i.style.color='#111';if(type==='textarea'){i.style.minHeight='150px';i.style.resize='vertical'}w.append(l,i);return{wrap:w,input:i}}
+function openSettings(){const p=page('Settings');
+ const intro=document.createElement('div');intro.className='card';intro.innerHTML='<strong>Calculator Lock</strong><div class="muted" style="margin-top:6px">Change the secret number you type before pressing =. Use 4–10 digits.</div>';p.append(intro);
+ const f=field('New secret code','password');f.input.inputMode='numeric';f.input.maxLength=10;p.append(f.wrap);
+ const save=document.createElement('button');save.className='primary';save.textContent='Change Secret Code';save.style.marginBottom='12px';save.onclick=()=>{const v=f.input.value.trim();if(!/^\d{4,10}$/.test(v)){toast('Use 4–10 digits');return}localStorage.setItem('custom-main-code-hash-sync',codeHash(v));localStorage.setItem('custom-main-code-set','1');localStorage.removeItem('custom-main-code-hash');f.input.value='';toast('Secret code changed')};p.append(save);
+ const resetMain=document.createElement('button');resetMain.className='reset';resetMain.textContent='Use 5963 Again';resetMain.onclick=()=>{localStorage.removeItem('custom-main-code-hash-sync');localStorage.removeItem('custom-main-code-set');toast('5963 restored')};p.append(resetMain);
+ const reset=document.createElement('div');reset.className='card';reset.innerHTML='<strong>Deeper Space PINs</strong><div class="muted" style="margin:6px 0 12px">You can reset the Second Space and Deep Space PINs here. Their saved content stays on the phone.</div>';
+ const r2=document.createElement('button');r2.className='smallbtn';r2.textContent='Reset Second PIN';r2.onclick=()=>{localStorage.removeItem('second-pin-hash');toast('Second PIN reset')};const r3=document.createElement('button');r3.className='smallbtn';r3.style.marginLeft='8px';r3.textContent='Reset Deep PIN';r3.onclick=()=>{localStorage.removeItem('deep-pin-hash');toast('Deep PIN reset')};reset.append(r2,r3);p.append(reset);
+ const note=document.createElement('div');note.className='card muted';note.textContent='For better privacy, choose a code longer than four digits. This is still a web app stored on your device, not a replacement for iPhone security.';p.append(note)
+}
+function openMaker(editId=null){const apps=getCustom(),old=apps.find(x=>x.id===editId);const p=page(old?'Edit App':'App Maker');
+ const n=field('App name','text',old?.name||'');const i=field('Icon (emoji)','text',old?.icon||'⭐');const body=field('What should the app show?','textarea',old?.body||'');const link=field('Optional website link','url',old?.link||'');p.append(n.wrap,i.wrap,body.wrap,link.wrap);
+ const save=document.createElement('button');save.className='primary';save.textContent=old?'Save Changes':'Create App';save.onclick=()=>{const name=n.input.value.trim();if(!name){toast('Give the app a name');return}const next={id:old?.id||crypto.randomUUID(),name:name.slice(0,22),icon:(i.input.value.trim()||'⭐').slice(0,4),body:body.input.value.slice(0,8000),link:link.input.value.trim().slice(0,500),cls:old?.cls||'deep'};let arr=getCustom();arr=old?arr.map(x=>x.id===old.id?next:x):[...arr,next];setCustom(arr);toast('App saved');setTimeout(backHome,250)};p.append(save);
+ if(old){const del=document.createElement('button');del.className='reset';del.textContent='Delete App';del.style.background='#d33';del.onclick=()=>{setCustom(getCustom().filter(x=>x.id!==old.id));toast('App deleted');setTimeout(backHome,250)};p.append(del)}
+ const tip=document.createElement('div');tip.className='card muted';tip.textContent='This makes a simple private mini-app with its own icon, text, and optional link. We can keep adding more powerful app types later.';p.append(tip)
+}
+function openCustom(id){const a=getCustom().find(x=>x.id===id);if(!a)return backHome();const p=page(a.name);const c=document.createElement('div');c.className='card';const title=document.createElement('div');title.style.fontSize='44px';title.style.marginBottom='10px';title.textContent=a.icon||'⭐';const txt=document.createElement('div');txt.style.whiteSpace='pre-wrap';txt.style.fontSize='17px';txt.style.lineHeight='1.45';txt.textContent=a.body||'';c.append(title,txt);p.append(c);if(a.link){const b=document.createElement('button');b.className='primary';b.textContent='Open Link';b.onclick=()=>window.open(a.link,'_blank');p.append(b)}const edit=document.createElement('button');edit.className='reset';edit.textContent='Edit App';edit.onclick=()=>openMaker(a.id);p.append(edit)}
+let tapped='';let bypass=false;
+calc.addEventListener('click',e=>{if(bypass)return;const b=e.target.closest('.key');if(!b)return;if(b.dataset.a==='clear'){tapped='';return}if(b.dataset.v&&/^\d$/.test(b.dataset.v)){if(tapped.length<10)tapped+=b.dataset.v;return}if(b.dataset.v){tapped='';return}if(b.dataset.a==='eq'&&localStorage.getItem('custom-main-code-set')==='1'){
+ const custom=localStorage.getItem('custom-main-code-hash-sync');const entered=tapped;tapped='';if(custom&&codeHash(entered)===custom){e.preventDefault();e.stopImmediatePropagation();bypass=true;const buttons=[...calc.querySelectorAll('.key')];const clickVal=v=>buttons.find(x=>x.dataset.v===v)?.click();buttons.find(x=>x.dataset.a==='clear')?.click();for(const d of ['5','9','6','3'])clickVal(d);buttons.find(x=>x.dataset.a==='eq')?.click();setTimeout(()=>{bypass=false;ensureHomeExtras()},100);return}
+ if(entered==='5963'){e.preventDefault();e.stopImmediatePropagation();disp.textContent='5963';return}
+ }
+},true);
+ensureHomeExtras();
+})();

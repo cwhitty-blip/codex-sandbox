@@ -5,5 +5,8 @@
   "description": "Standalone service-business customer job portal prototype.",
   "scripts": {
     "check": "node --check assets/app.js && node scripts/static-smoke.mjs"
+  },
+  "devDependencies": {
+    "supabase": "2.115.0"
   }
 }

@@ -1,0 +1,7 @@
+(()=>{
+if(!window.__calculatorStandalone)return;
+function clean(s){return String(s||'').replace(/\D/g,'').slice(0,10)}
+function format(s){const d=clean(s);if(d.length<=3)return d;if(d.length<=6)return d.slice(0,3)+'-'+d.slice(3);return d.slice(0,3)+'-'+d.slice(3,6)+'-'+d.slice(6)}
+function repair(){const page=document.querySelector('#app .phone-app-page'),pad=page?.querySelector('.dialpad'),display=page?.querySelector('.dial-number');if(!pad||!display||pad.children.length)return;const letters={2:'ABC',3:'DEF',4:'GHI',5:'JKL',6:'MNO',7:'PQRS',8:'TUV',9:'WXYZ'};'123456789*0#'.split('').forEach(k=>{const b=document.createElement('button');b.type='button';b.className='dial-key';const main=document.createElement('span');main.className='dial-key-number';main.textContent=k;b.append(main);if(letters[k]){const sub=document.createElement('small');sub.textContent=letters[k];b.append(sub)}b.onclick=()=>{if(k==='*'||k==='#')return;display.textContent=format(display.textContent+k)};pad.append(b)})}
+const app=document.getElementById('app');if(!app)return;new MutationObserver(repair).observe(app,{childList:true,subtree:true});document.addEventListener('click',e=>{if(e.target.closest?.('.calculator-phone-launch'))setTimeout(repair,0)},true);repair();
+})();

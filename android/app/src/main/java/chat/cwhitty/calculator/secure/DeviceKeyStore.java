@@ -1,5 +1,6 @@
 package chat.cwhitty.calculator.secure;
 
+import android.os.Build;
 import android.security.keystore.KeyGenParameterSpec;
 import android.security.keystore.KeyProperties;
 import java.security.KeyStore;
@@ -16,14 +17,18 @@ final class DeviceKeyStore {
     keyStore.load(null);
     if (keyStore.containsAlias(ALIAS)) return ((KeyStore.SecretKeyEntry) keyStore.getEntry(ALIAS, null)).getSecretKey();
     KeyGenerator generator = KeyGenerator.getInstance(KeyProperties.KEY_ALGORITHM_AES, STORE);
-    generator.init(new KeyGenParameterSpec.Builder(ALIAS, KeyProperties.PURPOSE_ENCRYPT | KeyProperties.PURPOSE_DECRYPT)
+    KeyGenParameterSpec.Builder parameters = new KeyGenParameterSpec.Builder(ALIAS, KeyProperties.PURPOSE_ENCRYPT | KeyProperties.PURPOSE_DECRYPT)
       .setBlockModes(KeyProperties.BLOCK_MODE_GCM)
       .setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_NONE)
       .setKeySize(256)
       .setUserAuthenticationRequired(true)
-      .setUserAuthenticationParameters(30, KeyProperties.AUTH_BIOMETRIC_STRONG | KeyProperties.AUTH_DEVICE_CREDENTIAL)
-      .setRandomizedEncryptionRequired(true)
-      .build());
+      .setRandomizedEncryptionRequired(true);
+    if (Build.VERSION.SDK_INT >= 30) {
+      parameters.setUserAuthenticationParameters(30, KeyProperties.AUTH_BIOMETRIC_STRONG | KeyProperties.AUTH_DEVICE_CREDENTIAL);
+    } else {
+      parameters.setUserAuthenticationValidityDurationSeconds(30);
+    }
+    generator.init(parameters.build());
     return generator.generateKey();
   }
 }

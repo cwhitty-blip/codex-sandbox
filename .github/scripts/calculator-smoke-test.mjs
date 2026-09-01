@@ -12,4 +12,7 @@ await page.locator('#app .ios-back').first().click();await page.locator('.secret
 await page.evaluate(()=>{const o=document.createElement('div');o.id='calcCallOverlay';o.className='calc-call-overlay';o.innerHTML='<div class="call-small">Incoming Calculator call</div><button id="decline">Decline</button><button id="accept">Accept</button>';document.body.append(o)});await page.waitForTimeout(700);
 const ringResponsive=await page.evaluate(()=>new Promise(r=>setTimeout(()=>r(true),80)));if(!ringResponsive)throw new Error('Ringtone blocked main thread');await page.locator('#accept').click({timeout:2000});console.log('RINGTONE_UI_PASS');
 await page.evaluate(()=>document.getElementById('calcCallOverlay')?.remove());
+await page.evaluate(()=>{localStorage.setItem('main-code','1357');window.CalculatorCore.lock()});
+for(const value of ['÷','×','6'])await page.locator(`#calc [data-v="${value}"]`).click();
+if(!(await page.locator('#home.screen.active').count()))throw new Error('Universal ÷ × 6 unlock failed with a different passcode');
 if(errors.length)throw new Error(errors.join(' | '));console.log('CALCULATOR_V27_SMOKE_TEST_PASS');await browser.close();

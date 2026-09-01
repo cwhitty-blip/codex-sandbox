@@ -1,0 +1,7 @@
+Bible app scripture data attribution
+
+The bundled King James Version, American Standard Version, and World English
+Bible scripture texts are public domain in the United States. The normalized
+JSON data was sourced from https://github.com/midvash/bible-data and its
+original source metadata is retained in that repository. The dataset's code
+and structure are distributed under the MIT License.

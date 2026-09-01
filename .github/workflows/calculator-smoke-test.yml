@@ -10,6 +10,9 @@ on:
       - 'calculator-v*-sw.js'
       - '.github/scripts/calculator-smoke-test.mjs'
       - '.github/scripts/calculator-call-test.mjs'
+      - '.github/scripts/calculator-layout-test.mjs'
+      - '.github/scripts/calculator-bible-test.mjs'
+      - '.github/scripts/calculator-account-test.mjs'
       - '.github/scripts/calculator-180-checks.mjs'
       - '.github/workflows/calculator-smoke-test.yml'
   workflow_dispatch:
@@ -42,6 +45,15 @@ jobs:
 
       - name: Run unlock and app test
         run: node .github/scripts/calculator-smoke-test.mjs
+
+      - name: Run Home Screen layout test
+        run: node .github/scripts/calculator-layout-test.mjs
+
+      - name: Run Bible and optional creator apps test
+        run: node .github/scripts/calculator-bible-test.mjs
+
+      - name: Run cross-device account restore test
+        run: node .github/scripts/calculator-account-test.mjs
 
       - name: Run two-phone call test
         run: node .github/scripts/calculator-call-test.mjs

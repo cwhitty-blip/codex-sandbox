@@ -1,0 +1,5 @@
+(()=>{
+const Native=window.RTCPeerConnection;if(!Native||window.__calculatorRTCWrapped)return;window.__calculatorRTCWrapped=true;
+function Wrapped(config={}){const ice=[...(config.iceServers||[]),{urls:'stun:stun.cloudflare.com:3478'},{urls:'stun:stun1.l.google.com:19302'}];const pc=new Native({...config,iceServers:ice});pc.addEventListener('track',e=>{const stream=e.streams?.[0];if(!stream)return;let out=document.getElementById('calculatorRemoteAudio');if(!out){out=document.createElement('audio');out.id='calculatorRemoteAudio';out.autoplay=true;out.playsInline=true;out.style.display='none';document.body.append(out)}out.srcObject=stream;out.play?.().catch(()=>{})});pc.addEventListener('connectionstatechange',()=>{if(['closed','failed'].includes(pc.connectionState)){const a=document.getElementById('calculatorRemoteAudio');if(a){try{a.pause()}catch{}a.srcObject=null;a.remove()}}});return pc}
+Wrapped.prototype=Native.prototype;Object.setPrototypeOf(Wrapped,Native);window.RTCPeerConnection=Wrapped;
+})();
