@@ -23,3 +23,129 @@
   line-height: 1;
   letter-spacing: 1.25px;
 }
+
+.phone-native-page {
+  min-height: 100%;
+  padding-bottom: calc(env(safe-area-inset-bottom) + 78px);
+}
+
+.phone-tab-content {
+  padding: 4px 0 18px;
+}
+
+.phone-tab-bar {
+  position: fixed;
+  z-index: 30;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  min-height: 65px;
+  padding: 7px 8px calc(6px + env(safe-area-inset-bottom));
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  border-top: 1px solid rgba(60, 60, 67, 0.16);
+  background: rgba(248, 248, 250, 0.94);
+  backdrop-filter: blur(24px) saturate(150%);
+}
+
+.phone-tab {
+  min-width: 0;
+  display: grid;
+  justify-items: center;
+  gap: 2px;
+  border: 0;
+  background: transparent;
+  color: #73737a;
+}
+
+.phone-tab b {
+  font-size: 21px;
+  line-height: 1;
+}
+
+.phone-tab small {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: 9px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.phone-tab.active {
+  color: #0a84ff;
+}
+
+.phone-tab-empty {
+  min-height: 350px;
+  padding: 80px 28px 30px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  color: #777780;
+}
+
+.phone-tab-empty span {
+  margin-bottom: 14px;
+  font-size: 52px;
+  color: #a9a9b0;
+}
+
+.phone-tab-empty strong {
+  margin-bottom: 7px;
+  color: #222228;
+  font-size: 22px;
+}
+
+.phone-tab-empty small {
+  max-width: 260px;
+  font-size: 14px;
+  line-height: 1.4;
+}
+
+.phone-native-list {
+  overflow: hidden;
+}
+
+.phone-recent-info {
+  min-width: 0;
+  display: grid;
+  gap: 4px;
+}
+
+.phone-recent-info small {
+  overflow: hidden;
+  color: #777780;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.phone-add-contact {
+  display: block;
+  margin: 4px 0 12px auto;
+  padding: 8px 11px;
+  border: 0;
+  border-radius: 10px;
+  background: #e7f0ff;
+  color: #0969da;
+  font-weight: 800;
+}
+
+.phone-favorite-toggle {
+  width: 38px;
+  height: 38px;
+  border: 0;
+  border-radius: 50%;
+  background: #f2f2f7;
+  color: #a1a1a8;
+  font-size: 20px;
+}
+
+.phone-favorite-toggle.active {
+  color: #ff9f0a;
+}
+
+@media (max-width: 360px) {
+  .phone-tab small { font-size: 8px; }
+}
