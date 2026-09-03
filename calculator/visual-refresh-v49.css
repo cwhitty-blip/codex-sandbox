@@ -6,50 +6,35 @@
 /* Calculator face */
 #calc {
   isolation: isolate;
-  background:
-    radial-gradient(circle at 88% 7%, rgba(255, 151, 48, 0.14), transparent 30%),
-    radial-gradient(circle at 8% 88%, rgba(56, 111, 205, 0.12), transparent 34%),
-    linear-gradient(165deg, #111318 0%, #050609 48%, #000 100%);
+  background: #000;
 }
 
 #calc::before {
-  content: '';
-  position: absolute;
-  z-index: -1;
-  inset: 0;
-  background: linear-gradient(118deg, rgba(255, 255, 255, 0.035), transparent 34%);
-  pointer-events: none;
+  display: none;
 }
 
 #calc .calc-shell {
   position: relative;
-  padding: 10px 8px 8px;
-  border: 1px solid rgba(255, 255, 255, 0.06);
-  border-radius: 34px;
-  background: linear-gradient(155deg, rgba(255, 255, 255, 0.045), rgba(255, 255, 255, 0.012));
-  box-shadow: 0 28px 80px rgba(0, 0, 0, 0.34), inset 0 1px rgba(255, 255, 255, 0.035);
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
 }
 
 #calc .calc-display {
   position: relative;
   margin-bottom: 2px;
-  border-radius: 27px;
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.025), transparent 72%);
+  border-radius: 0;
+  background: transparent;
 }
 
 #calc .calc-display::before {
-  content: 'CALCULATOR';
-  position: absolute;
-  top: 23px;
-  left: 17px;
-  color: rgba(255, 255, 255, 0.34);
-  font-size: 9px;
-  font-weight: 800;
-  letter-spacing: 0.22em;
+  display: none;
 }
 
 #calc .calc-display span {
-  text-shadow: 0 8px 30px rgba(255, 255, 255, 0.08);
+  text-shadow: none;
 }
 
 #calc .key {
@@ -74,35 +59,13 @@
 #calc .key.operator {
   border-color: rgba(255, 213, 150, 0.38);
   background: linear-gradient(145deg, #ffb12c, #f47b08);
-  box-shadow: 0 9px 22px rgba(243, 124, 8, 0.3), inset 0 1px 1px rgba(255, 255, 255, 0.35);
+  box-shadow: 0 8px 15px rgba(0, 0, 0, 0.32), inset 0 1px 1px rgba(255, 255, 255, 0.35);
 }
 
 /* Home Screen glass, icons, and depth */
 #home .phone-shell::before,
 #home .phone-shell::after {
-  content: '';
-  position: absolute;
-  z-index: 0;
-  border-radius: 50%;
-  filter: blur(4px);
-  pointer-events: none;
-}
-
-#home .phone-shell::before {
-  width: 72vw;
-  height: 72vw;
-  top: -28vw;
-  right: -25vw;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  background: rgba(255, 255, 255, 0.025);
-}
-
-#home .phone-shell::after {
-  width: 60vw;
-  height: 60vw;
-  left: -30vw;
-  bottom: 8vh;
-  background: rgba(101, 80, 207, 0.09);
+  display: none;
 }
 
 .phone-status {
@@ -149,9 +112,9 @@
 
 .phone-dock {
   border: 1px solid var(--glass-edge);
-  background: linear-gradient(135deg, rgba(255, 255, 255, 0.3), rgba(255, 255, 255, 0.13));
-  box-shadow: 0 18px 55px rgba(0, 0, 0, 0.3), inset 0 1px 1px rgba(255, 255, 255, 0.25);
-  backdrop-filter: blur(34px) saturate(175%);
+  background: rgba(38, 43, 57, 0.76);
+  box-shadow: 0 14px 30px rgba(0, 0, 0, 0.32), inset 0 1px 1px rgba(255, 255, 255, 0.2);
+  backdrop-filter: none;
 }
 
 .page-dot {
@@ -181,7 +144,7 @@
 
 .primary,
 .get {
-  box-shadow: 0 7px 18px rgba(10, 102, 255, 0.2);
+  box-shadow: 0 6px 12px rgba(20, 24, 36, 0.16);
 }
 
 @media (max-height: 690px) {
