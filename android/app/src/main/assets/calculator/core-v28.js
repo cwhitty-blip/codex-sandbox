@@ -11,7 +11,7 @@ const projects=[
 {id:'brainrot',name:'Brainrot Movie Maker',icon:'🎬',cls:'brainrot',url:'https://brainrot-movie-maker.cwhit.chatgpt.site/'},
 {id:'deepscope',name:'Deep Scope',icon:'◉',cls:'scope',url:'https://deepscope-research.cwhit.chatgpt.site/'}];
 const builtins=[
-{id:'photos',name:'Photos',icon:'🌈',cls:'photos'},{id:'notes',name:'Notes',icon:'📝',cls:'notes'},{id:'files',name:'Files',icon:'📁',cls:'files'},{id:'sketch',name:'Sketch',icon:'✎',cls:'sketch'},{id:'clock',name:'Clock',icon:'◷',cls:'clock'},{id:'game',name:'Tic-Tac-Toe',icon:'✕',cls:'game'},{id:'bible',name:'Bible',icon:'✝',cls:'pro-bible'},{id:'browser',name:'Browser',icon:'🧭',cls:'browser'},{id:'store',name:'App Store',icon:'A',cls:'store'},{id:'second',name:'Second Space',icon:'◉',cls:'space'},{id:'settings',name:'Settings',icon:'⚙',cls:'settings'}];
+{id:'photos',name:'Photos',icon:'🌈',cls:'photos'},{id:'notes',name:'Notes',icon:'📝',cls:'notes'},{id:'files',name:'Files',icon:'📁',cls:'files'},{id:'sketch',name:'Sketch',icon:'✎',cls:'sketch'},{id:'clock',name:'Clock',icon:'◷',cls:'clock'},{id:'game',name:'Tic-Tac-Toe',icon:'✕',cls:'game'},{id:'bible',name:'Bible',icon:'BIBLE',cls:'pro-bible'},{id:'browser',name:'Browser',icon:'🧭',cls:'browser'},{id:'store',name:'App Store',icon:'A',cls:'store'},{id:'second',name:'Second Space',icon:'◉',cls:'space'},{id:'settings',name:'Settings',icon:'⚙',cls:'settings'}];
 const dockIds=['browser','notes','store','settings'];
 function show(el){document.querySelectorAll('.screen').forEach(x=>x.classList.remove('active'));el.classList.add('active')}
 function toast(t){if(!toastEl)return;toastEl.textContent=t;toastEl.classList.add('show');setTimeout(()=>toastEl.classList.remove('show'),1100)}
