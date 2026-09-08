@@ -207,6 +207,7 @@ const backend = {
   authMode: "signin",
   authBusy: false,
   authFeedback: null,
+  authEmailCooldownUntil: 0,
   recovery: false,
 };
 
@@ -217,6 +218,7 @@ const portalMode = {
 };
 
 let toastTimer = null;
+let authEmailCooldownTimer = null;
 let pendingLogoPreviewUrl = "";
 let pendingLogoRemoval = false;
 let jobSaveBusy = false;
@@ -341,9 +343,15 @@ const els = {
   authCreate: document.getElementById("authCreate"),
   authStatus: document.getElementById("authStatus"),
   backendStatus: document.getElementById("backendStatus"),
+  authAssistance: document.getElementById("authAssistance"),
+  authAssistanceTitle: document.getElementById("authAssistanceTitle"),
+  authAssistanceText: document.getElementById("authAssistanceText"),
+  authRecoveryAction: document.getElementById("authRecoveryAction"),
+  authDifferentEmail: document.getElementById("authDifferentEmail"),
   forgotPassword: document.getElementById("forgotPassword"),
   recoveryForm: document.getElementById("recoveryForm"),
   recoveryPassword: document.getElementById("recoveryPassword"),
+  recoveryConfirmPassword: document.getElementById("recoveryConfirmPassword"),
   recoverySubmit: document.getElementById("recoverySubmit"),
   signOut: document.getElementById("signOut"),
   workspaceForm: document.getElementById("workspaceForm"),
@@ -452,11 +460,64 @@ function localAuthPreviewMode() {
 function publicError(error, fallback = "Could not complete. Please try again.") {
   const message = String(error?.message || error || "");
   if (/already|exists|registered/i.test(message)) return "That email may already have an account.";
+  if (/email.*not.*confirmed|confirm.*email/i.test(message)) return "Confirm your email before signing in.";
   if (/invalid login|credentials/i.test(message)) return "Email or password did not match.";
   if (/rate limit/i.test(message)) return "Too many attempts. Please wait a few minutes and try again.";
   if (/read.?only|billing.*restored|trial.*ended/i.test(message)) return "Your trial has ended. The workspace is read-only until billing is restored.";
-  if (/network|fetch|timeout/i.test(message)) return "Connection issue. Please try again.";
+  if (/network|fetch|timeout|load failed|offline/i.test(message)) return "Connection issue. Please try again.";
   return fallback;
+}
+
+function authErrorFeedback(error, mode = "signin") {
+  const message = String(error?.message || error || "");
+  if (/email.*not.*confirmed|confirm.*email/i.test(message)) {
+    return {
+      title: "Confirm your email",
+      message: "Open the confirmation email sent when the account was created, or request a new one below.",
+      action: "confirmation",
+    };
+  }
+  if (/invalid login|credentials/i.test(message)) {
+    return {
+      title: "We could not sign you in",
+      message: "Check the email and password. If this email was used before, reset the password below.",
+      action: "password_reset",
+    };
+  }
+  if (/already|exists|registered/i.test(message)) {
+    return {
+      title: "Account may already exist",
+      message: "Try signing in. If the password is unknown, send a password-reset email below.",
+      action: "password_reset",
+    };
+  }
+  if (/rate limit/i.test(message)) {
+    return {
+      title: "Please wait before trying again",
+      message: "Too many attempts were made in a short time. Wait a few minutes, then try once more.",
+      action: "wait",
+    };
+  }
+  if (/network|fetch|timeout|load failed|offline/i.test(message)) {
+    return {
+      title: "Connection issue",
+      message: "Check the internet connection and try again.",
+      action: "retry",
+    };
+  }
+  return {
+    title: mode === "signup" ? "Could not create account" : "We could not sign you in",
+    message: mode === "signup"
+      ? "Try signing in if this email was used before, or reset the password below."
+      : "Try again. If this email was used before, reset the password below.",
+    action: "password_reset",
+  };
+}
+
+function beginAuthEmailCooldown() {
+  backend.authEmailCooldownUntil = Date.now() + 60_000;
+  window.clearTimeout(authEmailCooldownTimer);
+  authEmailCooldownTimer = window.setTimeout(() => renderAuth(), 60_100);
 }
 
 function workspaceCanWrite() {
@@ -498,6 +559,9 @@ function setContractorLock(locked) {
 
 function renderAuth() {
   queueMicrotask(refreshIcons);
+  els.authAssistance.hidden = true;
+  els.recoveryForm.hidden = true;
+  els.forgotPassword.hidden = true;
   if (portalMode.active) {
     document.body.classList.add("customer-portal-mode");
     setContractorLock(false);
@@ -550,7 +614,8 @@ function renderAuth() {
   document.body.classList.remove("service-portal-signed-in");
   els.authForm.hidden = backend.recovery;
   els.recoveryForm.hidden = !backend.recovery;
-  els.forgotPassword.hidden = backend.recovery || backend.authMode === "signup";
+  const feedbackAction = backend.authFeedback?.action || "";
+  els.forgotPassword.hidden = backend.recovery || backend.authMode === "signup" || Boolean(feedbackAction);
   els.authConfirmPasswordLabel.hidden = backend.recovery || backend.authMode !== "signup";
   els.authSubmit.disabled = backend.authBusy;
   els.authCreate.disabled = backend.authBusy;
@@ -579,15 +644,71 @@ function renderAuth() {
     els.authStatus.textContent = backend.authFeedback.title;
     els.backendStatus.textContent = backend.authFeedback.message;
   }
+  const showAssistance = !backend.recovery && backend.authMode === "signin" && Boolean(feedbackAction);
+  els.authAssistance.hidden = !showAssistance;
+  if (showAssistance) {
+    const emailCoolingDown = Boolean(
+      backend.authFeedback.emailSent && Date.now() < backend.authEmailCooldownUntil,
+    );
+    els.authRecoveryAction.hidden = feedbackAction === "wait";
+    els.authRecoveryAction.disabled = backend.authBusy || emailCoolingDown;
+    els.authDifferentEmail.disabled = backend.authBusy;
+    if (feedbackAction === "confirmation") {
+      els.authAssistanceTitle.textContent = "Still waiting for confirmation?";
+      els.authAssistanceText.textContent = "Send one new confirmation email, then check the spam or junk folder before requesting another.";
+      setButtonLabel(
+        els.authRecoveryAction,
+        emailCoolingDown ? "mail-check" : "mail",
+        emailCoolingDown ? "Confirmation email sent" : backend.authFeedback.emailSent ? "Send confirmation again" : "Resend confirmation email",
+      );
+    } else if (feedbackAction === "workspace") {
+      els.authAssistanceTitle.textContent = "Your password was accepted";
+      els.authAssistanceText.textContent = "Try opening the workspace again. If it still fails, contact the person who invited you and share only your email address.";
+      setButtonLabel(els.authRecoveryAction, "refresh-cw", "Try opening workspace");
+    } else if (feedbackAction === "retry") {
+      els.authAssistanceTitle.textContent = "Ready to try again?";
+      els.authAssistanceText.textContent = "Once the connection is restored, retry the same sign-in once.";
+      setButtonLabel(els.authRecoveryAction, "refresh-cw", "Try sign in again");
+    } else if (feedbackAction === "wait") {
+      els.authAssistanceTitle.textContent = "Avoid another temporary lockout";
+      els.authAssistanceText.textContent = "Do not keep submitting the form. Wait a few minutes, then make one sign-in or reset attempt.";
+    } else {
+      els.authAssistanceTitle.textContent = "Used this email before?";
+      els.authAssistanceText.textContent = "Send one secure reset link. For privacy, the response does not disclose whether an account exists.";
+      setButtonLabel(
+        els.authRecoveryAction,
+        emailCoolingDown ? "mail-check" : "key-round",
+        emailCoolingDown ? "Reset email sent" : backend.authFeedback.emailSent ? "Send reset again" : "Send password reset",
+      );
+    }
+  }
   els.signOut.hidden = true;
 }
 
 async function initBackend() {
   if (localAuthPreviewMode()) {
+    const previewState = new URLSearchParams(window.location.search).get("authPreview");
     backend.loading = false;
     backend.live = false;
     backend.user = null;
     backend.company = null;
+    if (previewState === "unconfirmed") {
+      backend.authFeedback = {
+        title: "Confirm your email",
+        message: "Open the confirmation email sent when the account was created, or request a new one below.",
+        action: "confirmation",
+      };
+    } else if (previewState === "credentials") {
+      backend.authFeedback = authErrorFeedback(new Error("Invalid login credentials"));
+    } else if (previewState === "workspace") {
+      backend.authFeedback = {
+        title: "Workspace could not open",
+        message: "Your password was accepted, but the workspace could not be opened.",
+        action: "workspace",
+      };
+    } else if (previewState === "recovery") {
+      backend.recovery = true;
+    }
     renderAuth();
     return;
   }
@@ -695,13 +816,8 @@ async function performAuth(mode = backend.authMode) {
   backend.authBusy = false;
 
   if (result.error) {
-    backend.authFeedback = {
-      title: mode === "signup" ? "Could not create account" : "Could not complete sign in",
-      message: publicError(
-        result.error,
-        mode === "signup" ? "Could not create the account." : "Could not complete sign in.",
-      ),
-    };
+    backend.authMode = "signin";
+    backend.authFeedback = authErrorFeedback(result.error, mode);
     renderAuth();
     return;
   }
@@ -709,9 +825,12 @@ async function performAuth(mode = backend.authMode) {
   if (mode === "signup" && !result.data.session) {
     backend.authMode = "signin";
     backend.authFeedback = {
-      title: "Account created",
-      message: "Check your email once to confirm it, then sign in.",
+      title: "Check your email",
+      message: "Open the confirmation link, then return here to sign in. Check spam or junk if it does not appear.",
+      action: "confirmation",
+      emailSent: true,
     };
+    beginAuthEmailCooldown();
     renderAuth();
     return;
   }
@@ -735,19 +854,61 @@ async function sendPasswordReset() {
   backend.authBusy = false;
   if (!error) window.localStorage.setItem("servicePortalPasswordResetPending", "true");
   backend.authFeedback = {
-    title: error ? "Reset failed" : "Reset email sent",
+    title: error ? "Could not send reset email" : "Check your email",
     message: error
       ? publicError(error, "Could not send the reset email.")
-      : "Open the link in that email to choose a new password.",
+      : "If an account uses that email, a secure reset link is on the way. Check spam or junk and allow a few minutes.",
+    action: error && /rate limit/i.test(String(error?.message || error || "")) ? "wait" : "password_reset",
+    emailSent: !error,
   };
+  if (!error) beginAuthEmailCooldown();
+  renderAuth();
+}
+
+async function resendConfirmationEmail() {
+  if (!backend.client || backend.authBusy) return;
+  const email = els.authEmail.value.trim();
+  if (!email) {
+    els.backendStatus.textContent = "Enter your contractor email first.";
+    return;
+  }
+  backend.authFeedback = null;
+  backend.authBusy = true;
+  renderAuth();
+  els.backendStatus.textContent = "Sending a new confirmation email...";
+  const emailRedirectTo = window.SERVICE_PORTAL_CONFIG?.appBaseUrl || window.location.href.split("#")[0];
+  const { error } = await backend.client.auth.resend({
+    type: "signup",
+    email,
+    options: { emailRedirectTo },
+  });
+  backend.authBusy = false;
+  backend.authFeedback = {
+    title: error ? "Could not send confirmation email" : "Check your email",
+    message: error
+      ? publicError(error, "Could not send a new confirmation email. Please try again later.")
+      : "A new confirmation link is on the way. Check spam or junk and use the newest link.",
+    action: error && /rate limit/i.test(String(error?.message || error || "")) ? "wait" : "confirmation",
+    emailSent: !error,
+  };
+  if (!error) beginAuthEmailCooldown();
   renderAuth();
 }
 
 async function saveRecoveryPassword() {
   if (!backend.client || backend.authBusy) return;
   const password = els.recoveryPassword.value;
+  const confirmPassword = els.recoveryConfirmPassword.value;
   if (password.length < 6) {
     els.backendStatus.textContent = "Use at least 6 characters for the password.";
+    return;
+  }
+  if (!confirmPassword) {
+    els.backendStatus.textContent = "Enter the new password again to confirm it.";
+    return;
+  }
+  if (password !== confirmPassword) {
+    els.backendStatus.textContent = "Passwords do not match.";
     return;
   }
   backend.authBusy = true;
@@ -764,6 +925,7 @@ async function saveRecoveryPassword() {
   window.localStorage.removeItem("servicePortalPasswordResetPending");
   window.history.replaceState({}, document.title, window.location.pathname);
   els.recoveryPassword.value = "";
+  els.recoveryConfirmPassword.value = "";
   await handleSession(backend.session);
 }
 
@@ -791,8 +953,9 @@ async function handleSession(session) {
     backend.company = null;
     backend.live = false;
     backend.authFeedback = {
-      title: "Could not complete sign in",
-      message: "Could not finish setting up the workspace. Please try again.",
+      title: "Workspace could not open",
+      message: "Your password was accepted, but the workspace could not be opened.",
+      action: "workspace",
     };
     document.body.classList.remove("service-portal-signed-in");
   } finally {
@@ -2979,18 +3142,22 @@ function bindEvents() {
 
   els.authForm.addEventListener("submit", (event) => {
     event.preventDefault();
+    const mode = backend.authMode;
     performAuth().catch((error) => {
       backend.authBusy = false;
+      backend.authMode = "signin";
+      backend.authFeedback = authErrorFeedback(error, mode);
       renderAuth();
-      els.backendStatus.textContent = publicError(error, "Could not complete sign in.");
     });
   });
 
   els.authSubmit.addEventListener("click", () => {
+    const mode = backend.authMode;
     performAuth().catch((error) => {
       backend.authBusy = false;
+      backend.authMode = "signin";
+      backend.authFeedback = authErrorFeedback(error, mode);
       renderAuth();
-      els.backendStatus.textContent = publicError(error, "Could not complete sign in.");
     });
   });
 
@@ -3004,17 +3171,53 @@ function bindEvents() {
   els.forgotPassword.addEventListener("click", () => {
     sendPasswordReset().catch((error) => {
       backend.authBusy = false;
+      backend.authFeedback = {
+        title: "Could not send reset email",
+        message: publicError(error, "Could not send the reset email. Please try again later."),
+        action: /rate limit/i.test(String(error?.message || error || "")) ? "wait" : "password_reset",
+      };
       renderAuth();
-      els.backendStatus.textContent = publicError(error, "Could not send the reset email.");
     });
+  });
+
+  els.authRecoveryAction.addEventListener("click", () => {
+    const action = backend.authFeedback?.action;
+    let request;
+    if (action === "confirmation") request = resendConfirmationEmail();
+    if (action === "password_reset") request = sendPasswordReset();
+    if (action === "workspace") request = handleSession(backend.session);
+    if (action === "retry") request = performAuth("signin");
+    request?.catch((error) => {
+      backend.authBusy = false;
+      backend.authMode = "signin";
+      backend.authFeedback = authErrorFeedback(error, "signin");
+      renderAuth();
+    });
+  });
+
+  els.authDifferentEmail.addEventListener("click", async () => {
+    if (backend.authBusy) return;
+    if (backend.session && backend.client) await backend.client.auth.signOut();
+    backend.authMode = "signin";
+    backend.authFeedback = null;
+    backend.session = null;
+    backend.user = null;
+    els.authEmail.value = "";
+    els.authPassword.value = "";
+    els.authConfirmPassword.value = "";
+    renderAuth();
+    els.authEmail.focus();
   });
 
   els.recoveryForm.addEventListener("submit", (event) => {
     event.preventDefault();
     saveRecoveryPassword().catch((error) => {
       backend.authBusy = false;
+      backend.authFeedback = {
+        title: "Could not save password",
+        message: publicError(error, "Could not save the new password. Please request a new reset link."),
+      };
       renderAuth();
-      els.backendStatus.textContent = publicError(error, "Could not save the new password.");
     });
   });
 

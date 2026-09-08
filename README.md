@@ -10,6 +10,8 @@ Open `index.html` for a quick local view, or serve the folder over HTTP for full
 
 GitHub Pages serves the frontend. Supabase handles contractor authentication, tenant-separated database records, private document storage, and customer portal functions. Resend sends customer access emails from a Supabase Edge Function so its API key never appears in browser code.
 
+Account-access support follows [the contractor recovery workflow](docs/contractor-account-recovery-2026-09-08.md). Never ask a contractor to send a password or recovery link.
+
 ### Supabase Setup
 
 1. Create a Supabase project.

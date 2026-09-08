@@ -365,16 +365,16 @@ body.contractor-locked main {
   box-shadow: var(--shadow-soft);
 }
 
-.auth-panel > div:first-child {
+.auth-heading {
   display: grid;
   gap: 5px;
 }
 
-.auth-panel > div:first-child strong {
+.auth-heading strong {
   font-size: 1.35rem;
 }
 
-.auth-panel > div:first-child small {
+.auth-heading small {
   line-height: 1.45;
 }
 
@@ -389,6 +389,43 @@ body.contractor-locked main {
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 8px;
   margin-top: 2px;
+}
+
+.auth-assistance {
+  display: grid;
+  gap: 12px;
+  border-top: 1px solid var(--line);
+  padding-top: 16px;
+}
+
+.auth-assistance > div {
+  display: grid;
+  gap: 4px;
+}
+
+.auth-assistance strong {
+  font-size: 1rem;
+}
+
+.auth-assistance small {
+  line-height: 1.45;
+}
+
+.auth-assistance .ghost-button {
+  width: 100%;
+}
+
+.auth-safety-note {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--muted);
+}
+
+.auth-safety-note svg {
+  width: 16px;
+  height: 16px;
+  flex: 0 0 16px;
 }
 
 .topbar {

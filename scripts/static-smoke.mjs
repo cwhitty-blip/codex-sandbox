@@ -55,6 +55,12 @@ assert(app.includes('rpc("get_my_company_entitlement")'), "The browser must load
 assert(html.includes('id="workspaceAccessNotice"'), "Expired workspaces must show a read-only notice");
 assert(html.includes('id="authConfirmPassword"'), "Account creation must include password confirmation");
 assert(app.includes('password !== confirmPassword'), "Mismatched account passwords must be rejected before signup");
+assert(html.includes('id="recoveryConfirmPassword"'), "Password recovery must include password confirmation");
+assert(app.includes('password !== confirmPassword'), "Mismatched recovery passwords must be rejected before saving");
+assert(html.includes('id="authAssistance"'), "Sign-in failures must expose guided account recovery");
+assert(app.includes('type: "signup"'), "Unconfirmed accounts must support a new confirmation email");
+assert(app.includes('action: "workspace"'), "Workspace setup failures must be distinct from credential failures");
+assert(html.includes("Never send your password to support."), "Account help must warn contractors not to share passwords");
 assert(html.includes("data-theme-toggle"), "The app must expose an appearance control");
 assert(app.includes('const THEME_STORAGE_KEY = "servicePortal.theme"'), "Appearance preference must persist on the device");
 assert(styles.includes('html[data-theme="dark"]'), "Dark mode must define a complete color theme");

@@ -18,7 +18,7 @@
         document.documentElement.dataset.theme = theme;
       })();
     </script>
-    <link rel="stylesheet" href="assets/styles.css?v=appearance-v1" />
+    <link rel="stylesheet" href="assets/styles.css?v=account-recovery-v1" />
   </head>
   <body>
     <div class="app-shell">
@@ -57,7 +57,7 @@
 
       <main>
         <section id="authPanel" class="auth-panel">
-          <div>
+          <div class="auth-heading" aria-live="polite">
             <p class="eyebrow">Contractor account</p>
             <strong id="authStatus">Account setup</strong>
             <small id="backendStatus">Create an account or sign in to save jobs and send customer links.</small>
@@ -87,8 +87,21 @@
               New password
               <input id="recoveryPassword" type="password" placeholder="Choose a secure password" autocomplete="new-password" />
             </label>
+            <label>
+              Confirm new password
+              <input id="recoveryConfirmPassword" type="password" placeholder="Enter your new password again" autocomplete="new-password" />
+            </label>
             <button id="recoverySubmit" class="primary-button" type="submit"><i data-lucide="key-round"></i><span>Save new password</span></button>
           </form>
+          <section id="authAssistance" class="auth-assistance" aria-live="polite" hidden>
+            <div>
+              <strong id="authAssistanceTitle">Account help</strong>
+              <small id="authAssistanceText"></small>
+            </div>
+            <button id="authRecoveryAction" class="ghost-button" type="button"><i data-lucide="mail"></i><span>Send password reset</span></button>
+            <button id="authDifferentEmail" class="text-button" type="button">Use a different email</button>
+            <small class="auth-safety-note"><i data-lucide="shield-check" aria-hidden="true"></i><span>Never send your password to support.</span></small>
+          </section>
           <button id="forgotPassword" class="text-button" type="button">Forgot password?</button>
           <button id="signOut" class="ghost-button" type="button" hidden aria-hidden="true">Sign out</button>
         </section>
@@ -570,6 +583,6 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.110.1"></script>
     <script src="https://unpkg.com/lucide@1.24.0/dist/umd/lucide.js"></script>
     <script src="assets/config.js?v=accounts-v3"></script>
-    <script src="assets/app.js?v=appearance-v1"></script>
+    <script src="assets/app.js?v=account-recovery-v1"></script>
   </body>
 </html>
