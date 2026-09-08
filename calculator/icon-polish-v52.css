@@ -1,0 +1,59 @@
+/* Crisp, high-contrast Home Screen icons. */
+.head,.ios-nav,.bible-reader-tools,.clock-tabs,.status-lock { backdrop-filter:none !important; -webkit-backdrop-filter:none !important; }
+.phone-icon { filter:none !important; text-shadow:none; }
+.phone-icon::after { opacity:0 !important; }
+.phone-app[data-app-id] .phone-icon { border-color:rgba(255,255,255,.4); box-shadow:0 7px 15px rgba(0,0,0,.28),inset 0 1px 0 rgba(255,255,255,.5); }
+
+.phone-app[data-app-id="photos"] .phone-icon { background:#fff; }
+.photos-mark { position:relative; display:block; width:48px; height:48px; border-radius:50%; color:transparent; background:conic-gradient(#ff3b30 0 12.5%,#ff9500 0 25%,#ffcc00 0 37.5%,#34c759 0 50%,#00a7d8 0 62.5%,#147efb 0 75%,#5856d6 0 87.5%,#d93ad7 0); }
+.photos-mark::after { content:''; position:absolute; inset:15px; border-radius:50%; background:#fff; box-shadow:0 0 0 2px #ffffffaa; }
+
+.phone-app[data-app-id="notes"] .phone-icon { background:#fff; border-top:11px solid #ffd60a; color:#222; }
+.notes-mark { width:44px; display:grid; gap:5px; padding-top:2px; text-align:left; }
+.notes-mark b { font-size:8px; color:#9a6b00; letter-spacing:.08em; }
+.notes-mark i { display:block; height:2px; border-radius:2px; background:#b8d5f4; }
+
+.phone-app[data-app-id="files"] .phone-icon { background:linear-gradient(145deg,#65c8ff,#087cf2); }
+.files-mark { position:relative; display:block; width:46px; height:34px; margin-top:8px; border-radius:5px 7px 8px 8px; background:#fff; box-shadow:0 3px 7px #004b9b66; }
+.files-mark::before { content:''; position:absolute; left:0; top:-8px; width:23px; height:12px; border-radius:5px 5px 0 0; background:#fff; }
+
+.phone-app[data-app-id="sketch"] .phone-icon { background:linear-gradient(145deg,#ffdf72,#ff8a3d); }
+.sketch-mark { display:block; color:#633000; font-size:47px; line-height:1; transform:rotate(-10deg); }
+
+.phone-app[data-app-id="clock"] .phone-icon { background:#171719; }
+.clock-mark { --hour-angle:305deg; --minute-angle:60deg; position:relative; display:block; width:54px; height:54px; border-radius:50%; background:#fff; border:2px solid #dedee2; color:#111; box-shadow:inset 0 0 0 1px #aaa; font:700 7px/1 -apple-system,BlinkMacSystemFont,sans-serif; }
+.clock-mark b { position:absolute; z-index:2; }
+.clock-mark .n12 { top:3px; left:50%; transform:translateX(-50%); }
+.clock-mark .n3 { right:4px; top:50%; transform:translateY(-50%); }
+.clock-mark .n6 { bottom:3px; left:50%; transform:translateX(-50%); }
+.clock-mark .n9 { left:4px; top:50%; transform:translateY(-50%); }
+.clock-mark i { position:absolute; z-index:3; left:50%; bottom:50%; width:2px; border-radius:2px; background:#111; transform-origin:50% 100%; }
+.clock-mark .hour-hand { height:15px; transform:translateX(-50%) rotate(var(--hour-angle)); }
+.clock-mark .minute-hand { height:20px; width:1.5px; transform:translateX(-50%) rotate(var(--minute-angle)); }
+.clock-mark em { position:absolute; z-index:4; left:50%; top:50%; width:5px; height:5px; border-radius:50%; background:#ff3b30; transform:translate(-50%,-50%); }
+
+.phone-app[data-app-id="game"] .phone-icon { background:linear-gradient(145deg,#a66cff,#6440d7); }
+.game-mark { color:#fff; font:900 17px/1.15 -apple-system,BlinkMacSystemFont,sans-serif; letter-spacing:3px; }
+
+.phone-app[data-app-id="browser"] .phone-icon { background:linear-gradient(145deg,#74dcff,#087ff5); }
+.browser-mark { position:relative; display:block; width:48px; height:48px; border-radius:50%; background:#fff; border:2px solid #d7efff; box-shadow:inset 0 0 0 2px #1886e8; }
+.browser-mark::before,.browser-mark::after { content:''; position:absolute; background:#90b5d5; }
+.browser-mark::before { width:1px; top:4px; bottom:4px; left:50%; }
+.browser-mark::after { height:1px; left:4px; right:4px; top:50%; }
+.browser-mark b,.browser-mark i { position:absolute; z-index:2; left:50%; top:50%; width:8px; height:21px; clip-path:polygon(50% 0,100% 100%,50% 82%,0 100%); transform-origin:50% 0; }
+.browser-mark b { background:#ff3b30; transform:rotate(28deg) translate(-50%,-100%); }
+.browser-mark i { background:#147efb; transform:rotate(208deg) translate(-50%,-100%); }
+
+.phone-app[data-app-id="store"] .phone-icon { background:linear-gradient(145deg,#66d5ff,#087cf2); }
+.store-mark { color:#fff; font:700 39px/1 -apple-system,BlinkMacSystemFont,sans-serif; }
+
+.phone-app[data-app-id="second"] .phone-icon { background:linear-gradient(145deg,#7768ee,#4036a9); }
+.space-mark { position:relative; display:block; width:45px; height:45px; }
+.space-mark b,.space-mark i { position:absolute; width:27px; height:27px; border-radius:50%; border:4px solid #fff; }
+.space-mark b { left:0; top:0; }
+.space-mark i { right:0; bottom:0; border-color:#b9f0ff; }
+
+.phone-app[data-app-id="settings"] .phone-icon { background:linear-gradient(145deg,#e7e8eb,#8a8d94); }
+.settings-mark { display:block; color:#4c4e54; font-size:48px; line-height:1; filter:none; transform:scale(1.08); }
+
+.phone-app[data-app-id="bible"] .phone-icon::after { opacity:.8 !important; }

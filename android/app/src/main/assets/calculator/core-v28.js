@@ -11,7 +11,17 @@ const projects=[
 {id:'brainrot',name:'Brainrot Movie Maker',icon:'🎬',cls:'brainrot',url:'https://brainrot-movie-maker.cwhit.chatgpt.site/'},
 {id:'deepscope',name:'Deep Scope',icon:'◉',cls:'scope',url:'https://deepscope-research.cwhit.chatgpt.site/'}];
 const builtins=[
-{id:'photos',name:'Photos',icon:'🌈',cls:'photos'},{id:'notes',name:'Notes',icon:'📝',cls:'notes'},{id:'files',name:'Files',icon:'📁',cls:'files'},{id:'sketch',name:'Sketch',icon:'✎',cls:'sketch'},{id:'clock',name:'Clock',icon:'◷',cls:'clock'},{id:'game',name:'Tic-Tac-Toe',icon:'✕',cls:'game'},{id:'bible',name:'Bible',icon:'BIBLE',cls:'pro-bible'},{id:'browser',name:'Browser',icon:'🧭',cls:'browser'},{id:'store',name:'App Store',icon:'A',cls:'store'},{id:'second',name:'Second Space',icon:'◉',cls:'space'},{id:'settings',name:'Settings',icon:'⚙',cls:'settings'}];
+{id:'photos',name:'Photos',icon:'<span class="photos-mark">●</span>',cls:'photos'},
+{id:'notes',name:'Notes',icon:'<span class="notes-mark"><b>Notes</b><i></i><i></i><i></i></span>',cls:'notes'},
+{id:'files',name:'Files',icon:'<span class="files-mark"></span>',cls:'files'},
+{id:'sketch',name:'Sketch',icon:'<span class="sketch-mark">✎</span>',cls:'sketch'},
+{id:'clock',name:'Clock',icon:'<span class="clock-mark"><b class="n12">12</b><b class="n3">3</b><b class="n6">6</b><b class="n9">9</b><i class="hour-hand"></i><i class="minute-hand"></i><em></em></span>',cls:'clock'},
+{id:'game',name:'Tic-Tac-Toe',icon:'<span class="game-mark">X O<br>O X</span>',cls:'game'},
+{id:'bible',name:'Bible',icon:'BIBLE',cls:'pro-bible'},
+{id:'browser',name:'Browser',icon:'<span class="browser-mark"><b></b><i></i></span>',cls:'browser'},
+{id:'store',name:'App Store',icon:'<span class="store-mark">A</span>',cls:'store'},
+{id:'second',name:'Second Space',icon:'<span class="space-mark"><b></b><i></i></span>',cls:'space'},
+{id:'settings',name:'Settings',icon:'<span class="settings-mark">⚙</span>',cls:'settings'}];
 const dockIds=['browser','notes','store','settings'];
 function show(el){document.querySelectorAll('.screen').forEach(x=>x.classList.remove('active'));el.classList.add('active')}
 function toast(t){if(!toastEl)return;toastEl.textContent=t;toastEl.classList.add('show');setTimeout(()=>toastEl.classList.remove('show'),1100)}
@@ -38,7 +48,7 @@ calc.querySelectorAll('.key').forEach(button=>{
  button.addEventListener('pointerup',()=>{lastPointerButton=button;lastPointerTime=Date.now();pressKey(button)});
  button.addEventListener('click',()=>{if(lastPointerButton===button&&Date.now()-lastPointerTime<750)return;pressKey(button)});
 });
-function icon(d,fn){const b=document.createElement('button');b.className='phone-app';b.type='button';b.innerHTML=`<span class="phone-icon ${d.cls}">${d.icon}</span><span class="phone-label"></span>`;b.querySelector('.phone-label').textContent=d.name;b.onclick=fn;return b}
+function icon(d,fn){const b=document.createElement('button');b.className='phone-app';b.type='button';b.dataset.appId=d.id;b.innerHTML=`<span class="phone-icon ${d.cls}">${d.icon}</span><span class="phone-label"></span>`;b.querySelector('.phone-label').textContent=d.name;b.onclick=fn;return b}
 function shell(title){app.innerHTML='';const p=document.createElement('div');p.className='page';const h=document.createElement('div');h.className='head';const b=document.createElement('button');b.className='back';b.textContent='‹ Home';b.onclick=()=>show(home);const t=document.createElement('h2');t.textContent=title;h.append(b,t);p.append(h);app.append(p);show(app);return p}
 function project(d){const u=d.url||window.CalculatorProjectLinks?.[d.id]||localStorage.getItem('project-url-'+d.id);const p=shell(d.name);if(!u){const c=document.createElement('div');c.className='card';c.textContent='This app has not been connected yet.';p.append(c);return}p.classList.add('project-web-app');const tools=document.createElement('div');tools.className='project-web-tools';const status=document.createElement('span');status.textContent='Opening app…';const external=document.createElement('a');external.href=u;external.target='_blank';external.rel='noopener noreferrer';external.textContent='Open separately';tools.append(status,external);const frame=document.createElement('iframe');frame.className='project-web-frame';frame.title=d.name;frame.src=u;frame.setAttribute('allow','camera; microphone; clipboard-read; clipboard-write; fullscreen');frame.onload=()=>status.textContent=d.name;p.append(tools,frame)}
 function notes(){const p=shell('Notes'),ta=document.createElement('textarea');ta.className='note';ta.value=localStorage.getItem('note')||'';ta.placeholder='Write something…';ta.oninput=()=>localStorage.setItem('note',ta.value);p.append(ta)}
@@ -48,6 +58,6 @@ function settings(){const p=shell('Settings'),c=document.createElement('div');c.
 function simple(name){const p=shell(name),c=document.createElement('div');c.className='card';c.textContent=name;p.append(c)}
 function open(d){if(projects.some(x=>x.id===d.id))return project(d);if(d.id==='bible')return window.CalculatorBible?.open();if(d.id==='notes')return notes();if(d.id==='clock')return clock();if(d.id==='browser')return browser();if(d.id==='settings')return settings();return simple(d.name)}
 function renderPhone(){const pages=$('#phonePages'),dots=$('#pageDots'),dock=$('#phoneDock');if(!pages||!dots||!dock)return;pages.innerHTML='';dots.innerHTML='';dock.innerHTML='';const all=builtins.filter(x=>!dockIds.includes(x.id)),groups=[];for(let i=0;i<all.length;i+=12)groups.push(all.slice(i,i+12));if(groups.length<2)groups.push([]);groups.forEach((g,n)=>{const page=document.createElement('div');page.className='phone-page';const grid=document.createElement('div');grid.className='phone-grid';g.forEach(d=>grid.append(icon(d,()=>open(d))));page.append(grid);pages.append(page);const dot=document.createElement('span');dot.className='page-dot'+(n===0?' active':'');dots.append(dot)});dockIds.forEach(id=>{const d=builtins.find(x=>x.id===id);dock.append(icon(d,()=>open(d)))});window.dispatchEvent(new CustomEvent('calculator-home-rendered'))}
-function time(){const e=$('#phoneTime');if(e)e.textContent=new Date().toLocaleTimeString([],{hour:'numeric',minute:'2-digit'}).replace(' ','')}
+function time(){const now=new Date(),e=$('#phoneTime');if(e)e.textContent=now.toLocaleTimeString([],{hour:'numeric',minute:'2-digit'}).replace(' ','');const face=$('.clock-mark');if(face){face.style.setProperty('--hour-angle',(now.getHours()%12*30+now.getMinutes()*.5)+'deg');face.style.setProperty('--minute-angle',(now.getMinutes()*6)+'deg')}}
 renderPhone();time();setInterval(time,30000);window.CalculatorCore={show,home,app,renderPhone,toast,lock,openProject:project};
 })();
