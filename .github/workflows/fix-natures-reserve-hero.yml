@@ -1,0 +1,90 @@
+name: Fix Nature Reserve hero image
+
+on:
+  push:
+    paths:
+      - ".github/workflows/fix-natures-reserve-hero.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  update-hero:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Replace low-resolution hero with sharper park photo
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+
+          html_path = Path('natures-reserve-preview/index.html')
+          css_path = Path('natures-reserve-preview/styles.css')
+
+          html = html_path.read_text(encoding='utf-8')
+          old_url = 'https://img1.wsimg.com/isteam/ip/bb2ac4d4-946a-418a-9ce9-7b0a877294d5/IMG_1705.jpg/:/rs=w:1920,m'
+          new_url = 'https://img1.wsimg.com/isteam/ip/bb2ac4d4-946a-418a-9ce9-7b0a877294d5/IMG_3389.JPEG/:/rs=w:3840,m'
+          html = html.replace(old_url, new_url)
+
+          old_hero = '<img class="hero-photo" src="' + new_url + '" alt="Open grassy RV park with campers under a blue sky" />'
+          new_hero = '''<img
+        class="hero-photo"
+        src="https://img1.wsimg.com/isteam/ip/bb2ac4d4-946a-418a-9ce9-7b0a877294d5/IMG_3389.JPEG/:/rs=w:3840,m"
+        srcset="https://img1.wsimg.com/isteam/ip/bb2ac4d4-946a-418a-9ce9-7b0a877294d5/IMG_3389.JPEG/:/rs=w:1600,m 1600w,
+                https://img1.wsimg.com/isteam/ip/bb2ac4d4-946a-418a-9ce9-7b0a877294d5/IMG_3389.JPEG/:/rs=w:2301,m 2301w,
+                https://img1.wsimg.com/isteam/ip/bb2ac4d4-946a-418a-9ce9-7b0a877294d5/IMG_3389.JPEG/:/rs=w:3069,m 3069w,
+                https://img1.wsimg.com/isteam/ip/bb2ac4d4-946a-418a-9ce9-7b0a877294d5/IMG_3389.JPEG/:/rs=w:3840,m 3840w"
+        sizes="100vw"
+        alt="Ready-to-stay campers beneath mature shade trees at Nature's Reserve"
+        loading="eager"
+        fetchpriority="high"
+        decoding="async"
+      />'''
+          if old_hero not in html:
+              raise SystemExit('Expected hero image tag was not found.')
+          html = html.replace(old_hero, new_hero, 1)
+          html_path.write_text(html, encoding='utf-8')
+
+          css = css_path.read_text(encoding='utf-8')
+          old_css = '''.hero-photo {
+  position: absolute;
+  inset: 0;
+  height: 100%;
+  object-fit: cover;
+  object-position: 68% center;
+}'''
+          new_css = '''.hero-photo {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center 58%;
+  image-rendering: auto;
+}'''
+          if old_css not in css:
+              raise SystemExit('Expected hero CSS block was not found.')
+          css = css.replace(old_css, new_css, 1)
+          css = css.replace('.hero-photo { object-position: 67% center; }', '.hero-photo { object-position: 68% center; }', 1)
+          css_path.write_text(css, encoding='utf-8')
+          PY
+
+      - name: Commit sharper hero image
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add natures-reserve-preview/index.html natures-reserve-preview/styles.css
+          if git diff --cached --quiet; then
+            echo "Hero image is already current."
+          else
+            git commit -m "Use sharper Nature Reserve hero photo"
+            git push
+          fi
