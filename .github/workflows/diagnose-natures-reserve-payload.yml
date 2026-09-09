@@ -1,0 +1,53 @@
+name: Diagnose Nature Reserve preview payload
+
+on:
+  push:
+    paths:
+      - ".github/workflows/diagnose-natures-reserve-payload.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Compare embedded payload with the approved build
+        shell: bash
+        run: |
+          set -euo pipefail
+          sed -n "/<<'B64'/,/^[[:space:]]*B64[[:space:]]*$/p" .github/workflows/capture-natures-reserve.yml \
+            | sed '1d;$d;s/^[[:space:]]*//' \
+            > /tmp/actual.b64
+
+          python - <<'PY'
+          from pathlib import Path
+          import zlib
+
+          expected = """12d3a20b cbf9c896 b2b29f6d 60dd01ec bf93098e a7391e3f 11c3c86a 5e3a82e5 3b285321 8721d062 05a75ca2 be27af40 263645e0 39341daa 1943048a 373ac490 e9a5e3c2 75908ea1 81377284 8a3b6d85 e8e94cb4 3d872321 01a061a1 75dad899 92790d41 50bb4af8 c43549a0 effc9e4c 3ba6bbf1 143f0dc8 7673a29a 4dbeeeb6 ccd1a4a5 3fce50bd 32e0c36f 2def49a4 a7c3c08e 1be21944 c381f732 f3530cbe 7652ff35 e13e861b 351fce9c fa9daf73 4cf7e8d3 5492f620 940697f7 45f371c1 0c9561f6 92d6a237 3a3e28df 1f810f05 c2e6247e f80fa50d 6b9d4684 997df6e3 6f2edd12 d4439c1f f2b49e81 4d950588 b8897118 c0b132c4 845a588e 56e767ff 04b70d81 e986b5e4 cac34b03 99f8036d 8a51d571 761688ba 48a69569 0a2f82df e52c6b48 ba751ece 39e50a53 c909c0c5 bd8b89b8 18ca0ba3 df1bb4c6 2cb016d7 3557e807 638e201c f968a50c 56513a48 48fa1e73 6a56acd2 0f1fd6ca 4dd8bc07 05c180ce 41fc0577 07c02c67 52137c16 1ace4a12 72a015bc 9d0fbe44 c6e5e44c ca702eee 079a41ee 682c0434 6e200c55 547e7f76 d6b87a79 cf8a3f3b d84e4b0a d612605d 7f0a1204 476f8c85 e857ea68 49983c0a 40a6f2e3 3aa4449f 6115f252 2b0fc87b 0764a2d1 e692d3f1 331d180e 6aad113e 2d8806f6 1b073a5c e318d45b d9b897b1 921e5b5d 65c50157 aec0cbcd 7d13b057 b94ca275 bce9c9a8 f7f1dd4e c1036745 0b839b7d 1f63ecb4 6239b031 9a43030c b041653b 779f74a0 1550d7fd 559616a4 c3353ebc fb2680d8 b2833672 843569a6 b6781957 1e4a2804 78930eec cf42c3fd 88cdaaa3 2dacb2f0 16eb0df9 5a7216f8 5d54e0f0 9713a49f 2224db05 e2a14352 b382de6d 10710080 f7115cfb c1ac94fb 06f519a8 53b80742 073ddfa1 c3b8e64a d227564b dc2a93a1 9d728409 3a550d53 b2e94f1a 9ca4deba 99cd507e ab2d355c 6d0998f3 081b26e3 f7a7fbe8 9672d930 8d56f0cf e8e7c6cc 9d87ed2d 75d80d7c f662fbdd 877a9ad2 7c83392d 0c713993 1602c4ca adab69ed 9e6a04c8 7d3c1884 18df7fe4 6b6ab79f a7913a4a 1a73d730 c1ae4821 1d5062df 7a8448da 345beae4 03eb0bba af84c1f5 88792e28 8e6b4821 66b7f09e ac24a6ef 1bb04baf 95be5a90 a59fb3b9 9854f879 6cfc1162 e3834005 3f58ff2e 588cd23a 74546174 a1ef264b 73579069 604e4d3f 32e80d3b 2e35a98b 81d9f2e3 bb84a1ca 23c62db0 f244a62b 8a79ea5b 0a74094f 52139e70""".split()
+          actual = [line.strip() for line in Path('/tmp/actual.b64').read_text().splitlines() if line.strip()]
+
+          print(f'Expected lines: {len(expected)}')
+          print(f'Actual lines:   {len(actual)}')
+          problems = 0
+          for i in range(max(len(expected), len(actual))):
+              if i >= len(expected):
+                  print(f'EXTRA line {i+1}: {actual[i]!r}')
+                  problems += 1
+                  continue
+              if i >= len(actual):
+                  print(f'MISSING line {i+1}')
+                  problems += 1
+                  continue
+              actual_crc = f'{zlib.crc32(actual[i].encode()):08x}'
+              if actual_crc != expected[i]:
+                  print(f'MISMATCH line {i+1}: expected CRC {expected[i]}, actual CRC {actual_crc}')
+                  print(f'ACTUAL line {i+1}: {actual[i]}')
+                  problems += 1
+          if problems:
+              raise SystemExit(1)
+          print('Payload matches the approved build exactly.')
+          PY
