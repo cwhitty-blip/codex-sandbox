@@ -1,0 +1,78 @@
+name: Update Nature Reserve tiny-home and gallery photos
+
+on:
+  push:
+    paths:
+      - ".github/workflows/update-natures-reserve-tiny-home.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  update-photos:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Use the original tiny-home photo and remove the gallery duplicate
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+          import re
+
+          path = Path('natures-reserve-preview/index.html')
+          html = path.read_text(encoding='utf-8')
+
+          tiny_pattern = re.compile(
+              r'<div class="tiny-illustration" aria-hidden="true">\s*'
+              r'<svg.*?</svg>\s*'
+              r'<span class="stay-tag">Call for current status</span>\s*'
+              r'</div>',
+              flags=re.S,
+          )
+          tiny_replacement = '''<div class="stay-photo-wrap">
+              <img
+                src="https://img1.wsimg.com/isteam/ip/bb2ac4d4-946a-418a-9ce9-7b0a877294d5/sundown-1.jpg/:/rs=w:1000,h:667"
+                srcset="https://img1.wsimg.com/isteam/ip/bb2ac4d4-946a-418a-9ce9-7b0a877294d5/sundown-1.jpg/:/rs=w:403,h:269 403w,
+                        https://img1.wsimg.com/isteam/ip/bb2ac4d4-946a-418a-9ce9-7b0a877294d5/sundown-1.jpg/:/rs=w:806,h:538 806w,
+                        https://img1.wsimg.com/isteam/ip/bb2ac4d4-946a-418a-9ce9-7b0a877294d5/sundown-1.jpg/:/rs=w:1000,h:667 1000w"
+                sizes="(max-width: 900px) 100vw, 33vw"
+                alt="Tiny home cabin exterior at Nature's Reserve"
+                loading="lazy"
+                decoding="async"
+              />
+              <span class="stay-tag">Call for current status</span>
+            </div>'''
+          html, tiny_count = tiny_pattern.subn(tiny_replacement, html, count=1)
+          if tiny_count != 1:
+              raise SystemExit(f'Expected one tiny-home illustration block; replaced {tiny_count}.')
+
+          duplicate = '''        <figure><img src="https://img1.wsimg.com/isteam/ip/bb2ac4d4-946a-418a-9ce9-7b0a877294d5/IMG_3389.JPEG/:/rs=w:1600,m" alt="Camper rentals arranged along a gravel drive" /></figure>'''
+          unique = '''        <figure><img src="https://img1.wsimg.com/isteam/ip/bb2ac4d4-946a-418a-9ce9-7b0a877294d5/IMG_1705.jpg/:/rs=w:640,m" alt="Campers across the open grassy park" loading="lazy" decoding="async" /></figure>'''
+          if duplicate not in html:
+              raise SystemExit('Expected duplicated gallery image was not found.')
+          html = html.replace(duplicate, unique, 1)
+
+          # Keep the structured image list useful and free of the same duplicate.
+          duplicate_schema = '      "https://img1.wsimg.com/isteam/ip/bb2ac4d4-946a-418a-9ce9-7b0a877294d5/IMG_3389.JPEG/:/rs=w:1600,m",'
+          tiny_schema = '      "https://img1.wsimg.com/isteam/ip/bb2ac4d4-946a-418a-9ce9-7b0a877294d5/sundown-1.jpg/:/rs=w:1000,h:667",'
+          if duplicate_schema in html:
+              html = html.replace(duplicate_schema, tiny_schema, 1)
+
+          path.write_text(html, encoding='utf-8')
+          PY
+
+      - name: Commit photo corrections
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add natures-reserve-preview/index.html
+          git commit -m "Use tiny-home photo and remove duplicate gallery image"
+          git push
