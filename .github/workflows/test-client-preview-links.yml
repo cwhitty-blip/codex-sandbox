@@ -25,11 +25,16 @@ jobs:
             "https://cwhitty-blip.github.io/codex-sandbox/natures-reserve-preview/index.html"
             "https://raw.githack.com/cwhitty-blip/codex-sandbox/main/secluded-pines-preview/index.html"
             "https://raw.githack.com/cwhitty-blip/codex-sandbox/main/natures-reserve-preview/index.html"
+            "https://cdn.jsdelivr.net/gh/cwhitty-blip/codex-sandbox@main/secluded-pines-preview/index.html"
+            "https://cdn.jsdelivr.net/gh/cwhitty-blip/codex-sandbox@main/natures-reserve-preview/index.html"
+            "https://cdn.statically.io/gh/cwhitty-blip/codex-sandbox/main/secluded-pines-preview/index.html"
+            "https://cdn.statically.io/gh/cwhitty-blip/codex-sandbox/main/natures-reserve-preview/index.html"
           )
 
           for url in "${urls[@]}"; do
             echo "============================================================"
             echo "$url"
+            rm -f /tmp/page.html
             curl --silent --show-error --location --max-time 30 \
               --user-agent "Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 Version/18.0 Mobile/15E148 Safari/604.1" \
               --output /tmp/page.html \
