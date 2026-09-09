@@ -33,41 +33,47 @@ jobs:
           html = html.replace(old_url, new_url)
 
           old_hero = '<img class="hero-photo" src="' + new_url + '" alt="Open grassy RV park with campers under a blue sky" />'
-          new_hero = '''<img
-        class="hero-photo"
-        src="https://img1.wsimg.com/isteam/ip/bb2ac4d4-946a-418a-9ce9-7b0a877294d5/IMG_3389.JPEG/:/rs=w:3840,m"
-        srcset="https://img1.wsimg.com/isteam/ip/bb2ac4d4-946a-418a-9ce9-7b0a877294d5/IMG_3389.JPEG/:/rs=w:1600,m 1600w,
-                https://img1.wsimg.com/isteam/ip/bb2ac4d4-946a-418a-9ce9-7b0a877294d5/IMG_3389.JPEG/:/rs=w:2301,m 2301w,
-                https://img1.wsimg.com/isteam/ip/bb2ac4d4-946a-418a-9ce9-7b0a877294d5/IMG_3389.JPEG/:/rs=w:3069,m 3069w,
-                https://img1.wsimg.com/isteam/ip/bb2ac4d4-946a-418a-9ce9-7b0a877294d5/IMG_3389.JPEG/:/rs=w:3840,m 3840w"
-        sizes="100vw"
-        alt="Ready-to-stay campers beneath mature shade trees at Nature's Reserve"
-        loading="eager"
-        fetchpriority="high"
-        decoding="async"
-      />'''
+          new_hero = '\n'.join([
+              '      <img',
+              '        class="hero-photo"',
+              '        src="https://img1.wsimg.com/isteam/ip/bb2ac4d4-946a-418a-9ce9-7b0a877294d5/IMG_3389.JPEG/:/rs=w:3840,m"',
+              '        srcset="https://img1.wsimg.com/isteam/ip/bb2ac4d4-946a-418a-9ce9-7b0a877294d5/IMG_3389.JPEG/:/rs=w:1600,m 1600w,',
+              '                https://img1.wsimg.com/isteam/ip/bb2ac4d4-946a-418a-9ce9-7b0a877294d5/IMG_3389.JPEG/:/rs=w:2301,m 2301w,',
+              '                https://img1.wsimg.com/isteam/ip/bb2ac4d4-946a-418a-9ce9-7b0a877294d5/IMG_3389.JPEG/:/rs=w:3069,m 3069w,',
+              '                https://img1.wsimg.com/isteam/ip/bb2ac4d4-946a-418a-9ce9-7b0a877294d5/IMG_3389.JPEG/:/rs=w:3840,m 3840w"',
+              '        sizes="100vw"',
+              '        alt="Ready-to-stay campers beneath mature shade trees at Nature\'s Reserve"',
+              '        loading="eager"',
+              '        fetchpriority="high"',
+              '        decoding="async"',
+              '      />',
+          ])
           if old_hero not in html:
               raise SystemExit('Expected hero image tag was not found.')
           html = html.replace(old_hero, new_hero, 1)
           html_path.write_text(html, encoding='utf-8')
 
           css = css_path.read_text(encoding='utf-8')
-          old_css = '''.hero-photo {
-  position: absolute;
-  inset: 0;
-  height: 100%;
-  object-fit: cover;
-  object-position: 68% center;
-}'''
-          new_css = '''.hero-photo {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  object-position: center 58%;
-  image-rendering: auto;
-}'''
+          old_css = '\n'.join([
+              '.hero-photo {',
+              '  position: absolute;',
+              '  inset: 0;',
+              '  height: 100%;',
+              '  object-fit: cover;',
+              '  object-position: 68% center;',
+              '}',
+          ])
+          new_css = '\n'.join([
+              '.hero-photo {',
+              '  position: absolute;',
+              '  inset: 0;',
+              '  width: 100%;',
+              '  height: 100%;',
+              '  object-fit: cover;',
+              '  object-position: center 58%;',
+              '  image-rendering: auto;',
+              '}',
+          ])
           if old_css not in css:
               raise SystemExit('Expected hero CSS block was not found.')
           css = css.replace(old_css, new_css, 1)
