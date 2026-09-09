@@ -29,4 +29,4 @@
   if (year) year.textContent = String(new Date().getFullYear());
 })();
 
-// Keeps the latest client-preview build active in GitHub Pages.
+// Republishes the sharper hero-image build to GitHub Pages.
