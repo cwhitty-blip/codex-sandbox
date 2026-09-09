@@ -1,0 +1,40 @@
+name: Test client preview links
+
+on:
+  push:
+    paths:
+      - ".github/workflows/test-client-preview-links.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test-links:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Test public preview URLs
+        shell: bash
+        run: |
+          set -euo pipefail
+          urls=(
+            "https://cwhitty-blip.github.io/codex-sandbox/secluded-pines-preview/"
+            "https://cwhitty-blip.github.io/codex-sandbox/secluded-pines-preview/index.html"
+            "https://cwhitty-blip.github.io/codex-sandbox/natures-reserve-preview/"
+            "https://cwhitty-blip.github.io/codex-sandbox/natures-reserve-preview/index.html"
+            "https://raw.githack.com/cwhitty-blip/codex-sandbox/main/secluded-pines-preview/index.html"
+            "https://raw.githack.com/cwhitty-blip/codex-sandbox/main/natures-reserve-preview/index.html"
+          )
+
+          for url in "${urls[@]}"; do
+            echo "============================================================"
+            echo "$url"
+            curl --silent --show-error --location --max-time 30 \
+              --user-agent "Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 Version/18.0 Mobile/15E148 Safari/604.1" \
+              --output /tmp/page.html \
+              --write-out 'HTTP %{http_code}\nFINAL %{url_effective}\nTYPE %{content_type}\nSIZE %{size_download}\n' \
+              "$url" || true
+            head -c 180 /tmp/page.html 2>/dev/null | tr '\n' ' ' || true
+            echo
+          done
