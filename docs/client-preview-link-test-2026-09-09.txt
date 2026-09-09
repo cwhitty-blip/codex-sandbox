@@ -1,0 +1,18 @@
+Client preview link accessibility test — 2026-09-09
+Test user agent: iPhone Safari
+
+Secluded Pines — GitHub Pages
+HTTP 200; Content-Type: text/html; charset=utf-8
+https://cwhitty-blip.github.io/codex-sandbox/secluded-pines-preview/index.html
+
+Nature's Reserve — GitHub Pages
+HTTP 200; Content-Type: text/html; charset=utf-8
+https://cwhitty-blip.github.io/codex-sandbox/natures-reserve-preview/index.html
+
+Secluded Pines — alternate host
+HTTP 200; Content-Type: text/html; charset=utf-8
+https://raw.githack.com/cwhitty-blip/codex-sandbox/main/secluded-pines-preview/index.html
+
+Nature's Reserve — alternate host
+HTTP 200; Content-Type: text/html; charset=utf-8
+https://raw.githack.com/cwhitty-blip/codex-sandbox/main/natures-reserve-preview/index.html
