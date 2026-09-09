@@ -1,0 +1,87 @@
+# CLEAN HIGH-RES URLS
+ChatGPT%20Image%20Aug%201%2C%202025%2C%2011_58_04%20AM.png	https://img1.wsimg.com/isteam/ip/bb2ac4d4-946a-418a-9ce9-7b0a877294d5/ChatGPT%20Image%20Aug%201%2C%202025%2C%2011_58_04%20AM.png/:/rs=w:1920,m
+IMG_1705.jpg	https://img1.wsimg.com/isteam/ip/bb2ac4d4-946a-418a-9ce9-7b0a877294d5/IMG_1705.jpg/:/rs=w:1920,m
+IMG_1708.jpg	https://img1.wsimg.com/isteam/ip/bb2ac4d4-946a-418a-9ce9-7b0a877294d5/IMG_1708.jpg/:/rs=w:1920,m
+IMG_3389.JPEG	https://img1.wsimg.com/isteam/ip/bb2ac4d4-946a-418a-9ce9-7b0a877294d5/IMG_3389.JPEG/:/rs=w:1920,m
+IMG_3394.JPEG	https://img1.wsimg.com/isteam/ip/bb2ac4d4-946a-418a-9ce9-7b0a877294d5/IMG_3394.JPEG/:/rs=w:1920,m
+sundown-1.jpg	https://img1.wsimg.com/isteam/ip/bb2ac4d4-946a-418a-9ce9-7b0a877294d5/sundown-1.jpg/:/rs=w:1920,m
+
+# ALL DISCOVERED URLS
+https://img1.wsimg.com/isteam/ip/bb2ac4d4-946a-418a-9ce9-7b0a877294d5/ChatGPT%20Image%20Aug%201%2C%202025%2C%2011_58_04%20AM.png
+https://img1.wsimg.com/isteam/ip/bb2ac4d4-946a-418a-9ce9-7b0a877294d5/ChatGPT%20Image%20Aug%201%2C%202025%2C%2011_58_04%20AM.png/:/
+https://img1.wsimg.com/isteam/ip/bb2ac4d4-946a-418a-9ce9-7b0a877294d5/ChatGPT%20Image%20Aug%201%2C%202025%2C%2011_58_04%20AM.png/:/rs=w:1023,h:1023
+https://img1.wsimg.com/isteam/ip/bb2ac4d4-946a-418a-9ce9-7b0a877294d5/ChatGPT%20Image%20Aug%201%2C%202025%2C%2011_58_04%20AM.png/:/rs=w:403,h:403
+https://img1.wsimg.com/isteam/ip/bb2ac4d4-946a-418a-9ce9-7b0a877294d5/ChatGPT%20Image%20Aug%201%2C%202025%2C%2011_58_04%20AM.png/:/rs=w:719,h:719
+https://img1.wsimg.com/isteam/ip/bb2ac4d4-946a-418a-9ce9-7b0a877294d5/ChatGPT%20Image%20Aug%201%2C%202025%2C%2011_58_04%20AM.png/:/rs=w:806,h:806
+https://img1.wsimg.com/isteam/ip/bb2ac4d4-946a-418a-9ce9-7b0a877294d5/ChatGPT%20Image%20Aug%201%2C%202025%2C%2011_58_04%20AM.png/:/rs=w:984,h:984
+https://img1.wsimg.com/isteam/ip/bb2ac4d4-946a-418a-9ce9-7b0a877294d5/IMG_1705.jpg/:/cr=t:16.67%25,l:0%25,w:100%25,h:66.67%25/rs=w:403,h:202,cg:true
+https://img1.wsimg.com/isteam/ip/bb2ac4d4-946a-418a-9ce9-7b0a877294d5/IMG_1705.jpg/:/cr=t:16.67%25,l:0%25,w:100%25,h:66.67%25/rs=w:600,h:300,cg:true
+https://img1.wsimg.com/isteam/ip/bb2ac4d4-946a-418a-9ce9-7b0a877294d5/IMG_1705.jpg/:/cr=t:16.67%25,l:0%25,w:100%25,h:66.67%25/rs=w:640,h:320,cg:true
+https://img1.wsimg.com/isteam/ip/bb2ac4d4-946a-418a-9ce9-7b0a877294d5/IMG_1708.jpg/:/rs=w:100%25
+https://img1.wsimg.com/isteam/ip/bb2ac4d4-946a-418a-9ce9-7b0a877294d5/IMG_1708.jpg/:/rs=w:1023,m
+https://img1.wsimg.com/isteam/ip/bb2ac4d4-946a-418a-9ce9-7b0a877294d5/IMG_1708.jpg/:/rs=w:1279,m
+https://img1.wsimg.com/isteam/ip/bb2ac4d4-946a-418a-9ce9-7b0a877294d5/IMG_1708.jpg/:/rs=w:1350,m
+https://img1.wsimg.com/isteam/ip/bb2ac4d4-946a-418a-9ce9-7b0a877294d5/IMG_1708.jpg/:/rs=w:1534,m
+https://img1.wsimg.com/isteam/ip/bb2ac4d4-946a-418a-9ce9-7b0a877294d5/IMG_1708.jpg/:/rs=w:1535,m
+https://img1.wsimg.com/isteam/ip/bb2ac4d4-946a-418a-9ce9-7b0a877294d5/IMG_1708.jpg/:/rs=w:1920,m
+https://img1.wsimg.com/isteam/ip/bb2ac4d4-946a-418a-9ce9-7b0a877294d5/IMG_1708.jpg/:/rs=w:2046,m
+https://img1.wsimg.com/isteam/ip/bb2ac4d4-946a-418a-9ce9-7b0a877294d5/IMG_1708.jpg/:/rs=w:2301,m
+https://img1.wsimg.com/isteam/ip/bb2ac4d4-946a-418a-9ce9-7b0a877294d5/IMG_1708.jpg/:/rs=w:2558,m
+https://img1.wsimg.com/isteam/ip/bb2ac4d4-946a-418a-9ce9-7b0a877294d5/IMG_1708.jpg/:/rs=w:3069,m
+https://img1.wsimg.com/isteam/ip/bb2ac4d4-946a-418a-9ce9-7b0a877294d5/IMG_1708.jpg/:/rs=w:3070,m
+https://img1.wsimg.com/isteam/ip/bb2ac4d4-946a-418a-9ce9-7b0a877294d5/IMG_1708.jpg/:/rs=w:3837,m
+https://img1.wsimg.com/isteam/ip/bb2ac4d4-946a-418a-9ce9-7b0a877294d5/IMG_1708.jpg/:/rs=w:3840,m
+https://img1.wsimg.com/isteam/ip/bb2ac4d4-946a-418a-9ce9-7b0a877294d5/IMG_1708.jpg/:/rs=w:450,m
+https://img1.wsimg.com/isteam/ip/bb2ac4d4-946a-418a-9ce9-7b0a877294d5/IMG_1708.jpg/:/rs=w:4605,m
+https://img1.wsimg.com/isteam/ip/bb2ac4d4-946a-418a-9ce9-7b0a877294d5/IMG_1708.jpg/:/rs=w:5760,m
+https://img1.wsimg.com/isteam/ip/bb2ac4d4-946a-418a-9ce9-7b0a877294d5/IMG_1708.jpg/:/rs=w:767,m
+https://img1.wsimg.com/isteam/ip/bb2ac4d4-946a-418a-9ce9-7b0a877294d5/IMG_1708.jpg/:/rs=w:900,m
+https://img1.wsimg.com/isteam/ip/bb2ac4d4-946a-418a-9ce9-7b0a877294d5/IMG_3389.JPEG/:/cr=t:16.67%25,l:0%25,w:100%25,h:66.67%25/rs=w:1200,h:600,cg:true
+https://img1.wsimg.com/isteam/ip/bb2ac4d4-946a-418a-9ce9-7b0a877294d5/IMG_3389.JPEG/:/cr=t:16.67%25,l:0%25,w:100%25,h:66.67%25/rs=w:1209,h:605,cg:true
+https://img1.wsimg.com/isteam/ip/bb2ac4d4-946a-418a-9ce9-7b0a877294d5/IMG_3389.JPEG/:/cr=t:16.67%25,l:0%25,w:100%25,h:66.67%25/rs=w:1800,h:900,cg:true
+https://img1.wsimg.com/isteam/ip/bb2ac4d4-946a-418a-9ce9-7b0a877294d5/IMG_3389.JPEG/:/cr=t:16.67%25,l:0%25,w:100%25,h:66.67%25/rs=w:403,h:202,cg:true
+https://img1.wsimg.com/isteam/ip/bb2ac4d4-946a-418a-9ce9-7b0a877294d5/IMG_3389.JPEG/:/cr=t:16.67%25,l:0%25,w:100%25,h:66.67%25/rs=w:600,h:300,cg:true
+https://img1.wsimg.com/isteam/ip/bb2ac4d4-946a-418a-9ce9-7b0a877294d5/IMG_3389.JPEG/:/cr=t:16.67%25,l:0%25,w:100%25,h:66.67%25/rs=w:806,h:403,cg:true
+https://img1.wsimg.com/isteam/ip/bb2ac4d4-946a-418a-9ce9-7b0a877294d5/IMG_3389.JPEG/:/rs=w:100%25
+https://img1.wsimg.com/isteam/ip/bb2ac4d4-946a-418a-9ce9-7b0a877294d5/IMG_3389.JPEG/:/rs=w:1023,m
+https://img1.wsimg.com/isteam/ip/bb2ac4d4-946a-418a-9ce9-7b0a877294d5/IMG_3389.JPEG/:/rs=w:1279,m
+https://img1.wsimg.com/isteam/ip/bb2ac4d4-946a-418a-9ce9-7b0a877294d5/IMG_3389.JPEG/:/rs=w:1350,m
+https://img1.wsimg.com/isteam/ip/bb2ac4d4-946a-418a-9ce9-7b0a877294d5/IMG_3389.JPEG/:/rs=w:1534,m
+https://img1.wsimg.com/isteam/ip/bb2ac4d4-946a-418a-9ce9-7b0a877294d5/IMG_3389.JPEG/:/rs=w:1535,m
+https://img1.wsimg.com/isteam/ip/bb2ac4d4-946a-418a-9ce9-7b0a877294d5/IMG_3389.JPEG/:/rs=w:1920,m
+https://img1.wsimg.com/isteam/ip/bb2ac4d4-946a-418a-9ce9-7b0a877294d5/IMG_3389.JPEG/:/rs=w:2046,m
+https://img1.wsimg.com/isteam/ip/bb2ac4d4-946a-418a-9ce9-7b0a877294d5/IMG_3389.JPEG/:/rs=w:2301,m
+https://img1.wsimg.com/isteam/ip/bb2ac4d4-946a-418a-9ce9-7b0a877294d5/IMG_3389.JPEG/:/rs=w:2558,m
+https://img1.wsimg.com/isteam/ip/bb2ac4d4-946a-418a-9ce9-7b0a877294d5/IMG_3389.JPEG/:/rs=w:3069,m
+https://img1.wsimg.com/isteam/ip/bb2ac4d4-946a-418a-9ce9-7b0a877294d5/IMG_3389.JPEG/:/rs=w:3070,m
+https://img1.wsimg.com/isteam/ip/bb2ac4d4-946a-418a-9ce9-7b0a877294d5/IMG_3389.JPEG/:/rs=w:3837,m
+https://img1.wsimg.com/isteam/ip/bb2ac4d4-946a-418a-9ce9-7b0a877294d5/IMG_3389.JPEG/:/rs=w:3840,m
+https://img1.wsimg.com/isteam/ip/bb2ac4d4-946a-418a-9ce9-7b0a877294d5/IMG_3389.JPEG/:/rs=w:450,m
+https://img1.wsimg.com/isteam/ip/bb2ac4d4-946a-418a-9ce9-7b0a877294d5/IMG_3389.JPEG/:/rs=w:4605,m
+https://img1.wsimg.com/isteam/ip/bb2ac4d4-946a-418a-9ce9-7b0a877294d5/IMG_3389.JPEG/:/rs=w:5760,m
+https://img1.wsimg.com/isteam/ip/bb2ac4d4-946a-418a-9ce9-7b0a877294d5/IMG_3389.JPEG/:/rs=w:767,m
+https://img1.wsimg.com/isteam/ip/bb2ac4d4-946a-418a-9ce9-7b0a877294d5/IMG_3389.JPEG/:/rs=w:900,m
+https://img1.wsimg.com/isteam/ip/bb2ac4d4-946a-418a-9ce9-7b0a877294d5/IMG_3394.JPEG/:/rs=w:100%25
+https://img1.wsimg.com/isteam/ip/bb2ac4d4-946a-418a-9ce9-7b0a877294d5/IMG_3394.JPEG/:/rs=w:1023,m
+https://img1.wsimg.com/isteam/ip/bb2ac4d4-946a-418a-9ce9-7b0a877294d5/IMG_3394.JPEG/:/rs=w:1279,m
+https://img1.wsimg.com/isteam/ip/bb2ac4d4-946a-418a-9ce9-7b0a877294d5/IMG_3394.JPEG/:/rs=w:1350,m
+https://img1.wsimg.com/isteam/ip/bb2ac4d4-946a-418a-9ce9-7b0a877294d5/IMG_3394.JPEG/:/rs=w:1534,m
+https://img1.wsimg.com/isteam/ip/bb2ac4d4-946a-418a-9ce9-7b0a877294d5/IMG_3394.JPEG/:/rs=w:1535,m
+https://img1.wsimg.com/isteam/ip/bb2ac4d4-946a-418a-9ce9-7b0a877294d5/IMG_3394.JPEG/:/rs=w:1920,m
+https://img1.wsimg.com/isteam/ip/bb2ac4d4-946a-418a-9ce9-7b0a877294d5/IMG_3394.JPEG/:/rs=w:2046,m
+https://img1.wsimg.com/isteam/ip/bb2ac4d4-946a-418a-9ce9-7b0a877294d5/IMG_3394.JPEG/:/rs=w:2301,m
+https://img1.wsimg.com/isteam/ip/bb2ac4d4-946a-418a-9ce9-7b0a877294d5/IMG_3394.JPEG/:/rs=w:2558,m
+https://img1.wsimg.com/isteam/ip/bb2ac4d4-946a-418a-9ce9-7b0a877294d5/IMG_3394.JPEG/:/rs=w:3069,m
+https://img1.wsimg.com/isteam/ip/bb2ac4d4-946a-418a-9ce9-7b0a877294d5/IMG_3394.JPEG/:/rs=w:3070,m
+https://img1.wsimg.com/isteam/ip/bb2ac4d4-946a-418a-9ce9-7b0a877294d5/IMG_3394.JPEG/:/rs=w:3837,m
+https://img1.wsimg.com/isteam/ip/bb2ac4d4-946a-418a-9ce9-7b0a877294d5/IMG_3394.JPEG/:/rs=w:3840,m
+https://img1.wsimg.com/isteam/ip/bb2ac4d4-946a-418a-9ce9-7b0a877294d5/IMG_3394.JPEG/:/rs=w:450,m
+https://img1.wsimg.com/isteam/ip/bb2ac4d4-946a-418a-9ce9-7b0a877294d5/IMG_3394.JPEG/:/rs=w:4605,m
+https://img1.wsimg.com/isteam/ip/bb2ac4d4-946a-418a-9ce9-7b0a877294d5/IMG_3394.JPEG/:/rs=w:5760,m
+https://img1.wsimg.com/isteam/ip/bb2ac4d4-946a-418a-9ce9-7b0a877294d5/IMG_3394.JPEG/:/rs=w:767,m
+https://img1.wsimg.com/isteam/ip/bb2ac4d4-946a-418a-9ce9-7b0a877294d5/IMG_3394.JPEG/:/rs=w:900,m
+https://img1.wsimg.com/isteam/ip/bb2ac4d4-946a-418a-9ce9-7b0a877294d5/sundown-1.jpg/:/cr=t:0%25,l:0%25,w:100%25,h:100%25
+https://img1.wsimg.com/isteam/ip/bb2ac4d4-946a-418a-9ce9-7b0a877294d5/sundown-1.jpg/:/cr=t:0%25,l:0%25,w:100%25,h:100%25/rs=w:403,h:269
+https://img1.wsimg.com/isteam/ip/bb2ac4d4-946a-418a-9ce9-7b0a877294d5/sundown-1.jpg/:/cr=t:0%25,l:0%25,w:100%25,h:100%25/rs=w:719,h:480
+https://img1.wsimg.com/isteam/ip/bb2ac4d4-946a-418a-9ce9-7b0a877294d5/sundown-1.jpg/:/cr=t:0%25,l:0%25,w:100%25,h:100%25/rs=w:806,h:538
+https://img1.wsimg.com/isteam/ip/bb2ac4d4-946a-418a-9ce9-7b0a877294d5/sundown-1.jpg/:/cr=t:0%25,l:0%25,w:100%25,h:100%25/rs=w:984,h:656
