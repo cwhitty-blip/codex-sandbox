@@ -1,0 +1,76 @@
+name: Capture Nature Reserve website assets
+
+on:
+  push:
+    paths:
+      - ".github/workflows/capture-natures-reserve.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  capture:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Download current website and extract public image URLs
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p .site-captures
+          curl -L --compressed --retry 3 --connect-timeout 20 \
+            -A "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 Chrome/131 Safari/537.36" \
+            "https://naturesreservepark.com/" \
+            -o .site-captures/natures-reserve-current.html
+
+          python - <<'PY'
+          from pathlib import Path
+          import html
+          import re
+          from urllib.parse import urljoin
+
+          source_path = Path('.site-captures/natures-reserve-current.html')
+          raw = source_path.read_text(encoding='utf-8', errors='replace')
+          decoded = html.unescape(raw).replace('\\u002F', '/').replace('\\/', '/')
+
+          candidates = set()
+          patterns = [
+              r'https?://[^"\'<>\\\s]+?\.(?:jpg|jpeg|png|webp|avif)(?:/:[^"\'<>\\\s]*)?',
+              r'(?:src|data-src|data-image|data-aid|content)=["\']([^"\']+)["\']',
+              r'url\(["\']?([^"\')]+)["\']?\)',
+          ]
+          for pattern in patterns:
+              for match in re.findall(pattern, decoded, flags=re.I):
+                  value = match if isinstance(match, str) else match[0]
+                  if any(ext in value.lower() for ext in ('.jpg', '.jpeg', '.png', '.webp', '.avif')):
+                      candidates.add(urljoin('https://naturesreservepark.com/', value))
+
+          cleaned = []
+          for url in candidates:
+              url = url.replace('&amp;', '&').strip('"\' ,')
+              if url.startswith('http'):
+                  cleaned.append(url)
+
+          Path('.site-captures/natures-reserve-image-urls.txt').write_text(
+              '\n'.join(sorted(set(cleaned))) + '\n', encoding='utf-8'
+          )
+          print(f'Captured {len(raw):,} HTML characters and {len(set(cleaned))} image URLs.')
+          PY
+
+      - name: Commit capture files
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add .site-captures/natures-reserve-current.html .site-captures/natures-reserve-image-urls.txt
+          if git diff --cached --quiet; then
+            echo "No capture changes to commit."
+          else
+            git commit -m "Capture Nature Reserve website assets"
+            git push
+          fi
