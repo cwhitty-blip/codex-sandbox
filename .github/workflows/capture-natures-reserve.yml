@@ -12,138 +12,67 @@ permissions:
 jobs:
   capture:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 10
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
 
-      - name: Set up Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: "22"
-
-      - name: Download current website HTML
+      - name: Capture current website and its public photos
         shell: bash
         run: |
           set -euo pipefail
-          mkdir -p .site-captures
+          mkdir -p .site-captures/natures-reserve-photos
+
           curl -L --compressed --retry 3 --connect-timeout 20 \
             -A "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 Chrome/131 Safari/537.36" \
             "https://naturesreservepark.com/" \
             -o .site-captures/natures-reserve-current.html
 
-      - name: Render the website and collect loaded assets
+          base="https://img1.wsimg.com/isteam/ip/bb2ac4d4-946a-418a-9ce9-7b0a877294d5"
+          curl -L --retry 3 "$base/ChatGPT%20Image%20Aug%201%2C%202025%2C%2011_58_04%20AM.png/:/rs=w:1600,m" -o .site-captures/natures-reserve-photos/brand-art.png
+          curl -L --retry 3 "$base/IMG_1705.jpg/:/rs=w:1600,m" -o .site-captures/natures-reserve-photos/IMG_1705.jpg
+          curl -L --retry 3 "$base/IMG_1708.jpg/:/rs=w:1600,m" -o .site-captures/natures-reserve-photos/IMG_1708.jpg
+          curl -L --retry 3 "$base/IMG_3389.JPEG/:/rs=w:1600,m" -o .site-captures/natures-reserve-photos/IMG_3389.JPEG
+          curl -L --retry 3 "$base/IMG_3394.JPEG/:/rs=w:1600,m" -o .site-captures/natures-reserve-photos/IMG_3394.JPEG
+
+          file .site-captures/natures-reserve-photos/*
+
+      - name: Build a photo contact sheet
         shell: bash
         run: |
           set -euo pipefail
-          npm install --no-save playwright@1.55.0
-          npx playwright install --with-deps chromium
-          cat > /tmp/capture-natures-reserve.cjs <<'JS'
-          const { chromium } = require('playwright');
-          const fs = require('fs');
-          const path = require('path');
+          python -m pip install --quiet pillow
+          python - <<'PY'
+          from pathlib import Path
+          from PIL import Image, ImageDraw, ImageFont, ImageOps
 
-          const outputDir = path.resolve('.site-captures');
-          fs.mkdirSync(outputDir, { recursive: true });
+          source = Path('.site-captures/natures-reserve-photos')
+          files = [
+              source / 'brand-art.png',
+              source / 'IMG_1705.jpg',
+              source / 'IMG_1708.jpg',
+              source / 'IMG_3389.JPEG',
+              source / 'IMG_3394.JPEG',
+          ]
+          cell_w, cell_h = 720, 480
+          label_h = 52
+          canvas = Image.new('RGB', (cell_w * 2, (cell_h + label_h) * 3), '#efe9dd')
+          draw = ImageDraw.Draw(canvas)
+          font = ImageFont.load_default(size=24)
 
-          function normalize(value) {
-            if (!value) return null;
-            try {
-              return new URL(value, 'https://naturesreservepark.com/').href;
-            } catch {
-              return null;
-            }
-          }
+          for idx, path in enumerate(files):
+              image = Image.open(path).convert('RGB')
+              fitted = ImageOps.fit(image, (cell_w, cell_h), method=Image.Resampling.LANCZOS)
+              x = (idx % 2) * cell_w
+              y = (idx // 2) * (cell_h + label_h)
+              canvas.paste(fitted, (x, y))
+              draw.rectangle((x, y + cell_h, x + cell_w, y + cell_h + label_h), fill='#1d332c')
+              draw.text((x + 18, y + cell_h + 12), path.name, fill='white', font=font)
 
-          (async () => {
-            const browser = await chromium.launch({ headless: true });
-            const page = await browser.newPage({ viewport: { width: 1440, height: 1100 }, deviceScaleFactor: 1 });
-            await page.goto('https://naturesreservepark.com/', { waitUntil: 'networkidle', timeout: 120000 });
-
-            await page.evaluate(async () => {
-              const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
-              for (let y = 0; y < document.body.scrollHeight; y += 700) {
-                window.scrollTo(0, y);
-                await delay(180);
-              }
-              window.scrollTo(0, 0);
-              await delay(600);
-            });
-
-            const collected = new Set();
-            async function collect() {
-              const urls = await page.evaluate(() => {
-                const found = new Set();
-                const add = (value) => {
-                  if (!value || value.startsWith('data:') || value.startsWith('blob:')) return;
-                  try { found.add(new URL(value, location.href).href); } catch {}
-                };
-
-                for (const img of document.querySelectorAll('img')) {
-                  add(img.currentSrc);
-                  add(img.src);
-                  for (const item of (img.srcset || '').split(',')) {
-                    add(item.trim().split(/\s+/)[0]);
-                  }
-                }
-
-                for (const source of document.querySelectorAll('source')) {
-                  add(source.src);
-                  for (const item of (source.srcset || '').split(',')) {
-                    add(item.trim().split(/\s+/)[0]);
-                  }
-                }
-
-                for (const el of document.querySelectorAll('*')) {
-                  const style = getComputedStyle(el);
-                  const values = [style.backgroundImage, style.content];
-                  for (const value of values) {
-                    if (!value || value === 'none') continue;
-                    for (const match of value.matchAll(/url\(["']?(.+?)["']?\)/g)) add(match[1]);
-                  }
-                  for (const attr of ['data-src', 'data-image', 'data-url', 'href']) add(el.getAttribute(attr));
-                }
-                return [...found];
-              });
-              for (const url of urls) collected.add(url);
-            }
-
-            await collect();
-
-            const nextButtons = page.locator('button[aria-label*="next" i], [role="button"][aria-label*="next" i], [data-aid*="NEXT" i]');
-            const buttonCount = await nextButtons.count();
-            for (let round = 0; round < 20 && buttonCount > 0; round++) {
-              let clicked = false;
-              for (let i = 0; i < buttonCount; i++) {
-                const button = nextButtons.nth(i);
-                if (await button.isVisible().catch(() => false)) {
-                  await button.click({ timeout: 3000 }).catch(() => {});
-                  await page.waitForTimeout(250);
-                  await collect();
-                  clicked = true;
-                }
-              }
-              if (!clicked) break;
-            }
-
-            await page.screenshot({ path: path.join(outputDir, 'natures-reserve-fullpage.png'), fullPage: true });
-
-            const imageUrls = [...collected]
-              .map(normalize)
-              .filter(Boolean)
-              .filter((url) => /\.(?:jpe?g|png|webp|avif)(?:$|[/?#:])/i.test(url) || /img\d*\.wsimg\.com/i.test(url))
-              .sort();
-
-            fs.writeFileSync(path.join(outputDir, 'natures-reserve-rendered-image-urls.txt'), imageUrls.join('\n') + '\n');
-            fs.writeFileSync(path.join(outputDir, 'natures-reserve-page-title.txt'), await page.title());
-            console.log(`Collected ${imageUrls.length} rendered image URLs.`);
-            await browser.close();
-          })().catch((error) => {
-            console.error(error);
-            process.exit(1);
-          });
-          JS
-          node /tmp/capture-natures-reserve.cjs
+          out = Path('.site-captures/natures-reserve-contact-sheet.jpg')
+          canvas.save(out, quality=90)
+          print(f'Saved {out}')
+          PY
 
       - name: Extract public image URLs from HTML
         shell: bash
@@ -188,9 +117,9 @@ jobs:
         with:
           name: natures-reserve-visual-capture
           path: |
-            .site-captures/natures-reserve-fullpage.png
-            .site-captures/natures-reserve-rendered-image-urls.txt
-            .site-captures/natures-reserve-page-title.txt
+            .site-captures/natures-reserve-contact-sheet.jpg
+            .site-captures/natures-reserve-photos/
+            .site-captures/natures-reserve-image-urls.txt
           retention-days: 3
 
       - name: Commit capture text files
@@ -199,11 +128,7 @@ jobs:
           set -euo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add \
-            .site-captures/natures-reserve-current.html \
-            .site-captures/natures-reserve-image-urls.txt \
-            .site-captures/natures-reserve-rendered-image-urls.txt \
-            .site-captures/natures-reserve-page-title.txt
+          git add .site-captures/natures-reserve-current.html .site-captures/natures-reserve-image-urls.txt
           if git diff --cached --quiet; then
             echo "No capture changes to commit."
           else
