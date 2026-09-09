@@ -1,0 +1,77 @@
+name: Extract Nature Reserve image inventory
+
+on:
+  push:
+    paths:
+      - ".github/workflows/extract-natures-reserve-images.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  extract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Extract every original-site image URL
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+          from urllib.parse import urljoin
+          import html
+          import re
+
+          source = Path('.site-captures/natures-reserve-current.html')
+          text = html.unescape(source.read_text(encoding='utf-8', errors='replace'))
+          text = text.replace('\\u002F', '/').replace('\\/', '/')
+
+          patterns = [
+              r'(?:(?:https?:)?//)img1\.wsimg\.com/isteam/ip/bb2ac4d4-946a-418a-9ce9-7b0a877294d5/[^"\'<>\\\s)]+?\.(?:jpe?g|png|webp|avif)(?:/:[^"\'<>\\\s)]*)?',
+              r'(?:(?:https?:)?//)img1\.wsimg\.com/isteam/ip/bb2ac4d4-946a-418a-9ce9-7b0a877294d5/[^"\'<>\\\s)]+',
+          ]
+
+          urls = set()
+          for pattern in patterns:
+              for found in re.findall(pattern, text, flags=re.I):
+                  url = found.strip('"\' ,;')
+                  if url.startswith('//'):
+                      url = 'https:' + url
+                  elif url.startswith('http://'):
+                      url = 'https://' + url[len('http://'):]
+                  urls.add(url)
+
+          # Keep one clean, high-resolution URL per source filename, plus all
+          # transformed URLs for inspection.
+          filenames = {}
+          for url in sorted(urls):
+              before_transform = url.split('/:/', 1)[0]
+              filename = before_transform.rsplit('/', 1)[-1]
+              filenames.setdefault(filename, before_transform + '/:/rs=w:1920,m')
+
+          output = [
+              '# CLEAN HIGH-RES URLS',
+              *[f'{name}\t{url}' for name, url in sorted(filenames.items())],
+              '',
+              '# ALL DISCOVERED URLS',
+              *sorted(urls),
+              '',
+          ]
+          Path('.site-captures/natures-reserve-all-images.txt').write_text('\n'.join(output), encoding='utf-8')
+          print(f'Found {len(filenames)} unique image filenames and {len(urls)} transformed URLs.')
+          PY
+
+      - name: Commit inventory
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add .site-captures/natures-reserve-all-images.txt
+          git commit -m "Inventory Nature Reserve original-site images"
+          git push
