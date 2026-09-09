@@ -29,4 +29,4 @@
   if (year) year.textContent = String(new Date().getFullYear());
 })();
 
-// Republishes the sharper hero-image build to GitHub Pages.
+// Republishes the tiny-home and gallery photo corrections to GitHub Pages.
