@@ -133,7 +133,7 @@ function presetPicker(){
   return wrap;
 }
 
-function enhanceSettings(){const h=app.querySelector('.head h2');if(!h||h.textContent!=='Settings'||app.querySelector('.personalization-card'))return;const page=app.querySelector('.page');if(page)page.append(presetPicker())}
+function enhanceSettings(){/* Wallpaper controls live only in Appearance > Wallpaper. */}
 function normalizeStorage(){
   const raw=localStorage.getItem('phone-wallpaper-preset');
   const normalized=normalizePreset(raw || 'mountains');
