@@ -1,7 +1,7 @@
 {
   "name": "Calculator v43",
   "short_name": "Calculator",
-  "start_url": "./calculator-v43.html",
+  "start_url": "./calculator-v42.html",
   "scope": "./",
   "display": "standalone",
   "background_color": "#000000",
