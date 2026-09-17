@@ -1,1 +1,9 @@
-.share-icon{background:linear-gradient(145deg,#1989ff,#67c5ff);color:#fff;font-size:32px}.home-editing .phone-app{animation:appWiggle .16s ease-in-out infinite alternate}.home-editing .phone-label{pointer-events:none}.dragging-app{opacity:.72;transform:scale(1.12)!important;animation:none!important;z-index:50}@keyframes appWiggle{from{transform:rotate(-1.2deg)}to{transform:rotate(1.2deg)}}
+.share-icon{background:linear-gradient(145deg,#1989ff,#67c5ff);color:#fff;font-size:32px}
+.home-editing .phone-app{animation:appWiggle .16s ease-in-out infinite alternate;touch-action:none}
+.home-editing .phone-label{pointer-events:none}
+.dragging-app{opacity:.72;transform:scale(1.12)!important;animation:none!important;z-index:50}
+.home-edit-done{position:absolute;right:18px;top:calc(env(safe-area-inset-top) + 13px);z-index:80;border:0;border-radius:999px;background:#fff;color:#0868d8;padding:7px 14px;font-size:15px;font-weight:800;box-shadow:0 2px 9px #0003}
+.home-edit-done[hidden]{display:none}
+.app-remove-control{position:absolute;z-index:70;top:-8px;left:-8px;width:24px;height:24px;border:2px solid #fff;border-radius:50%;padding:0;background:#d8d8dc;color:#202124;font:700 22px/17px -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;box-shadow:0 1px 4px #0006;animation:none!important}
+.phone-app{position:relative}
+@keyframes appWiggle{from{transform:rotate(-1.2deg)}to{transform:rotate(1.2deg)}}

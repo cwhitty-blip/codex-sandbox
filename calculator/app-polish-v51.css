@@ -1,0 +1,38 @@
+/* Faster interaction and additional optional Calculator apps. */
+.calendar-card { margin:16px; background:#fff; border-radius:22px; padding:15px; box-shadow:0 8px 24px #0001; }
+.calendar-bar { display:grid; grid-template-columns:42px 1fr 42px; align-items:center; text-align:center; margin-bottom:14px; }
+.calendar-bar button { border:0; background:#edf3ff; color:#087cff; border-radius:12px; height:38px; font-size:27px; }
+.calendar-bar strong { font-size:20px; }
+.calendar-grid { display:grid; grid-template-columns:repeat(7,1fr); gap:5px; text-align:center; }
+.calendar-grid small { color:#8b8b91; font-size:10px; font-weight:800; padding:5px 0; }
+.calendar-grid span,.calendar-grid button { aspect-ratio:1; border:0; border-radius:50%; display:grid; place-items:center; background:transparent; color:#111; }
+.calendar-grid button.today { background:#ff3b30; color:#fff; font-weight:900; }
+.flashcard-form { display:grid; gap:8px; padding:16px; }
+.flashcard-list { display:grid; gap:12px; padding:0 16px 24px; }
+.flashcard { background:#fff; border-radius:20px; padding:12px; box-shadow:0 6px 18px #0001; }
+.flashcard>button:first-child { width:100%; min-height:150px; border:0; background:linear-gradient(145deg,#f8f7ff,#ebe8ff); color:#222; border-radius:15px; padding:20px; display:grid; place-content:center; gap:9px; }
+.flashcard small { color:#6751ca; font-weight:900; }
+.flashcard strong { font-size:25px; }
+.flashcard span { color:#777; font-size:12px; }
+.flashcard-delete { display:block; margin:9px 0 0 auto; border:0; background:#fee; color:#d33; border-radius:9px; padding:7px 10px; }
+.mini-empty { min-height:220px; display:grid; place-content:center; text-align:center; color:#888; }
+.mini-empty strong,.mini-empty span { display:block; }
+.mini-empty strong { font-size:22px; color:#333; }
+.breathe-card { min-height:66vh; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:16px; }
+.breathe-orb { width:150px; height:150px; border-radius:50%; background:#57d9bd; box-shadow:inset 0 0 0 10px #ffffff55; transition:transform 4s linear,background .2s; }
+.breathe-orb.in { transform:scale(1.36); background:#44cfae; }
+.breathe-orb.hold { transform:scale(1.36); transition-duration:.15s; }
+.breathe-orb.out { transform:scale(.84); transition-duration:6s; background:#7bdcc7; }
+.breathe-card strong { font-size:30px; }
+.breathe-card span { color:#777; }
+.breathe-card .pro-primary { min-width:150px; }
+.dice-card { min-height:64vh; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:22px; }
+.dice-wrap { display:flex; gap:16px; }
+.die { width:112px; height:112px; border-radius:24px; background:#fff; color:#111; display:grid; place-items:center; font-size:88px; line-height:1; box-shadow:0 10px 25px #0002; }
+.dice-wrap.rolling { animation:dicePop .24s ease-out; }
+.dice-card>strong { font-size:25px; }
+.dice-choice { display:flex; background:#e5e5ea; border-radius:13px; padding:3px; }
+.dice-choice button { border:0; background:transparent; border-radius:10px; padding:9px 16px; color:#555; }
+.dice-choice button.active { background:#fff; color:#111; box-shadow:0 2px 7px #0002; }
+.dice-roll { min-width:180px; font-size:18px; }
+@keyframes dicePop { 50% { transform:scale(.88) rotate(-2deg); } }
