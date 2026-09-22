@@ -1,7 +1,7 @@
 (()=>{
 const $=s=>document.querySelector(s),calc=$('#calc'),disp=$('#disp'),home=$('#home'),app=$('#app'),toastEl=$('#toast');
 if(!calc||!disp||!home||!app)return;
-let expr='',quickUnlock='';
+let expr='',quickUnlock='',justEvaluated=false;
 const projects=[
 {id:'ava',name:'Ava',icon:'✦',cls:'ava',url:'https://chatgpt.com/'},
 {id:'ninja',name:'Ninja',icon:'🥷',cls:'ninja',url:'https://ninja-y-game.cwhit.chatgpt.site/'},
@@ -25,20 +25,26 @@ const builtins=[
 const dockIds=['browser','notes','store','settings'];
 function show(el){document.querySelectorAll('.screen').forEach(x=>x.classList.remove('active'));el.classList.add('active')}
 function toast(t){if(!toastEl)return;toastEl.textContent=t;toastEl.classList.add('show');setTimeout(()=>toastEl.classList.remove('show'),1100)}
-function lock(){expr='';quickUnlock='';disp.textContent='0';document.getElementById('calcCallOverlay')?.remove();show(calc)}
-function enterPrivateHome(){expr='';quickUnlock='';disp.textContent='0';show(home);window.dispatchEvent(new CustomEvent('calculator-private-home'))}
+function lock(){expr='';quickUnlock='';justEvaluated=false;disp.textContent='0';document.getElementById('calcCallOverlay')?.remove();show(calc)}
+function enterPrivateHome(){expr='';quickUnlock='';justEvaluated=false;disp.textContent='0';show(home);window.dispatchEvent(new CustomEvent('calculator-private-home'))}
 function unlock(){if(expr!==(localStorage.getItem('main-code')||'5963'))return false;enterPrivateHome();return true}
-function evaluate(){try{const s=expr.replace(/−/g,'-').replace(/×/g,'*').replace(/÷/g,'/').replace(/%/g,'/100');if(!/^[0-9+\-*/.() ]+$/.test(s))throw 0;const n=Function('"use strict";return ('+s+')')();if(!Number.isFinite(n))throw 0;expr=String(Math.round(n*1e10)/1e10);disp.textContent=expr}catch{expr='';disp.textContent='Error'}}
+function cleanNumber(n){if(!Number.isFinite(n))throw 0;const rounded=Math.abs(n)<1e-12?0:Number.parseFloat(n.toPrecision(12));return Math.abs(rounded)>=1e12?rounded.toExponential(7):String(rounded)}
+function currentNumberRange(){let start=expr.length;while(start>0&&/[0-9.]/.test(expr[start-1]))start--;return{start,value:expr.slice(start)}}
+function percent(){const part=currentNumberRange();if(!part.value)return;const amount=Number(part.value);if(!Number.isFinite(amount))return;let replacement=amount/100;const op=expr[part.start-1];if(op==='+'||op==='−'){const left=expr.slice(0,part.start-1).replace(/−/g,'-').replace(/×/g,'*').replace(/÷/g,'/');if(/^[0-9+\-*/.() ]+$/.test(left)){try{const base=Function('"use strict";return ('+left+')')();if(Number.isFinite(base))replacement=base*amount/100}catch{}}}expr=expr.slice(0,part.start)+cleanNumber(replacement);disp.textContent=expr}
+function evaluate(){try{const ready=expr.replace(/[+−×÷.]$/,'');if(!ready)throw 0;const s=ready.replace(/−/g,'-').replace(/×/g,'*').replace(/÷/g,'/');if(!/^[0-9+\-*/.() ]+$/.test(s))throw 0;const n=Function('"use strict";return ('+s+')')();expr=cleanNumber(n);disp.textContent=expr;justEvaluated=true}catch{expr='';justEvaluated=false;disp.textContent='Error'}}
 function pressKey(button){
  if(!button)return;
- if(button.dataset.a==='clear'){expr='';quickUnlock='';disp.textContent='0';return}
+ if(button.dataset.a==='clear'){expr='';quickUnlock='';justEvaluated=false;disp.textContent='0';return}
  if((button.dataset.a==='eq'||button.dataset.v==='+')&&unlock())return;
  if(button.dataset.a==='eq'){evaluate();return}
  const value=button.dataset.v;
  quickUnlock=(quickUnlock+value).slice(-3);
  if(quickUnlock==='÷×6'){enterPrivateHome();return}
- if(value==='+/-'){if(expr)expr=expr.startsWith('−')?expr.slice(1):'−'+expr}
- else if(expr.length<30)expr+=value;
+ if(value==='%'){percent();justEvaluated=false;return}
+ if(value==='+/-'){const part=currentNumberRange();if(part.value){const sign=expr[part.start-1]==='−'&&(part.start-1===0||/[+−×÷]/.test(expr[part.start-2]||''));expr=sign?expr.slice(0,part.start-1)+part.value:expr.slice(0,part.start)+'−'+part.value}}
+ else if(/[+−×÷]/.test(value)){justEvaluated=false;if(!expr){if(value==='−')expr='−'}else if(/[+−×÷]$/.test(expr))expr=expr.slice(0,-1)+value;else expr+=value}
+ else if(value==='.'){if(justEvaluated){expr='';justEvaluated=false}const part=currentNumberRange();if(!part.value.includes('.'))expr+=part.value?'0'.slice(0,0)+'.':'0.'}
+ else {if(justEvaluated){expr='';justEvaluated=false}if(expr.length<30){const part=currentNumberRange();if(part.value==='0'&&value==='0'){}else if(part.value==='0')expr=expr.slice(0,-1)+value;else expr+=value}}
  disp.textContent=expr||'0';
 }
 // Bind directly to each calculator key. Touch devices receive pointerup first;
@@ -48,6 +54,7 @@ calc.querySelectorAll('.key').forEach(button=>{
  button.addEventListener('pointerup',()=>{lastPointerButton=button;lastPointerTime=Date.now();pressKey(button)});
  button.addEventListener('click',()=>{if(lastPointerButton===button&&Date.now()-lastPointerTime<750)return;pressKey(button)});
 });
+document.addEventListener('keydown',event=>{if(!calc.classList.contains('active'))return;const map={Enter:'=',Escape:'AC',Backspace:'back','*':'×','/':'÷','-':'−'};const value=map[event.key]||event.key;if(value==='back'){expr=expr.slice(0,-1);justEvaluated=false;disp.textContent=expr||'0';event.preventDefault();return}const button=[...calc.querySelectorAll('.key')].find(x=>x.textContent.trim()===value||x.dataset.v===value||(value==='='&&x.dataset.a==='eq')||(value==='AC'&&x.dataset.a==='clear'));if(button){pressKey(button);event.preventDefault()}});
 function icon(d,fn){const b=document.createElement('button');b.className='phone-app';b.type='button';b.dataset.appId=d.id;b.innerHTML=`<span class="phone-icon ${d.cls}">${d.icon}</span><span class="phone-label"></span>`;b.querySelector('.phone-label').textContent=d.name;b.onclick=fn;return b}
 function shell(title){app.innerHTML='';const p=document.createElement('div');p.className='page';const h=document.createElement('div');h.className='head';const b=document.createElement('button');b.className='back';b.textContent='‹ Home';b.onclick=()=>show(home);const t=document.createElement('h2');t.textContent=title;h.append(b,t);p.append(h);app.append(p);show(app);return p}
 function project(d){const u=d.url||window.CalculatorProjectLinks?.[d.id]||localStorage.getItem('project-url-'+d.id);const p=shell(d.name);if(!u){const c=document.createElement('div');c.className='card';c.textContent='This app has not been connected yet.';p.append(c);return}p.classList.add('project-web-app');const tools=document.createElement('div');tools.className='project-web-tools';const status=document.createElement('span');status.textContent='Opening app…';const external=document.createElement('a');external.href=u;external.target='_blank';external.rel='noopener noreferrer';external.textContent='Open separately';tools.append(status,external);const frame=document.createElement('iframe');frame.className='project-web-frame';frame.title=d.name;frame.src=u;frame.setAttribute('allow','camera; microphone; clipboard-read; clipboard-write; fullscreen');frame.onload=()=>status.textContent=d.name;p.append(tools,frame)}
