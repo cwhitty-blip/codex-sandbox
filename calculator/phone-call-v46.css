@@ -149,3 +149,36 @@
 @media (max-width: 360px) {
   .phone-tab small { font-size: 8px; }
 }
+
+.dial-help {
+  margin: 2px 0 0;
+  color: #777780;
+  font-size: 13px;
+  font-weight: 650;
+  text-align: center;
+}
+
+.dial-call:disabled,
+.dial-video:disabled,
+.dial-message:disabled,
+.dial-delete:disabled {
+  opacity: 0.28;
+  pointer-events: none;
+  box-shadow: none;
+}
+
+.call-number-subtitle {
+  margin-top: -3px;
+  color: rgba(255, 255, 255, 0.68);
+  font-size: 15px;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.03em;
+}
+
+.call-security {
+  margin-top: 7px;
+  color: rgba(255, 255, 255, 0.54);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
