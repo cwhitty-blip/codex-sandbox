@@ -3,7 +3,7 @@ if(!(window.matchMedia('(display-mode: standalone)').matches||window.navigator.s
 if(!window.supabase||!window.supabase.createClient)return;
 const SUPABASE_URL='https://nzwygirmuolgwwvtjexw.supabase.co';
 const SUPABASE_KEY='sb_publishable_cgOv1kSk43tKAO62az5EgQ_ieMN0_-c';
-const sb=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY,{realtime:{params:{eventsPerSecond:10}}});
+const sb=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY,{auth:{storageKey:'calculator-phone-realtime-v1',persistSession:false,autoRefreshToken:false,detectSessionInUrl:false},realtime:{params:{eventsPerSecond:10}}});
 const home=document.getElementById('home'),app=document.getElementById('app'),toastEl=document.getElementById('toast');
 if(!home||!app)return;
 const state={inbox:null,pc:null,dc:null,local:null,remote:new MediaStream(),callId:null,peer:null,callKey:null,pending:null,active:false,muted:false,sound:true,startedAt:0,timer:null,timeout:null};
