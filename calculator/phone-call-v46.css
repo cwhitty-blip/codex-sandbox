@@ -182,3 +182,232 @@
   font-weight: 700;
   letter-spacing: 0.02em;
 }
+
+/* Call experience refresh */
+.phone-native-page {
+  background:
+    radial-gradient(circle at 50% 16%, rgba(10, 132, 255, 0.06), transparent 34%),
+    #f7f7fa;
+}
+
+.phone-native-page > .ios-nav {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  margin: -8px -14px 0;
+  padding: calc(env(safe-area-inset-top) + 10px) 16px 12px;
+  background: rgba(247, 247, 250, 0.88);
+  border-bottom: 1px solid rgba(60, 60, 67, 0.12);
+  backdrop-filter: blur(22px) saturate(160%);
+}
+
+.phone-tab-keypad {
+  width: min(100%, 390px);
+  margin: 0 auto;
+  padding-top: 8px;
+}
+
+.phone-tab-keypad .dial-help {
+  min-height: 20px;
+  margin: 0 auto 3px;
+  color: #6c6c74;
+  font-size: 13px;
+  font-weight: 750;
+}
+
+.phone-tab-keypad .dial-number {
+  min-height: 48px;
+  margin: 0 0 13px;
+  color: #111116 !important;
+  font-size: clamp(27px, 8vw, 34px);
+  font-weight: 620;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.03em !important;
+  outline: none;
+}
+
+.phone-tab-keypad .dial-number:empty::before {
+  color: #a0a0a8 !important;
+  -webkit-text-fill-color: #a0a0a8;
+}
+
+.phone-tab-keypad .dial-number:focus-visible {
+  border-radius: 12px;
+  box-shadow: 0 0 0 4px rgba(10, 132, 255, 0.16);
+}
+
+.phone-tab-keypad .dialpad {
+  grid-template-columns: repeat(3, 76px) !important;
+  gap: 12px 20px !important;
+}
+
+.phone-tab-keypad .dial-key {
+  width: 76px !important;
+  height: 76px !important;
+  border: 1px solid rgba(60, 60, 67, 0.08);
+  background: linear-gradient(145deg, #fff, #ececf1) !important;
+  color: #111116 !important;
+  box-shadow: 0 7px 18px rgba(33, 37, 48, 0.10), inset 0 1px 0 #fff !important;
+}
+
+.phone-tab-keypad .dial-key:active {
+  background: #d9dae0 !important;
+  transform: scale(0.91);
+}
+
+.phone-tab-keypad .dial-actions {
+  max-width: 270px;
+  min-height: 86px;
+  margin: 15px auto 8px;
+}
+
+.phone-tab-keypad .dial-actions > button {
+  position: relative;
+  width: 64px;
+  height: 64px;
+  border: 0;
+  overflow: visible;
+  box-shadow: 0 10px 22px rgba(30, 35, 45, 0.14);
+  transition: transform 0.12s ease, opacity 0.15s ease;
+}
+
+.phone-tab-keypad .dial-actions > button:active {
+  transform: scale(0.91);
+}
+
+.phone-tab-keypad .dial-actions > button::after {
+  position: absolute;
+  top: calc(100% + 5px);
+  left: 50%;
+  color: #4f4f57;
+  font-size: 10px;
+  font-weight: 750;
+  line-height: 1;
+  transform: translateX(-50%);
+  white-space: nowrap;
+}
+
+.phone-tab-keypad .dial-message::after { content: "Message"; }
+.phone-tab-keypad .dial-video::after { content: "Video"; }
+.phone-tab-keypad .dial-call::after { content: "Call"; }
+.phone-tab-keypad .dial-delete::after { content: "Delete"; }
+
+.phone-tab-keypad .dial-actions > button:disabled {
+  opacity: 0.35;
+  filter: grayscale(0.25);
+}
+
+.phone-tab-keypad .my-number-chip {
+  margin-top: 2px;
+  border: 1px solid rgba(10, 132, 255, 0.13);
+  background: #fff;
+  color: #2563a8;
+  box-shadow: 0 5px 15px rgba(33, 37, 48, 0.06);
+}
+
+.phone-tab-bar {
+  box-shadow: 0 -8px 24px rgba(31, 35, 45, 0.06);
+}
+
+.phone-tab {
+  min-height: 50px;
+  border-radius: 14px;
+}
+
+.phone-tab.active {
+  background: rgba(10, 132, 255, 0.08);
+}
+
+.phone-tab.active b { transform: scale(1.06); }
+
+.calc-call-overlay {
+  isolation: isolate;
+  background:
+    radial-gradient(circle at 50% 8%, rgba(93, 148, 212, 0.60), transparent 34%),
+    radial-gradient(circle at 12% 88%, rgba(104, 75, 150, 0.34), transparent 34%),
+    linear-gradient(165deg, #182b42, #0f1721 66%, #080a0e) !important;
+}
+
+.calc-call-overlay::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: linear-gradient(115deg, rgba(255,255,255,0.07), transparent 34%);
+  pointer-events: none;
+}
+
+.calc-call-overlay .call-small {
+  padding: 7px 11px;
+  border: 1px solid rgba(255,255,255,0.13);
+  border-radius: 999px;
+  background: rgba(0,0,0,0.13);
+  font-size: 10px !important;
+  letter-spacing: 0.15em;
+}
+
+.calc-call-overlay .call-status {
+  margin-top: 10px;
+  color: rgba(255,255,255,0.82);
+  opacity: 1;
+  font-size: 16px;
+  font-weight: 650;
+}
+
+.calc-call-overlay .call-security {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-top: 10px;
+  padding: 7px 10px;
+  border: 1px solid rgba(255,255,255,0.11);
+  border-radius: 999px;
+  background: rgba(0,0,0,0.14);
+  color: rgba(255,255,255,0.68);
+}
+
+.calc-call-overlay .call-security::before {
+  content: "✓";
+  color: #72e18b;
+  font-weight: 900;
+}
+
+.in-call-controls {
+  max-width: 430px;
+  margin-inline: auto;
+  padding: 14px !important;
+  border-radius: 29px !important;
+}
+
+.call-control b {
+  border: 1px solid rgba(255,255,255,0.10);
+}
+
+@media (min-width: 700px) {
+  .phone-tab-keypad .dialpad {
+    gap: 13px 24px !important;
+  }
+  .phone-tab-bar {
+    left: 50%;
+    width: min(100%, 720px);
+    transform: translateX(-50%);
+    border: 1px solid rgba(60,60,67,0.12);
+    border-bottom: 0;
+    border-radius: 22px 22px 0 0;
+  }
+}
+
+@media (max-height: 700px) {
+  .phone-tab-keypad .dialpad {
+    grid-template-columns: repeat(3, 68px) !important;
+    gap: 8px 18px !important;
+  }
+  .phone-tab-keypad .dial-key {
+    width: 68px !important;
+    height: 68px !important;
+  }
+  .phone-tab-keypad .dial-actions {
+    min-height: 78px;
+    margin-top: 10px;
+  }
+}
