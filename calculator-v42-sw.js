@@ -1,4 +1,4 @@
-const CACHE='calculator-v42-offline-20260923-8';
+const CACHE='calculator-v42-offline-20260924-9';
 const HOME='./calculator-v42.html';
 const CORE=[
   HOME,'./calculator-v42.webmanifest','./calculator/icon-v36.svg',
