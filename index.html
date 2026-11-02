@@ -18,7 +18,7 @@
         document.documentElement.dataset.theme = theme;
       })();
     </script>
-    <link rel="stylesheet" href="assets/styles.css?v=account-recovery-v1" />
+    <link rel="stylesheet" href="assets/styles.css?v=job-flow-v2" />
   </head>
   <body>
     <div class="app-shell">
@@ -42,9 +42,9 @@
             <i data-lucide="clipboard-list" aria-hidden="true"></i>
             <span>Jobs</span>
           </button>
-          <button class="nav-tab" data-view="customer" type="button" aria-label="Customer">
+          <button class="nav-tab" data-view="customer" type="button" aria-label="Portal preview">
             <i data-lucide="user-round" aria-hidden="true"></i>
-            <span>Customer</span>
+            <span>Portal</span>
           </button>
         </nav>
 
@@ -108,13 +108,15 @@
 
         <header class="topbar">
           <div>
-            <p class="eyebrow">Workspace</p>
+            <p class="eyebrow" id="viewEyebrow">Today</p>
             <h1 id="viewTitle">Jobs</h1>
           </div>
-          <button class="icon-button theme-toggle" data-theme-toggle type="button" aria-label="Use dark mode" title="Use dark mode">
-            <i class="theme-icon theme-icon-light" data-lucide="moon" aria-hidden="true"></i>
-            <i class="theme-icon theme-icon-dark" data-lucide="sun" aria-hidden="true"></i>
-          </button>
+          <div class="topbar-actions">
+            <button class="icon-button theme-toggle" data-theme-toggle type="button" aria-label="Use dark mode" title="Use dark mode">
+              <i class="theme-icon theme-icon-light" data-lucide="moon" aria-hidden="true"></i>
+              <i class="theme-icon theme-icon-dark" data-lucide="sun" aria-hidden="true"></i>
+            </button>
+          </div>
         </header>
 
         <aside id="workspaceAccessNotice" class="workspace-access-notice" role="status" hidden>
@@ -126,47 +128,49 @@
         </aside>
 
         <section id="dashboardView" class="view active">
-          <section class="action-band">
-            <button id="quickStartJob" class="choice-button" data-requires-write type="button">
-              <span class="choice-icon" aria-hidden="true"><i data-lucide="plus"></i></span>
-              <span class="choice-copy"><strong>Start a job</strong><small>Create a customer and job record.</small></span>
-              <i class="choice-arrow" data-lucide="chevron-right" aria-hidden="true"></i>
+          <section id="jobActionMenu" class="job-action-menu" aria-label="Job actions">
+            <button id="startJob" class="job-action-button job-action-primary" data-requires-write type="button">
+              <i data-lucide="plus" aria-hidden="true"></i>
+              <strong>Start a job</strong>
             </button>
-            <button id="quickUpdateJob" class="choice-button" data-requires-write type="button">
-              <span class="choice-icon" aria-hidden="true"><i data-lucide="pencil-line"></i></span>
-              <span class="choice-copy"><strong>Update a job</strong><small>Edit the selected job and its status.</small></span>
-              <i class="choice-arrow" data-lucide="chevron-right" aria-hidden="true"></i>
+            <button id="updateJob" class="job-action-button" type="button">
+              <i data-lucide="pencil-line" aria-hidden="true"></i>
+              <strong>Update a job</strong>
             </button>
           </section>
 
-          <section class="attention-section" aria-labelledby="attentionTitle">
-            <div class="attention-header">
-              <div>
-                <p class="eyebrow">Today</p>
-                <h2 id="attentionTitle">Needs attention</h2>
-              </div>
-              <span id="attentionSummary" class="count-chip">0 jobs</span>
+          <section class="today-panel" aria-labelledby="todayHeadline" hidden>
+            <div class="today-intro">
+              <p class="eyebrow">Today</p>
+              <h2 id="todayHeadline">Your work at a glance</h2>
+              <p id="todayContext">The next important jobs and visits, in one place.</p>
             </div>
-            <div id="attentionQueue" class="attention-queue"></div>
+            <div class="today-columns">
+              <section class="today-column" aria-labelledby="attentionTitle">
+                <div class="section-mini-header">
+                  <h3 id="attentionTitle">Needs attention</h3>
+                  <span id="attentionSummary" class="count-chip">0 jobs</span>
+                </div>
+                <div id="attentionQueue" class="attention-queue"></div>
+              </section>
+              <section class="today-column" aria-labelledby="upcomingScheduleTitle">
+                <div class="section-mini-header">
+                  <h3 id="upcomingScheduleTitle">Next visits</h3>
+                  <span id="upcomingScheduleCount" class="count-chip">0 visits</span>
+                </div>
+                <div id="upcomingSchedule" class="upcoming-schedule"></div>
+              </section>
+            </div>
           </section>
 
-          <section class="schedule-section" aria-labelledby="upcomingScheduleTitle">
-            <div class="attention-header">
-              <div>
-                <p class="eyebrow">Schedule</p>
-                <h2 id="upcomingScheduleTitle">Upcoming visits</h2>
-              </div>
-              <span id="upcomingScheduleCount" class="count-chip">0 visits</span>
-            </div>
-            <div id="upcomingSchedule" class="upcoming-schedule"></div>
-          </section>
-
-          <section class="work-grid">
-            <div class="panel">
+          <section id="jobWorkspace" class="work-grid" hidden>
+            <div id="jobListPanel" class="panel job-list-panel" hidden>
               <div class="panel-header">
                 <div>
-                  <p class="eyebrow">Pipeline</p>
-                  <h2>Jobs</h2>
+                  <button id="backToJobActions" class="text-button workflow-back-button" type="button">
+                    <i data-lucide="arrow-left" aria-hidden="true"></i><span>Back</span>
+                  </button>
+                  <h2>Choose a job</h2>
                 </div>
                 <span id="filteredJobCount" class="count-chip">0 shown</span>
               </div>
@@ -198,9 +202,10 @@
               <div id="jobList" class="job-list"></div>
             </div>
 
-            <div class="panel detail-panel">
+            <div id="jobDetailPanel" class="panel detail-panel" hidden>
               <div class="panel-header">
-                <div>
+                <div class="detail-header-copy">
+                  <button id="mobileBackToJobs" class="text-button mobile-back-button" type="button"><i data-lucide="arrow-left"></i><span>Back to jobs</span></button>
                   <p class="eyebrow">Job</p>
                   <h2 id="detailTitle">Select a job</h2>
                 </div>
@@ -269,6 +274,21 @@
                   <input id="workspaceEmail" type="email" disabled />
                 </label>
                 <button class="primary-button" data-requires-write type="submit"><i data-lucide="save"></i><span>Save company profile</span></button>
+              </form>
+            </div>
+
+            <div class="panel trade-settings-panel">
+              <div class="panel-header">
+                <div>
+                  <p class="eyebrow">Services</p>
+                  <h2>Trades offered</h2>
+                </div>
+                <span id="tradeSettingsStatus" class="status-pill">1 active</span>
+              </div>
+              <form id="tradeSettingsForm" class="stacked-form">
+                <div id="tradeToggleList" class="trade-toggle-list"></div>
+                <p class="fine-print">Choose the work your company offers. The trade field appears on jobs only when more than one is active.</p>
+                <button class="primary-button" data-requires-write type="submit"><i data-lucide="save"></i><span>Save trades</span></button>
               </form>
             </div>
 
@@ -420,17 +440,21 @@
       <form id="jobForm" method="dialog" class="dialog-form">
         <div class="dialog-header">
           <div>
-            <p class="eyebrow" id="jobDialogMode">Start</p>
-            <h2 id="jobDialogTitle">Start a job</h2>
+            <p class="eyebrow" id="jobDialogMode">New</p>
+            <h2 id="jobDialogTitle">New job</h2>
           </div>
           <button id="closeJobDialog" class="icon-button" type="button" aria-label="Close" title="Close"><i data-lucide="x"></i></button>
         </div>
 
         <input id="jobId" type="hidden" />
-        <div class="form-grid">
+        <div class="form-grid core-job-fields">
           <label>
             Job name
             <input id="jobName" required type="text" />
+          </label>
+          <label id="jobTradeLabel" hidden>
+            Trade
+            <select id="jobTrade"></select>
           </label>
           <label>
             Customer name
@@ -448,77 +472,89 @@
             Service address
             <input id="serviceAddress" required type="text" />
           </label>
-          <label>
-            Job status
-            <select id="jobStatus"></select>
-          </label>
-          <label>
-            Material or parts status
-            <select id="materialStatus"></select>
-          </label>
-          <label>
-            Billing invoice URL
-            <input id="invoiceUrl" type="url" placeholder="https://..." />
-          </label>
         </div>
 
-        <fieldset class="schedule-fieldset">
-          <legend>Appointment</legend>
-          <div class="form-grid compact-form-grid">
-            <label>
-              Date
-              <input id="projectedDate" type="date" />
-            </label>
-            <label>
-              Start time
-              <input id="scheduledTime" type="time" />
-            </label>
-            <label>
-              Estimated hours
-              <input id="estimatedHours" type="number" min="0.5" max="24" step="0.5" inputmode="decimal" value="1" />
-            </label>
-            <label class="setting-toggle schedule-repeat-toggle">
-              <span>
-                <strong>Recurring visits</strong>
-                <small>Leave off for a one-time appointment.</small>
-              </span>
-              <input id="recurrenceEnabled" type="checkbox" role="switch" />
-            </label>
-            <div id="recurrenceControls" class="recurrence-controls" hidden>
+        <label>
+          What must happen next?
+          <input id="nextAction" type="text" placeholder="Call customer, prepare estimate, schedule visit..." />
+        </label>
+
+        <details id="jobScheduleDetails" class="dialog-disclosure">
+          <summary><i data-lucide="calendar-clock" aria-hidden="true"></i><span><strong>Schedule</strong><small>Add a date, time, duration, or recurring visits</small></span><i data-lucide="chevron-down" aria-hidden="true"></i></summary>
+          <div class="dialog-disclosure-content">
+            <fieldset class="schedule-fieldset">
+              <legend>Appointment</legend>
+              <div class="form-grid compact-form-grid">
+                <label>
+                  Date
+                  <input id="projectedDate" type="date" />
+                </label>
+                <label>
+                  Start time
+                  <input id="scheduledTime" type="time" />
+                </label>
+                <label>
+                  Estimated hours
+                  <input id="estimatedHours" type="number" min="0.5" max="24" step="0.5" inputmode="decimal" value="1" />
+                </label>
+                <label class="setting-toggle schedule-repeat-toggle">
+                  <span>
+                    <strong>Recurring visits</strong>
+                    <small>Leave off for a one-time appointment.</small>
+                  </span>
+                  <input id="recurrenceEnabled" type="checkbox" role="switch" />
+                </label>
+                <div id="recurrenceControls" class="recurrence-controls" hidden>
+                  <label>
+                    Repeat schedule
+                    <select id="recurrencePattern">
+                      <option value="weekly:1">Every week</option>
+                      <option value="weekly:2">Every 2 weeks</option>
+                      <option value="monthly:1">Every month</option>
+                    </select>
+                  </label>
+                  <label id="recurrenceUntilLabel">
+                    Repeat through (optional)
+                    <input id="recurrenceUntil" type="date" />
+                  </label>
+                </div>
+              </div>
+              <div class="schedule-suggestion-row">
+                <button id="suggestNextAvailable" class="ghost-button" type="button"><i data-lucide="calendar-search"></i><span>Suggest next available</span></button>
+                <small id="scheduleSuggestionStatus">Suggestions use the company availability in Settings.</small>
+              </div>
+            </fieldset>
+          </div>
+        </details>
+
+        <details id="jobAdvancedDetails" class="dialog-disclosure">
+          <summary><i data-lucide="sliders-horizontal" aria-hidden="true"></i><span><strong>More job details</strong><small>Status, parts, billing, custom fields, and private notes</small></span><i data-lucide="chevron-down" aria-hidden="true"></i></summary>
+          <div class="dialog-disclosure-content">
+            <div class="form-grid">
               <label>
-                Repeat schedule
-                <select id="recurrencePattern">
-                  <option value="weekly:1">Every week</option>
-                  <option value="weekly:2">Every 2 weeks</option>
-                  <option value="monthly:1">Every month</option>
-                </select>
+                Job status
+                <select id="jobStatus"></select>
               </label>
-              <label id="recurrenceUntilLabel">
-                Repeat through (optional)
-                <input id="recurrenceUntil" type="date" />
+              <label>
+                Material or parts status
+                <select id="materialStatus"></select>
+              </label>
+              <label>
+                Billing invoice URL
+                <input id="invoiceUrl" type="url" placeholder="https://..." />
               </label>
             </div>
+            <div id="customFieldInputs" class="custom-field-inputs"></div>
+            <label>
+              Private notes
+              <textarea id="internalNotes" rows="4" placeholder="Customer cannot see these notes"></textarea>
+            </label>
           </div>
-          <div class="schedule-suggestion-row">
-            <button id="suggestNextAvailable" class="ghost-button" type="button"><i data-lucide="calendar-search"></i><span>Suggest next available</span></button>
-            <small id="scheduleSuggestionStatus">Suggestions use the company availability in Settings.</small>
-          </div>
-        </fieldset>
-
-        <div id="customFieldInputs" class="custom-field-inputs"></div>
-
-        <label>
-          Next action
-          <input id="nextAction" type="text" placeholder="Waiting on signed estimate" />
-        </label>
-        <label>
-          Internal notes
-          <textarea id="internalNotes" rows="4" placeholder="Staff-only notes"></textarea>
-        </label>
+        </details>
 
         <div class="dialog-actions">
           <button id="deleteJob" class="danger-button" type="button"><i data-lucide="trash-2"></i><span>Delete</span></button>
-          <span></span>
+          <small class="save-notice">Saving adds one update to the next scheduled customer email.</small>
           <button id="cancelJobDialog" class="ghost-button" type="button">Cancel</button>
           <button id="saveJob" class="primary-button" value="default" type="submit"><i data-lucide="save"></i><span>Save job</span></button>
         </div>
@@ -583,6 +619,6 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.110.1"></script>
     <script src="https://unpkg.com/lucide@1.24.0/dist/umd/lucide.js"></script>
     <script src="assets/config.js?v=accounts-v3"></script>
-    <script src="assets/app.js?v=account-recovery-v1"></script>
+    <script src="assets/app.js?v=job-flow-v2"></script>
   </body>
 </html>

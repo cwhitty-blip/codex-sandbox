@@ -27,6 +27,21 @@ const billingProviders = [
 
 const jobStatuses = ["Active", "Waiting on Customer", "Ready to Schedule", "Scheduled", "In Progress", "Complete", "On Hold"];
 const materialStatuses = ["Not Ordered", "Ordered", "In Transit", "Arrived", "Not Required"];
+const tradeCatalog = [
+  { code: "general", label: "General service", icon: "briefcase-business" },
+  { code: "roofing", label: "Roofing", icon: "house" },
+  { code: "hvac", label: "HVAC", icon: "air-vent" },
+  { code: "plumbing", label: "Plumbing", icon: "wrench" },
+  { code: "electrical", label: "Electrical", icon: "zap" },
+  { code: "restoration", label: "Restoration", icon: "shield-check" },
+  { code: "landscaping", label: "Lawn & landscape", icon: "trees" },
+  { code: "cleaning", label: "Cleaning", icon: "sparkles" },
+  { code: "painting", label: "Painting", icon: "paint-roller" },
+  { code: "handyman", label: "Handyman", icon: "hammer" },
+  { code: "pest_control", label: "Pest control", icon: "bug" },
+  { code: "other", label: "Other", icon: "shapes" },
+];
+const tradeCodes = new Set(tradeCatalog.map((trade) => trade.code));
 const monthlyPlanCents = 1299;
 const trialDays = 14;
 const previewPromoCodes = { "20off": 20, "30off": 30 };
@@ -46,6 +61,30 @@ const defaultScheduleSettings = {
   schedulingWorkdayEnd: "17:00",
   schedulingBufferMinutes: 30,
 };
+
+function normalizeTradeCodes(codes) {
+  const normalized = Array.isArray(codes)
+    ? [...new Set(codes.map((code) => String(code || "").trim().toLowerCase()).filter((code) => tradeCodes.has(code)))]
+    : [];
+  return normalized.length ? normalized : ["general"];
+}
+
+function tradeForCode(code) {
+  const normalized = String(code || "general").trim().toLowerCase();
+  return tradeCatalog.find((trade) => trade.code === normalized) || {
+    code: normalized,
+    label: normalized.replaceAll("_", " ").replace(/\b\w/g, (letter) => letter.toUpperCase()),
+    icon: "shapes",
+  };
+}
+
+function activeTradeCodes() {
+  return normalizeTradeCodes(state?.settings?.enabledTradeCodes);
+}
+
+function multiTradeEnabled() {
+  return activeTradeCodes().length > 1;
+}
 
 function createId() {
   if (window.crypto?.randomUUID) return window.crypto.randomUUID();
@@ -87,6 +126,7 @@ const demoState = {
     promoCode: "",
     promoPercentOff: 0,
     mileageTrackingEnabled: true,
+    enabledTradeCodes: ["roofing", "hvac", "plumbing"],
     ...defaultScheduleSettings,
     customFields: [
       { id: createId(), label: "Claim number", type: "text", options: [] },
@@ -104,7 +144,7 @@ const demoState = {
   jobs: [
     {
       id: createId(),
-      industry: "general",
+      industry: "roofing",
       name: "Garcia service project",
       customerName: "Elena Garcia",
       customerEmail: "elena.garcia@example.com",
@@ -141,6 +181,18 @@ const demoState = {
           size: 428000,
           stored: false,
         },
+        {
+          id: createId(),
+          name: "roof-damage-photos.pdf",
+          type: "Customer Upload",
+          uploadedBy: "Customer",
+          visibility: "Staff Only",
+          status: "New",
+          createdAt: "2026-11-01T14:15:00.000Z",
+          version: null,
+          size: 612000,
+          stored: false,
+        },
       ],
       timeline: [
         "Job started",
@@ -155,7 +207,7 @@ const demoState = {
     },
     {
       id: createId(),
-      industry: "general",
+      industry: "hvac",
       name: "Miller service project",
       customerName: "Jordan Miller",
       customerEmail: "jordan.miller@example.com",
@@ -169,7 +221,7 @@ const demoState = {
       estimatedDurationMinutes: 120,
       recurrenceFrequency: "weekly",
       recurrenceInterval: 2,
-      recurrenceUntil: "2026-10-31",
+      recurrenceUntil: "",
       scheduleExceptions: [],
       invoiceUrl: "",
       nextAction: "Crew scheduled for Thursday morning.",
@@ -226,6 +278,9 @@ let mileageMutationBusy = false;
 let jobSearchQuery = "";
 let jobStatusFilter = "open";
 let jobAttentionFilter = "";
+let mobileDetailActive = false;
+let currentView = "dashboard";
+let dashboardStage = "home";
 
 const els = {
   tabs: document.querySelectorAll(".nav-tab"),
@@ -237,6 +292,9 @@ const els = {
     settings: document.getElementById("settingsView"),
   },
   viewTitle: document.getElementById("viewTitle"),
+  viewEyebrow: document.getElementById("viewEyebrow"),
+  todayHeadline: document.getElementById("todayHeadline"),
+  todayContext: document.getElementById("todayContext"),
   activeJobCount: document.getElementById("activeJobCount"),
   billingProviderSummary: document.getElementById("billingProviderSummary"),
   sidebarCompanyLogo: document.getElementById("sidebarCompanyLogo"),
@@ -247,8 +305,13 @@ const els = {
   portalCompanyName: document.getElementById("portalCompanyName"),
   resetDemo: document.getElementById("resetDemo"),
   startJob: document.getElementById("startJob"),
+  updateJob: document.getElementById("updateJob"),
+  jobActionMenu: document.getElementById("jobActionMenu"),
+  jobWorkspace: document.getElementById("jobWorkspace"),
+  jobListPanel: document.getElementById("jobListPanel"),
+  jobDetailPanel: document.getElementById("jobDetailPanel"),
+  backToJobActions: document.getElementById("backToJobActions"),
   quickStartJob: document.getElementById("quickStartJob"),
-  quickUpdateJob: document.getElementById("quickUpdateJob"),
   attentionSummary: document.getElementById("attentionSummary"),
   attentionQueue: document.getElementById("attentionQueue"),
   upcomingSchedule: document.getElementById("upcomingSchedule"),
@@ -261,6 +324,7 @@ const els = {
   detailTitle: document.getElementById("detailTitle"),
   detailStatus: document.getElementById("detailStatus"),
   jobDetail: document.getElementById("jobDetail"),
+  mobileBackToJobs: document.getElementById("mobileBackToJobs"),
   customerAccessSummary: document.getElementById("customerAccessSummary"),
   customerJobList: document.getElementById("customerJobList"),
   customerPortal: document.getElementById("customerPortal"),
@@ -271,6 +335,9 @@ const els = {
   billingSync: document.getElementById("billingSync"),
   mileageTrackingEnabled: document.getElementById("mileageTrackingEnabled"),
   mileageTrackingStatus: document.getElementById("mileageTrackingStatus"),
+  tradeSettingsForm: document.getElementById("tradeSettingsForm"),
+  tradeSettingsStatus: document.getElementById("tradeSettingsStatus"),
+  tradeToggleList: document.getElementById("tradeToggleList"),
   scheduleSettingsForm: document.getElementById("scheduleSettingsForm"),
   scheduleSettingsStatus: document.getElementById("scheduleSettingsStatus"),
   scheduleTimezone: document.getElementById("scheduleTimezone"),
@@ -290,6 +357,10 @@ const els = {
   jobDialogTitle: document.getElementById("jobDialogTitle"),
   jobId: document.getElementById("jobId"),
   jobName: document.getElementById("jobName"),
+  jobTradeLabel: document.getElementById("jobTradeLabel"),
+  jobTrade: document.getElementById("jobTrade"),
+  jobScheduleDetails: document.getElementById("jobScheduleDetails"),
+  jobAdvancedDetails: document.getElementById("jobAdvancedDetails"),
   customerName: document.getElementById("customerName"),
   customerEmail: document.getElementById("customerEmail"),
   customerPhone: document.getElementById("customerPhone"),
@@ -386,6 +457,7 @@ function loadState() {
 
 function normalizeState(nextState) {
   nextState.settings = { ...structuredClone(demoState.settings), ...(nextState.settings || {}) };
+  nextState.settings.enabledTradeCodes = normalizeTradeCodes(nextState.settings.enabledTradeCodes);
   nextState.settings.schedulingWorkdays = Array.isArray(nextState.settings.schedulingWorkdays)
     ? nextState.settings.schedulingWorkdays.map(Number).filter((day) => day >= 0 && day <= 6)
     : [...defaultScheduleSettings.schedulingWorkdays];
@@ -393,6 +465,7 @@ function normalizeState(nextState) {
   nextState.settings.customFields = Array.isArray(nextState.settings.customFields) ? nextState.settings.customFields : [];
   nextState.jobs = Array.isArray(nextState.jobs) ? nextState.jobs : [];
   nextState.jobs.forEach((job) => {
+    job.industry = String(job.industry || nextState.settings.enabledTradeCodes[0] || "general");
     job.documents = Array.isArray(job.documents) ? job.documents : [];
     job.documents.forEach((doc, index) => {
       doc.version = doc.version || (doc.type === "Estimate" ? index + 1 : null);
@@ -1111,6 +1184,7 @@ async function loadLiveState() {
     promoCode: entitlement?.promo_code || "",
     promoPercentOff: entitlement?.promo_percent_off || 0,
     mileageTrackingEnabled: Boolean(company.mileage_tracking_enabled),
+    enabledTradeCodes: normalizeTradeCodes(company.enabled_trade_codes),
     schedulingTimezone: company.scheduling_timezone || defaultScheduleSettings.schedulingTimezone,
     schedulingWorkdays: Array.isArray(company.scheduling_workdays)
       ? company.scheduling_workdays.map(Number)
@@ -1152,6 +1226,7 @@ function portalTokenFromUrl() {
 }
 
 function activateCustomerPortalView() {
+  currentView = "customer";
   document.body.classList.remove("contractor-locked");
   document.body.classList.add("customer-portal-mode", "customer-view-active");
   els.tabs.forEach((item) => item.classList.toggle("active", item.dataset.view === "customer"));
@@ -1265,7 +1340,7 @@ function attentionCategoriesForJob(job) {
 function filteredJobs() {
   const query = jobSearchQuery.trim().toLowerCase();
   return state.jobs.filter((job) => {
-    const searchable = [job.name, job.customerName, job.serviceAddress, job.customerEmail]
+    const searchable = [job.name, job.customerName, job.serviceAddress, job.customerEmail, tradeForCode(job.industry).label]
       .filter(Boolean)
       .join(" ")
       .toLowerCase();
@@ -1602,6 +1677,26 @@ function initStaticControls() {
   populateSelect(els.scheduleTimezone, timezoneOptions, "value", "label");
 }
 
+function renderDashboardStage() {
+  if (dashboardStage === "detail" && !selectedJob()) dashboardStage = "list";
+  mobileDetailActive = dashboardStage === "detail";
+  document.body.classList.toggle("dashboard-stage-home", dashboardStage === "home");
+  document.body.classList.toggle("dashboard-stage-list", dashboardStage === "list");
+  document.body.classList.toggle("dashboard-stage-detail", dashboardStage === "detail");
+  els.jobActionMenu.hidden = dashboardStage !== "home";
+  els.jobWorkspace.hidden = dashboardStage === "home";
+  els.jobListPanel.hidden = dashboardStage !== "list";
+  els.jobDetailPanel.hidden = dashboardStage !== "detail";
+
+  if (currentView !== "dashboard") return;
+  els.viewEyebrow.textContent = "Jobs";
+  els.viewTitle.textContent = dashboardStage === "list"
+    ? "Update a job"
+    : dashboardStage === "detail"
+      ? "Job details"
+      : "Jobs";
+}
+
 function render() {
   saveState();
   renderAuth();
@@ -1611,6 +1706,8 @@ function render() {
   renderUpcomingSchedule();
   renderJobs();
   renderJobDetail();
+  renderDashboardStage();
+  document.body.classList.toggle("mobile-job-detail", mobileDetailActive && Boolean(selectedJob()));
   renderCustomerAccessSummary();
   renderCustomerPortal();
   renderSettings();
@@ -1659,25 +1756,39 @@ function renderMetrics() {
 }
 
 function renderAttentionQueue() {
-  const attentionJobs = state.jobs.filter((job) => attentionCategoriesForJob(job).length > 0);
+  const attentionJobs = state.jobs
+    .filter((job) => attentionCategoriesForJob(job).length > 0)
+    .sort((a, b) => attentionCategoriesForJob(b).length - attentionCategoriesForJob(a).length)
+    .slice(0, 4);
   els.attentionSummary.textContent = `${attentionJobs.length} ${attentionJobs.length === 1 ? "job" : "jobs"}`;
-  els.attentionQueue.innerHTML = attentionDefinitions
-    .map((item) => {
-      const count = state.jobs.filter((job) => attentionCategoriesForJob(job).includes(item.id)).length;
-      const pressed = jobStatusFilter === "attention" && jobAttentionFilter === item.id;
+  const nextVisit = upcomingOccurrences(30)[0];
+  els.todayHeadline.textContent = attentionJobs.length
+    ? `${attentionJobs.length} ${attentionJobs.length === 1 ? "job needs" : "jobs need"} your attention`
+    : "You are caught up";
+  els.todayContext.textContent = nextVisit
+    ? `Next visit: ${nextVisit.job.customerName} at ${new Intl.DateTimeFormat(undefined, { timeZone: scheduleTimezone(), hour: "numeric", minute: "2-digit" }).format(new Date(nextVisit.start))}.`
+    : "No visits are scheduled in the next 30 days.";
+  els.attentionQueue.innerHTML = attentionJobs.length
+    ? attentionJobs.map((job) => {
+      const category = attentionCategoriesForJob(job)[0];
+      const definition = attentionDefinitions.find((item) => item.id === category) || attentionDefinitions[0];
       return `
-        <button class="attention-item ${pressed ? "active" : ""}" data-attention-filter="${escapeHtml(item.id)}" type="button" aria-pressed="${pressed}" ${count ? "" : "disabled"}>
-          <span class="attention-icon">${iconMarkup(item.icon)}</span>
-          <span><strong>${count}</strong><small>${escapeHtml(item.label)}</small></span>
+        <button class="attention-item ${job.id === selectedJobId ? "active" : ""}" data-attention-job-id="${escapeHtml(job.id)}" type="button">
+          <span class="attention-icon">${iconMarkup(definition.icon)}</span>
+          <span class="attention-copy">
+            <strong>${escapeHtml(job.name)}</strong>
+            <small>${escapeHtml(definition.label)}${job.nextAction ? ` · ${escapeHtml(job.nextAction)}` : ""}</small>
+          </span>
+          ${iconMarkup("chevron-right")}
         </button>
       `;
-    })
-    .join("");
+    }).join("")
+    : `<div class="compact-success">${iconMarkup("circle-check")}<span>Nothing needs attention right now.</span></div>`;
 }
 
 function renderUpcomingSchedule() {
-  const allOccurrences = upcomingOccurrences(90);
-  const occurrences = allOccurrences.slice(0, 8);
+  const allOccurrences = upcomingOccurrences(30);
+  const occurrences = allOccurrences.slice(0, 2);
   els.upcomingScheduleCount.textContent = `${allOccurrences.length} ${allOccurrences.length === 1 ? "visit" : "visits"}`;
   els.upcomingSchedule.innerHTML = occurrences.length
     ? occurrences.map((occurrence) => {
@@ -1703,12 +1814,11 @@ function renderUpcomingSchedule() {
           </div>
         `;
       }).join("")
-    : `<div class="empty-state">No visits are scheduled in the next 90 days.</div>`;
+    : `<div class="compact-empty">No visits scheduled in the next 30 days.</div>`;
 }
 
 function renderJobs() {
   const jobs = ensureFilteredJobSelection();
-  els.quickUpdateJob.disabled = !selectedJob();
   els.jobSearch.value = jobSearchQuery;
   els.jobStatusFilter.value = jobStatusFilter;
   els.clearJobFilters.hidden = !jobSearchQuery && jobStatusFilter === "open" && !jobAttentionFilter;
@@ -1721,7 +1831,7 @@ function renderJobs() {
         <button class="job-row ${job.id === selectedJobId ? "active" : ""}" data-job-id="${job.id}" type="button" aria-pressed="${job.id === selectedJobId}">
           <span>
             <strong>${escapeHtml(job.name)}</strong>
-            <small>${escapeHtml(job.customerName)}</small>
+            <small>${escapeHtml(job.customerName)}${multiTradeEnabled() ? ` · ${escapeHtml(tradeForCode(job.industry).label)}` : ""}</small>
             ${attentionLabel ? `<small class="job-attention-label">${escapeHtml(attentionLabel)}</small>` : ""}
           </span>
           <em class="job-status" data-status="${escapeHtml(job.jobStatus)}">${escapeHtml(job.jobStatus)}</em>
@@ -1756,10 +1866,13 @@ function renderJobDetail() {
   const archivedDocuments = job.documents.filter((doc) => doc.status === "Archived");
   const visibleDocs = activeDocuments.filter((doc) => doc.visibility === "Customer Visible").length;
   const customerDocs = activeDocuments.filter((doc) => doc.uploadedBy === "Customer").length;
+  const newCustomerDocs = activeDocuments.filter((doc) => doc.uploadedBy === "Customer" && doc.status === "New").length;
   const archivedDocs = job.documents.length - activeDocuments.length;
   const invoiceUrl = safeExternalUrl(job.invoiceUrl);
   const nextAppointment = nextOccurrenceForJob(job);
   const billingProvider = state.settings.billingConnected ? state.settings.billingProvider : "Billing not configured";
+  const trade = tradeForCode(job.industry);
+  const showTrade = multiTradeEnabled() || !activeTradeCodes().includes(job.industry);
   els.detailTitle.textContent = job.name;
   els.detailStatus.textContent = job.jobStatus;
   els.detailStatus.dataset.status = job.jobStatus;
@@ -1767,20 +1880,30 @@ function renderJobDetail() {
   els.jobDetail.innerHTML = `
     <div class="detail-actions">
       <button class="primary-button" data-action="edit-job" data-requires-write type="button">${iconMarkup("pencil-line")}<span>Edit job</span></button>
-      <button class="ghost-button" data-action="send-email" data-requires-write type="button">${iconMarkup("mail")}<span>Email customer</span></button>
-      <button class="ghost-button" data-action="upload-estimate" data-requires-write type="button">${iconMarkup("file-up")}<span>Upload estimate</span></button>
-      <button class="ghost-button" data-action="upload-staff-doc" data-requires-write type="button">${iconMarkup("paperclip")}<span>Add shared file</span></button>
+      <button class="ghost-button" data-action="send-email" data-requires-write type="button">${iconMarkup("send")}<span>Send portal link</span></button>
     </div>
     ${job.actionMessage ? `<div class="action-feedback" role="status">${iconMarkup("info")}<span>${escapeHtml(job.actionMessage)}</span></div>` : ""}
-    <div class="stat-grid">
-      <div><span>Customer</span><strong>${escapeHtml(job.customerName)}</strong></div>
-      <div><span>Next visit</span><strong>${nextAppointment ? formatScheduleDateTime(nextAppointment.start) : formatDate(job.projectedDate)}</strong></div>
-      <div><span>Material or parts status</span><strong>${escapeHtml(job.materialStatus)}</strong></div>
+    <section class="job-focus">
+      <div class="job-focus-action">
+        <span class="eyebrow">What happens next</span>
+        <strong>${escapeHtml(job.nextAction || "Set the next action for this job")}</strong>
+      </div>
+      <div class="job-contact-line">
+        <span>${iconMarkup("user-round")}<strong>${escapeHtml(job.customerName)}</strong></span>
+        ${job.customerPhone ? `<a href="tel:${escapeHtml(job.customerPhone)}">${iconMarkup("phone")}<span>${escapeHtml(job.customerPhone)}</span></a>` : ""}
+        <span>${iconMarkup("map-pin")}<span>${escapeHtml(job.serviceAddress || "No service address")}</span></span>
+        ${showTrade ? `<span class="trade-chip">${iconMarkup(trade.icon)}<span>${escapeHtml(trade.label)}</span></span>` : ""}
+      </div>
+    </section>
+    <div class="job-essentials">
+      <div><span>Next visit</span><strong>${nextAppointment ? formatScheduleDateTime(nextAppointment.start) : "Not scheduled"}</strong></div>
       <div><span>Estimate</span><strong>${escapeHtml(estimateStatus(job))}</strong></div>
+      <div><span>Parts</span><strong>${escapeHtml(job.materialStatus)}</strong></div>
     </div>
     <section class="plain-section estimate-summary">
       <h3>Estimate</h3>
       ${renderContractorEstimateStatus(job, estimate)}
+      ${!estimate ? `<button class="ghost-button inline-section-action" data-action="upload-estimate" data-requires-write type="button">${iconMarkup("file-up")}<span>Upload estimate</span></button>` : ""}
     </section>
     <section class="plain-section schedule-summary">
       <h3>Schedule</h3>
@@ -1794,42 +1917,35 @@ function renderJobDetail() {
         </div>
       ` : `<p>No appointment time has been scheduled.</p>`}
     </section>
-    <section class="plain-section">
-      <h3>Next action</h3>
-      <p>${escapeHtml(job.nextAction || "No next action set.")}</p>
-    </section>
-    <section class="plain-section">
-      <h3>Billing</h3>
-      <p>${escapeHtml(billingProvider)} / ${invoiceUrl ? `<a href="${escapeHtml(invoiceUrl)}" target="_blank" rel="noopener noreferrer">Invoice link</a>` : "No invoice linked"}</p>
-    </section>
-    ${renderMileageTracker(job)}
-    <section class="plain-section">
-      <h3>Custom fields</h3>
-      <div class="field-readout">${renderCustomValueReadout(job)}</div>
-    </section>
-    <section class="plain-section">
-      <h3>Documents</h3>
-      <div class="document-list">${renderDocumentList(activeDocuments)}</div>
-      <p class="fine-print">${visibleDocs} shared document${visibleDocs === 1 ? "" : "s"}. ${customerDocs} customer upload${customerDocs === 1 ? "" : "s"} awaiting review.${archivedDocs ? ` ${archivedDocs} archived.` : ""}</p>
-      ${archivedDocuments.length ? `
-        <div class="archive-tools">
-          <button class="text-button" data-action="toggle-archived" type="button">
-            ${iconMarkup(archivedDocumentJobs.has(job.id) ? "archive-x" : "archive")}<span>${archivedDocumentJobs.has(job.id) ? "Hide" : "Show"} archived files (${archivedDocuments.length})</span>
-          </button>
-          ${archivedDocumentJobs.has(job.id) ? `<div class="document-list">${renderDocumentList(archivedDocuments, true)}</div>` : ""}
+    <details class="detail-disclosure" ${newCustomerDocs ? "open" : ""}>
+      <summary>${iconMarkup("folder-open")}<span><strong>Files</strong><small>${activeDocuments.length} active · ${newCustomerDocs} new from customer</small></span>${iconMarkup("chevron-down")}</summary>
+      <div class="disclosure-content">
+        <div class="section-actions">
+          <button class="ghost-button" data-action="upload-estimate" data-requires-write type="button">${iconMarkup("file-up")}<span>Upload estimate</span></button>
+          <button class="ghost-button" data-action="upload-staff-doc" data-requires-write type="button">${iconMarkup("share-2")}<span>Share file</span></button>
         </div>
-      ` : ""}
-    </section>
-    <section class="plain-section internal-note">
-      <h3>Internal notes</h3>
-      <p>${escapeHtml(job.internalNotes || "No staff-only notes yet.")}</p>
-    </section>
-    ${job.timeline.length ? `
-      <section class="plain-section">
-        <h3>Activity</h3>
-        <ol class="timeline">${job.timeline.map((event) => `<li>${escapeHtml(event)}</li>`).join("")}</ol>
-      </section>
-    ` : ""}
+        <div class="document-list">${renderDocumentList(activeDocuments)}</div>
+        <p class="fine-print">${visibleDocs} shared document${visibleDocs === 1 ? "" : "s"}. ${newCustomerDocs} customer upload${newCustomerDocs === 1 ? "" : "s"} awaiting review.${customerDocs > newCustomerDocs ? ` ${customerDocs - newCustomerDocs} reviewed.` : ""}${archivedDocs ? ` ${archivedDocs} archived.` : ""}</p>
+        ${archivedDocuments.length ? `
+          <div class="archive-tools">
+            <button class="text-button" data-action="toggle-archived" type="button">
+              ${iconMarkup(archivedDocumentJobs.has(job.id) ? "archive-x" : "archive")}<span>${archivedDocumentJobs.has(job.id) ? "Hide" : "Show"} archived files (${archivedDocuments.length})</span>
+            </button>
+            ${archivedDocumentJobs.has(job.id) ? `<div class="document-list">${renderDocumentList(archivedDocuments, true)}</div>` : ""}
+          </div>
+        ` : ""}
+      </div>
+    </details>
+    <details class="detail-disclosure">
+      <summary>${iconMarkup("list-tree")}<span><strong>More job details</strong><small>Billing, custom fields, and private notes</small></span>${iconMarkup("chevron-down")}</summary>
+      <div class="disclosure-content detail-support-grid">
+        <section class="support-block"><h3>Billing</h3><p>${escapeHtml(billingProvider)} / ${invoiceUrl ? `<a href="${escapeHtml(invoiceUrl)}" target="_blank" rel="noopener noreferrer">Invoice link</a>` : "No invoice linked"}</p></section>
+        <section class="support-block"><h3>Custom fields</h3><div class="field-readout">${renderCustomValueReadout(job)}</div></section>
+        <section class="support-block internal-note"><h3>Private notes</h3><p>${escapeHtml(job.internalNotes || "No private notes yet.")}</p></section>
+      </div>
+    </details>
+    ${state.settings.mileageTrackingEnabled ? `<details class="detail-disclosure"><summary>${iconMarkup("route")}<span><strong>Mileage</strong><small>Track travel for this job</small></span>${iconMarkup("chevron-down")}</summary><div class="disclosure-content">${renderMileageTracker(job)}</div></details>` : ""}
+    ${job.timeline.length ? `<details class="detail-disclosure"><summary>${iconMarkup("history")}<span><strong>Activity</strong><small>${job.timeline.length} recorded event${job.timeline.length === 1 ? "" : "s"}</small></span>${iconMarkup("chevron-down")}</summary><div class="disclosure-content"><ol class="timeline">${job.timeline.map((event) => `<li>${escapeHtml(event)}</li>`).join("")}</ol></div></details>` : ""}
   `;
 }
 
@@ -1943,6 +2059,7 @@ function renderDocumentList(documents, archived = false) {
           <span class="document-row-actions">
             ${fileAction}
             <em>${escapeHtml(doc.status)}</em>
+            ${!archived && doc.uploadedBy === "Customer" && doc.status === "New" ? `<button class="text-button document-review-button" data-action="mark-document-reviewed" data-doc-id="${escapeHtml(doc.id)}" data-requires-write type="button">${iconMarkup("check-check")}<span>Mark reviewed</span></button>` : ""}
             <button class="text-button document-archive-button" data-action="${archived ? "restore-document" : "archive-document"}" data-doc-id="${escapeHtml(doc.id)}" data-requires-write type="button">${iconMarkup(archived ? "archive-restore" : "archive")}<span>${archived ? "Restore" : "Archive"}</span></button>
           </span>
         </div>
@@ -1974,7 +2091,7 @@ function renderCustomerDocumentList(documents) {
 }
 
 function renderCustomerUploadList(documents) {
-  if (!documents.length) return `<div class="empty-state">No insurance claim files uploaded yet.</div>`;
+  if (!documents.length) return `<div class="empty-state">No files uploaded yet.</div>`;
   return `
     <div class="document-list uploaded-document-list">
       ${documents
@@ -2008,7 +2125,7 @@ function customerTimelineFor(job) {
   if (job.estimateDecision?.status === "changes") items.push("Estimate accepted with requested changes");
   if (job.estimateDecision?.status === "reject") items.push("Estimate not accepted");
   if (job.acceptedEstimate || job.estimateAcceptedAt) items.push("Estimate accepted");
-  if (job.documents.some((doc) => doc.uploadedBy === "Customer")) items.push("Insurance claim uploaded");
+  if (job.documents.some((doc) => doc.uploadedBy === "Customer")) items.push("File uploaded for contractor review");
   const nextAppointment = nextOccurrenceForJob(job);
   if (nextAppointment) items.push(`Next visit: ${formatScheduleDateTime(nextAppointment.start)}`);
   else if (job.projectedDate) items.push(`Projected service date: ${formatDate(job.projectedDate)}`);
@@ -2080,16 +2197,16 @@ function renderCustomerPortal() {
       </section>
     ` : ""}
     <section class="plain-section">
-      <h3>Insurance claim</h3>
-      <p>Upload the insurance claim packet or letter for this job.</p>
+      <h3>Files for your contractor</h3>
+      <p>Upload a claim, photo, report, or other file for this job.</p>
       ${portalMode.active ? `
         <div class="customer-upload-actions">
-          <button class="ghost-button" data-action="customer-upload" data-doc-type="Insurance Claim" type="button" ${portalMode.canWrite ? "" : "disabled"}>${iconMarkup("upload")}<span>Upload insurance claim</span></button>
+          <button class="ghost-button" data-action="customer-upload" data-doc-type="Customer Upload" type="button" ${portalMode.canWrite ? "" : "disabled"}>${iconMarkup("upload")}<span>Upload a file</span></button>
         </div>
       ` : `<p class="fine-print">Upload controls appear in the secure customer portal sent by email.</p>`}
       <div id="customerUploadStatus"></div>
       ${renderCustomerUploadList(customerUploads)}
-      <p class="fine-print">The contractor can see uploaded claim documents in this job.</p>
+      <p class="fine-print">The contractor can see files uploaded for this job.</p>
     </section>
     <section class="plain-section estimate-acceptance">
       <h3>Estimate</h3>
@@ -2182,6 +2299,7 @@ function renderSettings() {
   els.mileageTrackingEnabled.checked = Boolean(state.settings.mileageTrackingEnabled);
   els.mileageTrackingStatus.textContent = state.settings.mileageTrackingEnabled ? "On" : "Off";
   els.mileageTrackingStatus.dataset.status = state.settings.mileageTrackingEnabled ? "Active" : "Empty";
+  renderTradeSettings();
   if (![...els.scheduleTimezone.options].some((option) => option.value === scheduleTimezone())) {
     els.scheduleTimezone.add(new Option(scheduleTimezone(), scheduleTimezone()));
   }
@@ -2213,6 +2331,21 @@ function renderSettings() {
         .join("")
     : `<div class="empty-state">Add a field contractors can fill out on every job.</div>`;
 
+}
+
+function renderTradeSettings() {
+  const activeCodes = activeTradeCodes();
+  els.tradeSettingsStatus.textContent = `${activeCodes.length} active`;
+  els.tradeSettingsStatus.dataset.status = "Active";
+  els.tradeToggleList.innerHTML = tradeCatalog.map((trade) => `
+    <label class="setting-toggle trade-toggle" for="trade-${escapeHtml(trade.code)}">
+      <span class="trade-toggle-copy">
+        <span class="trade-toggle-icon">${iconMarkup(trade.icon)}</span>
+        <strong>${escapeHtml(trade.label)}</strong>
+      </span>
+      <input id="trade-${escapeHtml(trade.code)}" data-trade-code="${escapeHtml(trade.code)}" type="checkbox" role="switch" ${activeCodes.includes(trade.code) ? "checked" : ""} />
+    </label>
+  `).join("");
 }
 
 function logoValidationError(file) {
@@ -2349,9 +2482,9 @@ function renderWorkspaceAccess() {
   const readOnly = (backend.live || readOnlyPreviewMode()) && !workspaceCanWrite();
   els.workspaceAccessNotice.hidden = !readOnly || portalMode.active;
   document.querySelectorAll("[data-requires-write]").forEach((control) => {
-    control.disabled = readOnly || (control === els.quickUpdateJob && !selectedJob());
+    control.disabled = readOnly;
   });
-  [els.billingForm, els.fieldForm].forEach((form) => {
+  [els.billingForm, els.fieldForm, els.tradeSettingsForm].forEach((form) => {
     form?.querySelectorAll("input, select, textarea, button").forEach((control) => {
       control.disabled = readOnly;
     });
@@ -2481,11 +2614,22 @@ function updateRecurrenceControls() {
 function openJobDialog(job = null) {
   if (!requireWorkspaceWriteAccess()) return;
   const isEdit = Boolean(job);
-  els.jobDialogMode.textContent = isEdit ? "Update" : "Start";
-  els.jobDialogTitle.textContent = isEdit ? "Update a job" : "Start a job";
+  els.jobDialogMode.textContent = isEdit ? "Edit" : "New";
+  els.jobDialogTitle.textContent = isEdit ? "Edit job" : "New job";
   els.deleteJob.hidden = !isEdit;
   els.jobId.value = job?.id || "";
   els.jobName.value = job?.name || "";
+  const enabledTrades = activeTradeCodes();
+  const currentTrade = job?.industry || enabledTrades[0] || "general";
+  const tradeOptions = enabledTrades.includes(currentTrade) ? enabledTrades : [currentTrade, ...enabledTrades];
+  els.jobTrade.innerHTML = tradeOptions.map((code) => {
+    const trade = tradeForCode(code);
+    const legacyLabel = enabledTrades.includes(code) ? trade.label : `${trade.label} (not currently offered)`;
+    return `<option value="${escapeHtml(code)}">${escapeHtml(legacyLabel)}</option>`;
+  }).join("");
+  els.jobTrade.value = currentTrade;
+  els.jobTradeLabel.hidden = enabledTrades.length === 1 && enabledTrades.includes(currentTrade);
+  els.jobTrade.required = !els.jobTradeLabel.hidden;
   els.customerName.value = job?.customerName || "";
   els.customerEmail.value = job?.customerEmail || "";
   els.customerPhone.value = job?.customerPhone || "";
@@ -2501,6 +2645,8 @@ function openJobDialog(job = null) {
     ? `${job.recurrenceFrequency}:${Math.max(1, Number(job.recurrenceInterval || 1))}`
     : "weekly:1";
   els.recurrenceUntil.value = job?.recurrenceUntil || "";
+  els.jobScheduleDetails.open = Boolean(job?.scheduledStart || job?.projectedDate);
+  els.jobAdvancedDetails.open = Boolean(job);
   updateRecurrenceControls();
   els.scheduleSuggestionStatus.textContent = "Suggestions use the company availability in Settings.";
   els.invoiceUrl.value = job?.invoiceUrl || "";
@@ -2538,7 +2684,7 @@ async function saveJobFromForm() {
     : null;
   const payload = {
     id,
-    industry: existing?.industry || "general",
+    industry: els.jobTrade.value || activeTradeCodes()[0] || "general",
     name: els.jobName.value,
     customerName: els.customerName.value,
     customerEmail: els.customerEmail.value,
@@ -2598,6 +2744,8 @@ async function saveJobFromForm() {
     const savedJob = Array.isArray(data) ? data[0] : data;
     if (!savedJob?.id) throw new Error("Job save did not return a record");
     selectedJobId = savedJob.id;
+    dashboardStage = "detail";
+    mobileDetailActive = true;
     await loadLiveState();
     return { jobId: savedJob.id, created: !existing };
   }
@@ -2609,6 +2757,8 @@ async function saveJobFromForm() {
     state.jobs.unshift(payload);
   }
   selectedJobId = id;
+  dashboardStage = "detail";
+  mobileDetailActive = true;
   render();
   return { jobId: id, created: !existing };
 }
@@ -2881,8 +3031,8 @@ async function addDocuments(files, uploadedBy, docType = "Other") {
   docs.forEach((doc) => job.documents.unshift(doc));
   if (docType === "Estimate") {
     job.timeline.push("Estimate shared with customer");
-  } else if (docType === "Insurance Claim" && uploadedBy === "Customer") {
-    job.timeline.push("Customer uploaded insurance claim");
+  } else if (uploadedBy === "Customer") {
+    job.timeline.push("Customer uploaded a file");
   } else {
     job.timeline.push(`${uploadedBy} uploaded ${files.length} document${files.length === 1 ? "" : "s"}`);
   }
@@ -2906,6 +3056,23 @@ async function setDocumentArchived(docId, archived) {
   doc.status = nextStatus;
   job.timeline.push(`${archived ? "Archived" : "Restored"} ${doc.name}`);
   await notifyCustomerOfJobUpdate(job.id, `${archived ? "Archived" : "Restored"} ${doc.name}.`);
+}
+
+async function markDocumentReviewed(docId) {
+  if (!requireWorkspaceWriteAccess()) return;
+  const job = selectedJob();
+  const doc = job?.documents.find((item) => item.id === docId);
+  if (!job || !doc || doc.uploadedBy !== "Customer") return;
+  if (backend.live) {
+    const { error } = await backend.client.from("documents").update({ status: "Reviewed" }).eq("id", docId);
+    if (error) throw error;
+    await loadLiveState();
+  } else {
+    doc.status = "Reviewed";
+    job.timeline.push(`Reviewed ${doc.name}`);
+  }
+  showToast("Customer file marked reviewed.", "success");
+  render();
 }
 
 async function addMileageEntry(job, date, milesValue) {
@@ -3107,6 +3274,7 @@ function bindEvents() {
   });
 
   function setView(viewName) {
+    currentView = viewName;
     els.tabs.forEach((item) => {
       const active = item.dataset.view === viewName;
       item.classList.toggle("active", active);
@@ -3117,11 +3285,22 @@ function bindEvents() {
     els.settingsGear.setAttribute("aria-pressed", String(viewName === "settings"));
     Object.entries(els.views).forEach(([view, node]) => node.classList.toggle("active", view === viewName));
     document.body.classList.toggle("customer-view-active", viewName === "customer");
-    els.viewTitle.textContent = viewName === "dashboard" ? "Jobs" : viewName === "customer" ? "Customer View" : "Setup";
+    if (viewName === "dashboard") {
+      renderDashboardStage();
+    } else {
+      els.viewTitle.textContent = viewName === "customer" ? "Portal preview" : "Settings";
+      els.viewEyebrow.textContent = viewName === "customer" ? "Customer experience" : "Workspace";
+    }
+    if (els.quickStartJob) els.quickStartJob.hidden = true;
+    if (viewName !== "dashboard") {
+      mobileDetailActive = false;
+      document.body.classList.remove("mobile-job-detail");
+    }
   }
 
   els.tabs.forEach((tab) => {
     tab.addEventListener("click", () => {
+      if (tab.dataset.view === "dashboard") dashboardStage = "home";
       setView(tab.dataset.view);
     });
   });
@@ -3227,32 +3406,44 @@ function bindEvents() {
   });
 
   els.startJob?.addEventListener("click", () => openJobDialog());
-  els.quickStartJob.addEventListener("click", () => openJobDialog());
-  els.quickUpdateJob.addEventListener("click", () => openJobDialog(selectedJob()));
+  els.updateJob?.addEventListener("click", () => {
+    dashboardStage = "list";
+    render();
+    els.jobSearch.focus({ preventScroll: true });
+  });
+  els.backToJobActions?.addEventListener("click", () => {
+    dashboardStage = "home";
+    render();
+  });
+  els.quickStartJob?.addEventListener("click", () => openJobDialog());
   els.recurrenceEnabled.addEventListener("change", updateRecurrenceControls);
   els.suggestNextAvailable.addEventListener("click", applySuggestedSchedule);
   els.resetDemo?.addEventListener("click", () => {
     state = normalizeState(structuredClone(demoState));
     selectedJobId = state.jobs[0]?.id || null;
     state.portalAccess.jobId = selectedJobId;
+    dashboardStage = "home";
     render();
   });
   els.jobList.addEventListener("click", (event) => {
     const row = event.target.closest("[data-job-id]");
     if (!row) return;
     selectedJobId = row.dataset.jobId;
+    dashboardStage = "detail";
+    mobileDetailActive = true;
     render();
   });
   els.attentionQueue.addEventListener("click", (event) => {
-    const button = event.target.closest("[data-attention-filter]");
+    const button = event.target.closest("[data-attention-job-id]");
     if (!button) return;
-    const nextFilter = button.dataset.attentionFilter;
-    const alreadySelected = jobStatusFilter === "attention" && jobAttentionFilter === nextFilter;
     jobSearchQuery = "";
-    jobStatusFilter = alreadySelected ? "open" : "attention";
-    jobAttentionFilter = alreadySelected ? "" : nextFilter;
-    ensureFilteredJobSelection();
+    jobStatusFilter = "open";
+    jobAttentionFilter = "";
+    selectedJobId = button.dataset.attentionJobId;
+    dashboardStage = "detail";
+    mobileDetailActive = true;
     render();
+    els.detailTitle.scrollIntoView({ behavior: "smooth", block: "start" });
   });
   els.upcomingSchedule.addEventListener("click", (event) => {
     const rescheduleButton = event.target.closest('[data-action="reschedule-occurrence"]');
@@ -3263,8 +3454,16 @@ function bindEvents() {
     const jobButton = event.target.closest("[data-schedule-job-id]");
     if (!jobButton) return;
     selectedJobId = jobButton.dataset.scheduleJobId;
+    dashboardStage = "detail";
+    mobileDetailActive = true;
     render();
     els.detailTitle.scrollIntoView({ behavior: "smooth", block: "start" });
+  });
+  els.mobileBackToJobs.addEventListener("click", () => {
+    dashboardStage = "list";
+    mobileDetailActive = false;
+    render();
+    els.jobSearch.focus({ preventScroll: true });
   });
   els.jobSearch.addEventListener("input", () => {
     jobSearchQuery = els.jobSearch.value;
@@ -3306,6 +3505,10 @@ function bindEvents() {
         render();
       }
     }
+    if (action === "mark-document-reviewed") markDocumentReviewed(actionTarget.dataset.docId).catch((error) => {
+      console.warn("Document review failed", error);
+      showToast("Could not mark the file reviewed.", "error");
+    });
     if (action === "archive-document" || action === "restore-document") setDocumentArchived(
       actionTarget.dataset.docId,
       action === "archive-document",
@@ -3494,6 +3697,44 @@ function bindEvents() {
     state.settings.mileageTrackingEnabled = enabled;
     els.mileageTrackingEnabled.disabled = false;
     showToast(`Mileage tracking turned ${enabled ? "on" : "off"}.`, "success");
+    render();
+  });
+
+  els.tradeToggleList.addEventListener("change", (event) => {
+    const checkbox = event.target.closest("[data-trade-code]");
+    if (!checkbox) return;
+    const checked = els.tradeToggleList.querySelectorAll('[data-trade-code]:checked');
+    if (!checked.length) {
+      checkbox.checked = true;
+      showToast("Keep at least one trade active.", "error");
+    }
+  });
+
+  els.tradeSettingsForm.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    if (!requireWorkspaceWriteAccess()) return;
+    const codes = [...els.tradeToggleList.querySelectorAll('[data-trade-code]:checked')]
+      .map((checkbox) => checkbox.dataset.tradeCode);
+    if (!codes.length) {
+      showToast("Choose at least one trade.", "error");
+      return;
+    }
+    els.tradeSettingsStatus.textContent = "Saving";
+    if (backend.live) {
+      const { data, error } = await backend.client.rpc("set_company_trades", {
+        target_company_id: backend.company.id,
+        input_trade_codes: codes,
+      });
+      if (error) {
+        console.warn("Trade settings save failed", error);
+        els.tradeSettingsStatus.textContent = `${activeTradeCodes().length} active`;
+        showToast("Could not save the trade settings.", "error");
+        return;
+      }
+      backend.company.enabled_trade_codes = Array.isArray(data) ? data : codes;
+    }
+    state.settings.enabledTradeCodes = normalizeTradeCodes(codes);
+    showToast("Trades saved.", "success");
     render();
   });
 
@@ -3760,6 +4001,7 @@ function bindEvents() {
       }
       els.jobDialog.close();
       await loadLiveState();
+      dashboardStage = "list";
       showToast("Job deleted.", "success");
       render();
       if (storageWarning) showToast("Job deleted, but some uploaded files need support cleanup.", "error");
@@ -3773,6 +4015,7 @@ function bindEvents() {
       state.portalAccess.lastSentTo = selectedJob()?.customerEmail || "";
     }
     els.jobDialog.close();
+    dashboardStage = "list";
     showToast("Job deleted in preview mode.", "success");
     render();
   });

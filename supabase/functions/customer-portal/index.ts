@@ -120,6 +120,7 @@ async function customerSafeJob(supabase: ReturnType<typeof createClient>, job: R
   }));
   return {
     id: job.id,
+    industry: job.industry,
     name: job.name,
     service_address: job.service_address,
     job_status: job.job_status,
@@ -175,7 +176,7 @@ serve(async (req) => {
   const tokenHash = await sha256(payload.token);
   const { data: link, error: linkError } = await supabase
     .from("magic_links")
-    .select("*, jobs(id,name,service_address,job_status,material_status,projected_date,scheduled_start,scheduled_end,estimated_duration_minutes,recurrence_frequency,recurrence_interval,recurrence_until,invoice_url,customers(name),documents(id,name,document_type,uploaded_by,visibility,status,storage_file_id,storage_url,version,size_bytes,created_at),estimate_acceptances(document_id,decision_status,notes,decided_at,accepted_at),schedule_exceptions(id,occurrence_start,replacement_start,replacement_end,status))")
+    .select("*, jobs(id,industry,name,service_address,job_status,material_status,projected_date,scheduled_start,scheduled_end,estimated_duration_minutes,recurrence_frequency,recurrence_interval,recurrence_until,invoice_url,customers(name),documents(id,name,document_type,uploaded_by,visibility,status,storage_file_id,storage_url,version,size_bytes,created_at),estimate_acceptances(document_id,decision_status,notes,decided_at,accepted_at),schedule_exceptions(id,occurrence_start,replacement_start,replacement_end,status))")
     .eq("token_hash", tokenHash)
     .gt("expires_at", new Date().toISOString())
     .single();
@@ -251,7 +252,7 @@ serve(async (req) => {
     }
     if (!bytes.length || bytes.length > maxFileBytes) return jsonResponse(req, { error: "File must be 10 MB or smaller" }, 413);
 
-    const documentType = payload.documentType || "Insurance Claim";
+    const documentType = payload.documentType || "Customer Upload";
     const { data: duplicate } = await supabase
       .from("documents")
       .select("id")
@@ -291,7 +292,7 @@ serve(async (req) => {
 
   const { data: refreshed, error: refreshError } = await supabase
     .from("jobs")
-    .select("id,name,service_address,job_status,material_status,projected_date,scheduled_start,scheduled_end,estimated_duration_minutes,recurrence_frequency,recurrence_interval,recurrence_until,invoice_url,customers(name),documents(id,name,document_type,uploaded_by,visibility,status,storage_file_id,storage_url,version,size_bytes,created_at),estimate_acceptances(document_id,decision_status,notes,decided_at,accepted_at),schedule_exceptions(id,occurrence_start,replacement_start,replacement_end,status)")
+    .select("id,industry,name,service_address,job_status,material_status,projected_date,scheduled_start,scheduled_end,estimated_duration_minutes,recurrence_frequency,recurrence_interval,recurrence_until,invoice_url,customers(name),documents(id,name,document_type,uploaded_by,visibility,status,storage_file_id,storage_url,version,size_bytes,created_at),estimate_acceptances(document_id,decision_status,notes,decided_at,accepted_at),schedule_exceptions(id,occurrence_start,replacement_start,replacement_end,status)")
     .eq("id", link.job_id)
     .single();
 

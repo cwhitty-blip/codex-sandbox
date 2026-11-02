@@ -26,6 +26,7 @@ const subscriptionMigration = read("supabase/migrations/20260802090000_subscript
 const schedulingMigration = read("supabase/migrations/20260802130000_scheduling_foundation.sql");
 const digestMigration = read("supabase/migrations/20260803001000_batched_job_update_notifications.sql");
 const digestScheduleMigration = read("supabase/migrations/20260803002500_digest_exact_delivery_windows.sql");
+const multiTradeMigration = read("supabase/migrations/20261101110000_multi_trade_workspaces.sql");
 const waveEdge = read("supabase/functions/wave-webhook/index.ts");
 const supabaseConfig = read("supabase/config.toml");
 
@@ -64,7 +65,7 @@ assert(html.includes("Never send your password to support."), "Account help must
 assert(html.includes("data-theme-toggle"), "The app must expose an appearance control");
 assert(app.includes('const THEME_STORAGE_KEY = "servicePortal.theme"'), "Appearance preference must persist on the device");
 assert(styles.includes('html[data-theme="dark"]'), "Dark mode must define a complete color theme");
-assert(styles.includes("height: calc(100dvh - 32px)"), "Desktop layout must use the full vertical viewport");
+assert(styles.includes("height: 100dvh"), "Desktop layout must use the full vertical viewport");
 assert(styles.includes("body.customer-portal-mode .portal-masthead"), "Customer portal must retain its compact branded masthead");
 assert(app.includes('classList.remove("contractor-locked")'), "Customer links must never inherit the contractor sign-in lock");
 assert(app.includes("function requireWorkspaceWriteAccess"), "Browser mutations must have a read-only guard");
@@ -129,13 +130,26 @@ assert(app.includes("uploadLiveDocumentFiles"), "Multi-file uploads must use the
 assert(app.includes("removeLiveDocumentFiles(docs.map"), "Failed document records must clean up uploaded files");
 assert(app.includes("if (jobSaveBusy) return"), "Job saves must guard against duplicate submission");
 assert(app.includes("A custom field with that name already exists."), "Custom fields must reject duplicate names");
+assert(html.includes('id="jobActionMenu"'), "The contractor home must use a focused job-action menu");
+assert(html.includes('id="startJob"') && html.includes('id="updateJob"'), "The contractor home must expose only start and update job choices");
+assert(!html.includes('id="quickStartJob"'), "The staged workflow must not duplicate the start-job action in the header");
+assert(html.includes('id="jobListPanel"') && html.includes('id="jobDetailPanel"'), "Job selection and job detail must be separate stages");
+assert(app.includes('let dashboardStage = "home"'), "The contractor workflow must open on the two-choice home stage");
+assert(app.includes('dashboardStage = "detail"'), "Selecting a job must advance to an isolated detail stage");
+assert(styles.includes(".job-action-menu"), "The job-action home must have a dedicated responsive layout");
 assert(html.includes('id="attentionQueue"'), "Dashboard must include the needs-attention queue");
 assert(html.includes('id="jobSearch"'), "Dashboard must include job search");
 assert(html.includes('id="jobStatusFilter"'), "Dashboard must include job filtering");
 assert(app.includes("attentionCategoriesForJob"), "Attention categories must be derived from job data");
 assert(app.includes('doc.uploadedBy === "Customer" && doc.status === "New"'), "New customer uploads must appear in the attention queue");
+assert(app.includes('data-action="mark-document-reviewed"'), "Customer uploads must have a reviewed transition that clears attention");
 assert(app.includes('jobStatusFilter === "attention"'), "Job filtering must support the attention queue");
-assert(app.includes('${count ? "" : "disabled"}'), "Empty attention categories must not act like filters");
+assert(app.includes('data-attention-job-id'), "Attention items must open a specific job instead of a category counter");
+assert(!html.includes('id="quickUpdateJob"'), "The dashboard must not expose an ambiguous global update action");
+assert(html.includes('id="mobileBackToJobs"'), "Phone layouts must support a dedicated list-to-detail job flow");
+assert(styles.includes("body.mobile-job-detail .work-grid > .panel:first-child"), "Phone job detail must replace the list instead of stacking below it");
+assert(html.includes('id="jobScheduleDetails"') && html.includes('id="jobAdvancedDetails"'), "New-job intake must progressively disclose secondary fields");
+assert(html.includes("Saving adds one update to the next scheduled customer email."), "Job saves must disclose their customer-notification consequence");
 assert(html.includes('id="upcomingSchedule"'), "Dashboard must include the upcoming schedule");
 assert(html.includes('id="scheduleSettingsForm"'), "Settings must include company availability");
 assert(html.includes('id="recurrenceEnabled"'), "Recurring visits must use an explicit opt-in switch");
@@ -152,5 +166,13 @@ assert(schedulingMigration.includes("public.job_belongs_to_company(job_id, compa
 assert(schedulingMigration.includes("save_scheduled_job_record"), "Scheduled job saves must use a reviewed database boundary");
 assert(schedulingMigration.includes("public.company_member_can_write(target_company_id)"), "Scheduled job saves must enforce subscription access");
 assert(schedulingMigration.includes("Members can read schedule exceptions"), "Read-only workspaces must retain schedule visibility");
+assert(html.includes('id="tradeSettingsForm"'), "Settings must include company-wide trade controls");
+assert(html.includes('id="jobTrade"'), "Multi-trade workspaces must classify jobs by trade");
+assert(app.includes('rpc("set_company_trades"'), "Trade settings must use the owner-authorized database boundary");
+assert(multiTradeMigration.includes("enabled_trade_codes"), "The database must persist company trade selections");
+assert(multiTradeMigration.includes("membership.role in ('owner', 'admin')"), "Only company owners or admins may change trade settings");
+assert(multiTradeMigration.includes("create trigger validate_jobs_trade"), "Job trades must be validated for every write path");
+assert(edge.includes("industry: job.industry"), "The customer portal must preserve the job trade classification safely");
+assert(!app.includes("Upload insurance claim"), "The generic customer portal must not force a roofing-only upload workflow");
 
 console.log("Static smoke checks passed.");
