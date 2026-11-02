@@ -63,8 +63,10 @@ assert(app.includes('type: "signup"'), "Unconfirmed accounts must support a new 
 assert(app.includes('action: "workspace"'), "Workspace setup failures must be distinct from credential failures");
 assert(html.includes("Never send your password to support."), "Account help must warn contractors not to share passwords");
 assert(html.includes("data-theme-toggle"), "The app must expose an appearance control");
+assert(html.includes("family=Inter"), "The interface must load the approved modern typeface");
 assert(app.includes('const THEME_STORAGE_KEY = "servicePortal.theme"'), "Appearance preference must persist on the device");
 assert(styles.includes('html[data-theme="dark"]'), "Dark mode must define a complete color theme");
+assert(styles.includes("--accent: #2f6fed"), "The light interface must use the approved modern action color");
 assert(styles.includes("height: 100dvh"), "Desktop layout must use the full vertical viewport");
 assert(styles.includes("body.customer-portal-mode .portal-masthead"), "Customer portal must retain its compact branded masthead");
 assert(app.includes('classList.remove("contractor-locked")'), "Customer links must never inherit the contractor sign-in lock");
