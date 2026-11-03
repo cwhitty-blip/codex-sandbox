@@ -21,7 +21,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet" />
-    <link rel="stylesheet" href="assets/styles.css?v=modern-ui-v4" />
+    <link rel="stylesheet" href="assets/styles.css?v=modern-ui-v5" />
   </head>
   <body>
     <div class="app-shell">
@@ -182,41 +182,50 @@
 
           <section id="jobWorkspace" class="work-grid" hidden>
             <div id="jobListPanel" class="panel job-list-panel" hidden>
-              <div class="panel-header">
+              <div class="job-list-nav">
+                <button id="backToJobActions" class="text-button workflow-back-button" type="button">
+                  <i data-lucide="arrow-left" aria-hidden="true"></i><span>Back</span>
+                </button>
+              </div>
+              <div class="job-list-heading">
                 <div>
-                  <button id="backToJobActions" class="text-button workflow-back-button" type="button">
-                    <i data-lucide="arrow-left" aria-hidden="true"></i><span>Back</span>
-                  </button>
-                  <h2>Choose a job</h2>
+                  <p class="eyebrow">Current work</p>
+                  <h2 id="jobListHeading">Current jobs</h2>
                 </div>
                 <span id="filteredJobCount" class="count-chip">0 shown</span>
               </div>
-              <div class="job-filter-bar" role="search">
-                <label class="search-control">
-                  <span class="visually-hidden">Search jobs</span>
-                  <i data-lucide="search" aria-hidden="true"></i>
-                  <input id="jobSearch" type="search" placeholder="Search jobs, customers, or addresses" autocomplete="off" />
-                </label>
-                <label class="filter-control">
-                  <span class="visually-hidden">Filter jobs</span>
-                  <select id="jobStatusFilter" aria-label="Filter jobs">
-                    <option value="open">Open jobs</option>
-                    <option value="attention">Needs attention</option>
-                    <option value="all">All jobs</option>
-                    <option value="Active">Active</option>
-                    <option value="Waiting on Customer">Waiting on customer</option>
-                    <option value="Ready to Schedule">Ready to schedule</option>
-                    <option value="Scheduled">Scheduled</option>
-                    <option value="In Progress">In progress</option>
-                    <option value="On Hold">On hold</option>
-                    <option value="Complete">Complete</option>
-                  </select>
-                </label>
-                <button id="clearJobFilters" class="icon-button" type="button" aria-label="Clear job search and filters" title="Clear job search and filters" hidden>
-                  <i data-lucide="x"></i>
-                </button>
-              </div>
               <div id="jobList" class="job-list"></div>
+              <section class="job-filter-section" aria-labelledby="jobFilterHeading">
+                <div class="job-filter-heading">
+                  <strong id="jobFilterHeading">Find a job</strong>
+                  <small>Search or change which jobs are shown.</small>
+                </div>
+                <div class="job-filter-bar" role="search">
+                  <label class="search-control">
+                    <span class="visually-hidden">Search jobs</span>
+                    <i data-lucide="search" aria-hidden="true"></i>
+                    <input id="jobSearch" type="search" placeholder="Search by job, customer, or address" autocomplete="off" />
+                  </label>
+                  <label class="filter-control">
+                    <span class="visually-hidden">Filter jobs</span>
+                    <select id="jobStatusFilter" aria-label="Filter jobs">
+                      <option value="open">Current jobs</option>
+                      <option value="attention">Needs attention</option>
+                      <option value="all">All jobs</option>
+                      <option value="Active">Active</option>
+                      <option value="Waiting on Customer">Waiting on customer</option>
+                      <option value="Ready to Schedule">Ready to schedule</option>
+                      <option value="Scheduled">Scheduled</option>
+                      <option value="In Progress">In progress</option>
+                      <option value="On Hold">On hold</option>
+                      <option value="Complete">Complete</option>
+                    </select>
+                  </label>
+                  <button id="clearJobFilters" class="icon-button" type="button" aria-label="Clear job search and filters" title="Clear job search and filters" hidden>
+                    <i data-lucide="x"></i>
+                  </button>
+                </div>
+              </section>
             </div>
 
             <div id="jobDetailPanel" class="panel detail-panel" hidden>
@@ -650,6 +659,6 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.110.1"></script>
     <script src="https://unpkg.com/lucide@1.24.0/dist/umd/lucide.js"></script>
     <script src="assets/config.js?v=accounts-v3"></script>
-    <script src="assets/app.js?v=modern-ui-v4"></script>
+    <script src="assets/app.js?v=modern-ui-v5"></script>
   </body>
 </html>

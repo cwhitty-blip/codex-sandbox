@@ -141,6 +141,9 @@ assert(html.includes('id="jobActionMenu"'), "The contractor home must use a focu
 assert(html.includes('id="startJob"') && html.includes('id="updateJob"'), "The contractor home must expose only start and update job choices");
 assert(!html.includes('id="quickStartJob"'), "The staged workflow must not duplicate the start-job action in the header");
 assert(html.includes('id="jobListPanel"') && html.includes('id="jobDetailPanel"'), "Job selection and job detail must be separate stages");
+assert(html.indexOf('id="jobList"') < html.indexOf('id="jobSearch"'), "Current jobs must appear before secondary search controls");
+assert(html.includes('id="jobListHeading">Current jobs'), "The default update view must identify current jobs clearly");
+assert(!app.includes('els.jobSearch.focus({ preventScroll: true })'), "Opening a job list must not summon the mobile keyboard");
 assert(app.includes('let dashboardStage = "home"'), "The contractor workflow must open on the two-choice home stage");
 assert(app.includes('dashboardStage = "detail"'), "Selecting a job must advance to an isolated detail stage");
 assert(styles.includes(".job-action-menu"), "The job-action home must have a dedicated responsive layout");

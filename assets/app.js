@@ -322,6 +322,7 @@ const els = {
   jobStatusFilter: document.getElementById("jobStatusFilter"),
   clearJobFilters: document.getElementById("clearJobFilters"),
   filteredJobCount: document.getElementById("filteredJobCount"),
+  jobListHeading: document.getElementById("jobListHeading"),
   jobList: document.getElementById("jobList"),
   detailTitle: document.getElementById("detailTitle"),
   detailStatus: document.getElementById("detailStatus"),
@@ -1835,13 +1836,23 @@ function renderJobs() {
   els.jobSearch.value = jobSearchQuery;
   els.jobStatusFilter.value = jobStatusFilter;
   els.clearJobFilters.hidden = !jobSearchQuery && jobStatusFilter === "open" && !jobAttentionFilter;
-  els.filteredJobCount.textContent = `${jobs.length} shown`;
+  const defaultCurrentView = !jobSearchQuery.trim() && jobStatusFilter === "open" && !jobAttentionFilter;
+  els.filteredJobCount.textContent = defaultCurrentView ? `${jobs.length} current` : `${jobs.length} shown`;
+  els.jobListHeading.textContent = jobSearchQuery.trim()
+    ? "Search results"
+    : jobStatusFilter === "open"
+      ? "Current jobs"
+      : jobStatusFilter === "attention"
+        ? "Needs attention"
+        : jobStatusFilter === "all"
+          ? "All jobs"
+          : jobStatusFilter;
   els.jobList.innerHTML = jobs
     .map(
       (job) => {
         const attentionLabel = attentionLabelForJob(job);
         return `
-        <button class="job-row ${job.id === selectedJobId ? "active" : ""}" data-job-id="${job.id}" type="button" aria-pressed="${job.id === selectedJobId}">
+        <button class="job-row" data-job-id="${job.id}" type="button">
           <span>
             <strong>${escapeHtml(job.name)}</strong>
             <small>${escapeHtml(job.customerName)}${multiTradeEnabled() ? ` · ${escapeHtml(tradeForCode(job.industry).label)}` : ""}</small>
@@ -3431,9 +3442,11 @@ function bindEvents() {
 
   els.startJob?.addEventListener("click", () => openJobDialog());
   els.updateJob?.addEventListener("click", () => {
+    jobSearchQuery = "";
+    jobStatusFilter = "open";
+    jobAttentionFilter = "";
     dashboardStage = "list";
     render();
-    els.jobSearch.focus({ preventScroll: true });
   });
   els.backToJobActions?.addEventListener("click", () => {
     dashboardStage = "home";
@@ -3487,13 +3500,11 @@ function bindEvents() {
     dashboardStage = "list";
     mobileDetailActive = false;
     render();
-    els.jobSearch.focus({ preventScroll: true });
   });
   els.jobSearch.addEventListener("input", () => {
     jobSearchQuery = els.jobSearch.value;
     ensureFilteredJobSelection();
     render();
-    els.jobSearch.focus();
   });
   els.jobStatusFilter.addEventListener("change", () => {
     jobStatusFilter = els.jobStatusFilter.value;
@@ -3507,7 +3518,6 @@ function bindEvents() {
     jobAttentionFilter = "";
     ensureFilteredJobSelection();
     render();
-    els.jobSearch.focus();
   });
 
   els.jobDetail.addEventListener("click", (event) => {
