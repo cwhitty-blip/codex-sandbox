@@ -293,6 +293,8 @@ const els = {
   },
   viewTitle: document.getElementById("viewTitle"),
   viewEyebrow: document.getElementById("viewEyebrow"),
+  demoWorkspaceNotice: document.getElementById("demoWorkspaceNotice"),
+  exitDemo: document.getElementById("exitDemo"),
   todayHeadline: document.getElementById("todayHeadline"),
   todayContext: document.getElementById("todayContext"),
   activeJobCount: document.getElementById("activeJobCount"),
@@ -425,6 +427,9 @@ const els = {
   recoveryConfirmPassword: document.getElementById("recoveryConfirmPassword"),
   recoverySubmit: document.getElementById("recoverySubmit"),
   signOut: document.getElementById("signOut"),
+  settingsAccountPanel: document.getElementById("settingsAccountPanel"),
+  settingsAccountEmail: document.getElementById("settingsAccountEmail"),
+  settingsSignOut: document.getElementById("settingsSignOut"),
   workspaceForm: document.getElementById("workspaceForm"),
   workspaceName: document.getElementById("workspaceName"),
   workspaceEmail: document.getElementById("workspaceEmail"),
@@ -519,6 +524,13 @@ function backendConfigured() {
 
 function demoMode() {
   return new URLSearchParams(window.location.search).has("demo");
+}
+
+function exitDemoMode() {
+  const accountUrl = new URL(window.location.href);
+  accountUrl.search = "";
+  accountUrl.hash = "";
+  window.location.assign(accountUrl.toString());
 }
 
 function readOnlyPreviewMode() {
@@ -632,6 +644,7 @@ function setContractorLock(locked) {
 
 function renderAuth() {
   queueMicrotask(refreshIcons);
+  els.demoWorkspaceNotice.hidden = !demoMode() || portalMode.active;
   els.authAssistance.hidden = true;
   els.recoveryForm.hidden = true;
   els.forgotPassword.hidden = true;
@@ -2285,6 +2298,8 @@ function renderEstimateAcceptance(job, estimate) {
 }
 
 function renderSettings() {
+  els.settingsAccountPanel.hidden = !backend.live;
+  els.settingsAccountEmail.textContent = backend.user?.email || "";
   els.workspaceName.value = backend.company?.name || "";
   els.workspaceEmail.value = backend.user?.email || "";
   els.workspaceStatus.textContent = backend.live ? "Saved" : "Preview";
@@ -3400,10 +3415,19 @@ function bindEvents() {
     });
   });
 
-  els.signOut.addEventListener("click", async () => {
+  const signOutCurrentAccount = async (button) => {
     if (!backend.client) return;
-    await backend.client.auth.signOut();
-  });
+    button.disabled = true;
+    try {
+      await backend.client.auth.signOut();
+    } finally {
+      button.disabled = false;
+    }
+  };
+
+  els.exitDemo.addEventListener("click", exitDemoMode);
+  els.signOut.addEventListener("click", () => signOutCurrentAccount(els.signOut));
+  els.settingsSignOut.addEventListener("click", () => signOutCurrentAccount(els.settingsSignOut));
 
   els.startJob?.addEventListener("click", () => openJobDialog());
   els.updateJob?.addEventListener("click", () => {

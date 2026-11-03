@@ -54,6 +54,11 @@ assert(/waveCheckoutUrl:\s*""/.test(config), "Wave checkout URL must remain empt
 assert(/const trialDays = 14;/.test(app), "Contractor trials must last 14 days");
 assert(app.includes('rpc("get_my_company_entitlement")'), "The browser must load server-calculated subscription access");
 assert(html.includes('id="workspaceAccessNotice"'), "Expired workspaces must show a read-only notice");
+assert(html.includes('id="demoWorkspaceNotice"'), "Sample workspaces must be clearly identified");
+assert(html.includes('id="exitDemo"'), "Sample workspaces must provide a path to account sign in");
+assert(app.includes("function exitDemoMode"), "The sample workspace must remove its demo query before sign in");
+assert(html.includes('id="settingsSignOut"'), "Signed-in accounts must expose sign out in Settings");
+assert(app.includes("els.settingsAccountPanel.hidden = !backend.live"), "Account controls must appear only for live signed-in workspaces");
 assert(html.includes('id="authConfirmPassword"'), "Account creation must include password confirmation");
 assert(app.includes('password !== confirmPassword'), "Mismatched account passwords must be rejected before signup");
 assert(html.includes('id="recoveryConfirmPassword"'), "Password recovery must include password confirmation");

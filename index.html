@@ -122,6 +122,20 @@
           </div>
         </header>
 
+        <aside id="demoWorkspaceNotice" class="demo-workspace-notice" role="status" hidden>
+          <span class="demo-workspace-copy">
+            <i data-lucide="flask-conical" aria-hidden="true"></i>
+            <span>
+              <strong>Sample workspace</strong>
+              <small>These sample jobs are temporary and are not connected to your account.</small>
+            </span>
+          </span>
+          <button id="exitDemo" class="primary-button" type="button">
+            <i data-lucide="log-in" aria-hidden="true"></i>
+            <span>Sign in to your account</span>
+          </button>
+        </aside>
+
         <aside id="workspaceAccessNotice" class="workspace-access-notice" role="status" hidden>
           <i data-lucide="lock-keyhole" aria-hidden="true"></i>
           <span>
@@ -244,6 +258,20 @@
 
         <section id="settingsView" class="view">
           <section class="settings-grid">
+            <div id="settingsAccountPanel" class="panel account-access-panel" hidden>
+              <span class="account-access-copy">
+                <i data-lucide="circle-user-round" aria-hidden="true"></i>
+                <span>
+                  <strong>Signed in</strong>
+                  <small id="settingsAccountEmail"></small>
+                </span>
+              </span>
+              <button id="settingsSignOut" class="ghost-button" type="button">
+                <i data-lucide="log-out" aria-hidden="true"></i>
+                <span>Sign out</span>
+              </button>
+            </div>
+
             <div class="panel workspace-panel">
               <div class="panel-header">
                 <div>

@@ -529,6 +529,49 @@ body.customer-view-active:not(.customer-portal-mode) .topbar h1 {
   color: var(--warning);
 }
 
+.demo-workspace-notice {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  margin: -4px 0 20px;
+  border: 1px solid color-mix(in srgb, var(--accent) 34%, var(--line));
+  border-radius: 8px;
+  padding: 12px 14px;
+  background: var(--accent-soft);
+}
+
+.demo-workspace-copy,
+.account-access-copy {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.demo-workspace-copy > svg,
+.account-access-copy > svg {
+  flex: 0 0 auto;
+  color: var(--accent);
+}
+
+.demo-workspace-copy span,
+.demo-workspace-copy strong,
+.demo-workspace-copy small,
+.account-access-copy span,
+.account-access-copy strong,
+.account-access-copy small {
+  display: block;
+  min-width: 0;
+}
+
+.demo-workspace-copy small,
+.account-access-copy small {
+  margin-top: 2px;
+  overflow-wrap: anywhere;
+  line-height: 1.4;
+}
+
 .workspace-access-notice > svg {
   margin-top: 1px;
 }
@@ -936,6 +979,14 @@ body.customer-view-active:not(.customer-portal-mode) .topbar h1 {
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 16px;
   align-items: start;
+}
+
+.account-access-panel {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  grid-column: 1 / -1;
 }
 
 .panel {
@@ -2213,6 +2264,7 @@ body.customer-portal-mode .app-shell {
 body.customer-portal-mode .sidebar,
 body.customer-portal-mode .topbar,
 body.customer-portal-mode #authPanel,
+body.customer-portal-mode .demo-workspace-notice,
 body.customer-portal-mode .customer-selector {
   display: none !important;
 }
@@ -2476,6 +2528,22 @@ body.customer-portal-mode .customer-layout {
 
   .workspace-access-notice {
     margin-bottom: 14px;
+  }
+
+  .demo-workspace-notice {
+    align-items: stretch;
+    flex-direction: column;
+    margin-bottom: 14px;
+  }
+
+  .demo-workspace-notice .primary-button,
+  .account-access-panel .ghost-button {
+    width: 100%;
+  }
+
+  .account-access-panel {
+    align-items: stretch;
+    flex-direction: column;
   }
 
   .job-action-menu {
