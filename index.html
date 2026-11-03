@@ -21,7 +21,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet" />
-    <link rel="stylesheet" href="assets/styles.css?v=modern-ui-v5" />
+    <link rel="stylesheet" href="assets/styles.css?v=modern-ui-v6" />
   </head>
   <body>
     <div class="app-shell">
@@ -45,9 +45,9 @@
             <i data-lucide="clipboard-list" aria-hidden="true"></i>
             <span>Jobs</span>
           </button>
-          <button class="nav-tab" data-view="customer" type="button" aria-label="Portal preview">
+          <button class="nav-tab" data-view="customer" type="button" aria-label="Customer View">
             <i data-lucide="user-round" aria-hidden="true"></i>
-            <span>Portal</span>
+            <span>Customer View</span>
           </button>
         </nav>
 
@@ -212,13 +212,17 @@
                       <option value="open">Current jobs</option>
                       <option value="attention">Needs attention</option>
                       <option value="all">All jobs</option>
-                      <option value="Active">Active</option>
-                      <option value="Waiting on Customer">Waiting on customer</option>
-                      <option value="Ready to Schedule">Ready to schedule</option>
+                      <option value="Lead">Lead</option>
+                      <option value="Inspection scheduled">Inspection scheduled</option>
+                      <option value="Inspected">Inspected</option>
+                      <option value="Claim submitted">Claim submitted</option>
+                      <option value="Waiting on insurance">Waiting on insurance</option>
+                      <option value="Estimate sent">Estimate sent</option>
+                      <option value="Deposit Received">Deposit Received</option>
+                      <option value="Materials ordered">Materials ordered</option>
                       <option value="Scheduled">Scheduled</option>
-                      <option value="In Progress">In progress</option>
-                      <option value="On Hold">On hold</option>
                       <option value="Complete">Complete</option>
+                      <option value="Paid">Paid</option>
                     </select>
                   </label>
                   <button id="clearJobFilters" class="icon-button" type="button" aria-label="Clear job search and filters" title="Clear job search and filters" hidden>
@@ -255,8 +259,8 @@
             </button>
           </div>
           <section class="customer-layout">
-            <div class="customer-selector">
-              <p class="eyebrow">Customer preview</p>
+            <div id="customerSelector" class="customer-selector">
+              <p class="eyebrow">Customer View</p>
               <h2>Choose a job</h2>
               <div id="customerJobList" class="job-list customer-job-list"></div>
             </div>
@@ -659,6 +663,6 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.110.1"></script>
     <script src="https://unpkg.com/lucide@1.24.0/dist/umd/lucide.js"></script>
     <script src="assets/config.js?v=accounts-v3"></script>
-    <script src="assets/app.js?v=modern-ui-v5"></script>
+    <script src="assets/app.js?v=modern-ui-v6"></script>
   </body>
 </html>

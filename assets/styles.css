@@ -1199,16 +1199,21 @@ body.customer-view-active:not(.customer-portal-mode) .topbar h1 {
   white-space: nowrap;
 }
 
-.job-status[data-status="Waiting on Customer"],
-.status-pill[data-status="Waiting on Customer"],
-.job-status[data-status="On Hold"],
-.status-pill[data-status="On Hold"] {
+.job-status[data-status="Waiting on insurance"],
+.status-pill[data-status="Waiting on insurance"],
+.job-status[data-status="Estimate sent"],
+.status-pill[data-status="Estimate sent"] {
   color: var(--warning);
 }
 
 .job-status[data-status="Complete"],
 .status-pill[data-status="Complete"] {
   color: var(--muted);
+}
+
+.job-status[data-status="Paid"],
+.status-pill[data-status="Paid"] {
+  color: var(--success);
 }
 
 .status-pill,
@@ -1802,6 +1807,22 @@ body.customer-view-active:not(.customer-portal-mode) .topbar h1 {
   grid-template-columns: minmax(240px, 300px) minmax(0, 1fr);
   gap: 16px;
   align-items: start;
+}
+
+#customerView.customer-list-active .customer-layout,
+#customerView.customer-detail-active .customer-layout {
+  display: block;
+}
+
+#customerView.customer-list-active .customer-selector {
+  position: static;
+  width: 100%;
+}
+
+.customer-view-toolbar {
+  display: flex;
+  align-items: center;
+  min-height: 38px;
 }
 
 .customer-selector {
@@ -2502,6 +2523,12 @@ body.customer-portal-mode .customer-layout {
     position: static;
   }
 
+  dialog {
+    width: calc(100vw - 24px);
+    max-height: calc(100dvh - max(80px, calc(env(safe-area-inset-top) + 64px)));
+    margin: max(64px, calc(env(safe-area-inset-top) + 28px)) auto 16px;
+  }
+
   .compact-form-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -2718,6 +2745,12 @@ body.customer-portal-mode .customer-layout {
 
   .dialog-form {
     padding: 18px 14px;
+  }
+
+  dialog {
+    width: calc(100vw - 20px);
+    max-height: calc(100dvh - max(90px, calc(env(safe-area-inset-top) + 76px)));
+    margin: max(72px, calc(env(safe-area-inset-top) + 36px)) auto 14px;
   }
 
   .dialog-actions {

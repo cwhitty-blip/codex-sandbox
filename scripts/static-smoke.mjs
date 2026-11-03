@@ -27,6 +27,7 @@ const schedulingMigration = read("supabase/migrations/20260802130000_scheduling_
 const digestMigration = read("supabase/migrations/20260803001000_batched_job_update_notifications.sql");
 const digestScheduleMigration = read("supabase/migrations/20260803002500_digest_exact_delivery_windows.sql");
 const multiTradeMigration = read("supabase/migrations/20261101110000_multi_trade_workspaces.sql");
+const jobStatusMigration = read("supabase/migrations/20261103120000_job_status_pipeline.sql");
 const waveEdge = read("supabase/functions/wave-webhook/index.ts");
 const supabaseConfig = read("supabase/config.toml");
 
@@ -58,6 +59,14 @@ assert(html.includes('id="demoWorkspaceNotice"'), "Sample workspaces must be cle
 assert(html.includes('id="exitDemo"'), "Sample workspaces must provide a path to account sign in");
 assert(app.includes("function exitDemoMode"), "The sample workspace must remove its demo query before sign in");
 assert(html.includes('id="settingsSignOut"'), "Signed-in accounts must expose sign out in Settings");
+assert(html.includes("<span>Customer View</span>"), "Contractor navigation must use the Customer View label");
+assert(app.includes('let customerViewStage = "list"'), "Customer View must open on the job list");
+assert(app.includes('data-action="back-to-customer-list"'), "Customer detail must provide a route back to the list");
+assert(styles.includes("env(safe-area-inset-top)"), "Mobile dialogs must clear the browser and device safe area");
+assert(app.includes('"Deposit Received"') && app.includes('"Paid"'), "Job status choices must include the approved eleven-stage pipeline");
+assert(app.includes('return !["Complete", "Paid"].includes(job.jobStatus)'), "Complete and paid jobs must leave the current queue");
+assert(jobStatusMigration.includes("alter column job_status set default 'Lead'"), "New database jobs must begin as leads");
+assert(jobStatusMigration.includes("when 'Active' then 'Lead'"), "Legacy active jobs must be normalized");
 assert(app.includes("els.settingsAccountPanel.hidden = !backend.live"), "Account controls must appear only for live signed-in workspaces");
 assert(html.includes('id="authConfirmPassword"'), "Account creation must include password confirmation");
 assert(app.includes('password !== confirmPassword'), "Mismatched account passwords must be rejected before signup");

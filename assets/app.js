@@ -25,7 +25,27 @@ const billingProviders = [
   "Other",
 ];
 
-const jobStatuses = ["Active", "Waiting on Customer", "Ready to Schedule", "Scheduled", "In Progress", "Complete", "On Hold"];
+const jobStatuses = [
+  "Lead",
+  "Inspection scheduled",
+  "Inspected",
+  "Claim submitted",
+  "Waiting on insurance",
+  "Estimate sent",
+  "Deposit Received",
+  "Materials ordered",
+  "Scheduled",
+  "Complete",
+  "Paid",
+];
+const jobStatusSet = new Set(jobStatuses);
+const legacyJobStatusMap = {
+  Active: "Lead",
+  "Waiting on Customer": "Estimate sent",
+  "Ready to Schedule": "Estimate sent",
+  "In Progress": "Scheduled",
+  "On Hold": "Waiting on insurance",
+};
 const materialStatuses = ["Not Ordered", "Ordered", "In Transit", "Arrived", "Not Required"];
 const tradeCatalog = [
   { code: "general", label: "General service", icon: "briefcase-business" },
@@ -67,6 +87,12 @@ function normalizeTradeCodes(codes) {
     ? [...new Set(codes.map((code) => String(code || "").trim().toLowerCase()).filter((code) => tradeCodes.has(code)))]
     : [];
   return normalized.length ? normalized : ["general"];
+}
+
+function normalizeJobStatus(status) {
+  const value = String(status || "").trim();
+  if (jobStatusSet.has(value)) return value;
+  return legacyJobStatusMap[value] || "Lead";
 }
 
 function tradeForCode(code) {
@@ -150,7 +176,7 @@ const demoState = {
       customerEmail: "elena.garcia@example.com",
       customerPhone: "555-0174",
       serviceAddress: "4822 Redbud Lane, Tulsa, OK",
-      jobStatus: "Waiting on Customer",
+      jobStatus: "Waiting on insurance",
       materialStatus: "Ordered",
       projectedDate: demoPrimarySchedule.date,
       scheduledStart: demoPrimarySchedule.start,
@@ -281,6 +307,7 @@ let jobAttentionFilter = "";
 let mobileDetailActive = false;
 let currentView = "dashboard";
 let dashboardStage = "home";
+let customerViewStage = "list";
 
 const els = {
   tabs: document.querySelectorAll(".nav-tab"),
@@ -329,6 +356,7 @@ const els = {
   jobDetail: document.getElementById("jobDetail"),
   mobileBackToJobs: document.getElementById("mobileBackToJobs"),
   customerAccessSummary: document.getElementById("customerAccessSummary"),
+  customerSelector: document.getElementById("customerSelector"),
   customerJobList: document.getElementById("customerJobList"),
   customerPortal: document.getElementById("customerPortal"),
   billingStatus: document.getElementById("billingStatus"),
@@ -472,6 +500,7 @@ function normalizeState(nextState) {
   nextState.jobs = Array.isArray(nextState.jobs) ? nextState.jobs : [];
   nextState.jobs.forEach((job) => {
     job.industry = String(job.industry || nextState.settings.enabledTradeCodes[0] || "general");
+    job.jobStatus = normalizeJobStatus(job.jobStatus);
     job.documents = Array.isArray(job.documents) ? job.documents : [];
     job.documents.forEach((doc, index) => {
       doc.version = doc.version || (doc.type === "Estimate" ? index + 1 : null);
@@ -1111,7 +1140,7 @@ function mapDbJob(job) {
     customerEmail: customer?.email || "",
     customerPhone: customer?.phone || "",
     serviceAddress: job.service_address || "",
-    jobStatus: job.job_status,
+    jobStatus: normalizeJobStatus(job.job_status),
     materialStatus: job.material_status,
     projectedDate: job.projected_date || "",
     scheduledStart: job.scheduled_start || null,
@@ -1241,11 +1270,14 @@ function portalTokenFromUrl() {
 
 function activateCustomerPortalView() {
   currentView = "customer";
+  customerViewStage = "detail";
   document.body.classList.remove("contractor-locked");
   document.body.classList.add("customer-portal-mode", "customer-view-active");
   els.tabs.forEach((item) => item.classList.toggle("active", item.dataset.view === "customer"));
   Object.entries(els.views).forEach(([view, node]) => node.classList.toggle("active", view === "customer"));
   els.viewTitle.textContent = "Customer View";
+  if (els.customerSelector) els.customerSelector.hidden = true;
+  els.customerPortal.hidden = false;
 }
 
 function applyPortalJob(jobData) {
@@ -1288,7 +1320,7 @@ async function loadCustomerPortal(token, actionPayload = { action: "payload" }) 
       activateCustomerPortalView();
       return;
     }
-    els.customerPortal.innerHTML = `<div class="empty-state">This portal link is invalid or expired. Please ask the contractor to send a new link.</div>`;
+    els.customerPortal.innerHTML = `<div class="empty-state">This customer link is invalid or expired. Please ask the contractor to send a new link.</div>`;
     return;
   }
   applyPortalCompany(data.company);
@@ -1329,7 +1361,7 @@ const attentionDefinitions = [
 ];
 
 function isOpenJob(job) {
-  return job.jobStatus !== "Complete";
+  return !["Complete", "Paid"].includes(job.jobStatus);
 }
 
 function attentionCategoriesForJob(job) {
@@ -1567,7 +1599,7 @@ function scheduleExceptionFor(job, originalStart) {
 }
 
 function occurrencesForJob(job, rangeStart, rangeEnd, includeSkipped = false) {
-  if (!job.scheduledStart || job.jobStatus === "Complete") return [];
+  if (!job.scheduledStart || !isOpenJob(job)) return [];
   const baseStart = new Date(job.scheduledStart);
   if (Number.isNaN(baseStart.getTime())) return [];
   const duration = Math.max(30, Number(job.estimatedDurationMinutes || 60));
@@ -1755,8 +1787,8 @@ function renderBranding() {
 }
 
 function renderMetrics() {
-  const active = state.jobs.filter((job) => job.jobStatus !== "Complete").length;
-  els.activeJobCount.textContent = `${active} active ${active === 1 ? "job" : "jobs"}`;
+  const current = state.jobs.filter(isOpenJob).length;
+  els.activeJobCount.textContent = `${current} current ${current === 1 ? "job" : "jobs"}`;
   const status = state.settings.subscriptionStatus;
   els.billingProviderSummary.textContent = state.settings.billingMode === "off"
     ? "Early access"
@@ -1881,7 +1913,7 @@ function renderJobDetail() {
     els.jobDetail.classList.add("empty-state");
     els.jobDetail.innerHTML = state.jobs.length
       ? "Adjust the search or filter to select a job."
-      : "Start a job to create the first customer portal.";
+      : "Start a job to create the first customer view.";
     return;
   }
 
@@ -1904,7 +1936,7 @@ function renderJobDetail() {
   els.jobDetail.innerHTML = `
     <div class="detail-actions">
       <button class="primary-button" data-action="edit-job" data-requires-write type="button">${iconMarkup("pencil-line")}<span>Edit job</span></button>
-      <button class="ghost-button" data-action="send-email" data-requires-write type="button">${iconMarkup("send")}<span>Send portal link</span></button>
+      <button class="ghost-button" data-action="send-email" data-requires-write type="button">${iconMarkup("send")}<span>Send customer link</span></button>
     </div>
     ${job.actionMessage ? `<div class="action-feedback" role="status">${iconMarkup("info")}<span>${escapeHtml(job.actionMessage)}</span></div>` : ""}
     <section class="job-focus">
@@ -2144,7 +2176,7 @@ function renderCustomerUploadList(documents) {
 }
 
 function customerTimelineFor(job) {
-  const items = ["Customer portal opened"];
+  const items = ["Customer view opened"];
   if (estimateFor(job)) items.push("Estimate ready for review");
   if (job.estimateDecision?.status === "changes") items.push("Estimate accepted with requested changes");
   if (job.estimateDecision?.status === "reject") items.push("Estimate not accepted");
@@ -2160,6 +2192,19 @@ function renderCustomerAccessSummary() {
   renderCustomerJobSelector();
   els.customerAccessSummary.hidden = true;
   els.customerAccessSummary.innerHTML = "";
+}
+
+function renderCustomerViewStage() {
+  if (!portalMode.active && customerViewStage === "detail" && !customerJob()) {
+    customerViewStage = "list";
+  }
+  const showDetail = portalMode.active || customerViewStage === "detail";
+  const showList = !portalMode.active && !showDetail;
+  els.views.customer.classList.toggle("customer-list-active", showList);
+  els.views.customer.classList.toggle("customer-detail-active", !portalMode.active && showDetail);
+  if (els.customerSelector) els.customerSelector.hidden = !showList;
+  els.customerPortal.hidden = !showDetail;
+  return showDetail;
 }
 
 function renderCustomerJobSelector() {
@@ -2186,9 +2231,13 @@ function renderCustomerJobSelector() {
 }
 
 function renderCustomerPortal() {
+  if (!renderCustomerViewStage()) {
+    els.customerPortal.innerHTML = "";
+    return;
+  }
   const job = customerJob();
   if (!job) {
-    els.customerPortal.innerHTML = `<div class="empty-state">No customer portal to preview yet.</div>`;
+    els.customerPortal.innerHTML = `<div class="empty-state">No customer view is available yet.</div>`;
     return;
   }
   const activeDocuments = job.documents.filter((doc) => doc.status !== "Archived");
@@ -2199,15 +2248,20 @@ function renderCustomerPortal() {
   const invoiceUrl = safeExternalUrl(job.invoiceUrl);
   const nextAppointment = nextOccurrenceForJob(job);
   els.customerPortal.innerHTML = `
+    ${!portalMode.active ? `
+      <div class="customer-view-toolbar">
+        <button class="text-button workflow-back-button" data-action="back-to-customer-list" type="button">${iconMarkup("arrow-left")}<span>Back to customer list</span></button>
+      </div>
+    ` : ""}
     <div class="customer-hero">
       <div>
-        <p class="eyebrow">Customer portal</p>
+        <p class="eyebrow">Customer View</p>
         <h2>${escapeHtml(job.name)}</h2>
         <p>${escapeHtml(job.serviceAddress)}</p>
       </div>
       <span class="status-pill" data-status="${escapeHtml(job.jobStatus)}">${escapeHtml(job.jobStatus)}</span>
     </div>
-    ${portalMode.active && !portalMode.canWrite ? `<div class="action-feedback" role="status">${iconMarkup("lock-keyhole")}<span>This portal is temporarily read-only. Files and job details remain available.</span></div>` : ""}
+    ${portalMode.active && !portalMode.canWrite ? `<div class="action-feedback" role="status">${iconMarkup("lock-keyhole")}<span>This customer view is temporarily read-only. Files and job details remain available.</span></div>` : ""}
     <div class="stat-grid">
       <div><span>Material or parts status</span><strong>${escapeHtml(job.materialStatus)}</strong></div>
       <div><span>Next visit</span><strong>${nextAppointment ? formatScheduleDateTime(nextAppointment.start) : formatDate(job.projectedDate)}</strong></div>
@@ -2227,7 +2281,7 @@ function renderCustomerPortal() {
         <div class="customer-upload-actions">
           <button class="ghost-button" data-action="customer-upload" data-doc-type="Customer Upload" type="button" ${portalMode.canWrite ? "" : "disabled"}>${iconMarkup("upload")}<span>Upload a file</span></button>
         </div>
-      ` : `<p class="fine-print">Upload controls appear in the secure customer portal sent by email.</p>`}
+      ` : `<p class="fine-print">Upload controls appear when the customer opens their secure link.</p>`}
       <div id="customerUploadStatus"></div>
       ${renderCustomerUploadList(customerUploads)}
       <p class="fine-print">The contractor can see files uploaded for this job.</p>
@@ -2304,7 +2358,7 @@ function renderEstimateAcceptance(job, estimate) {
         <button class="danger-button" data-action="estimate-decision" data-decision="reject" data-doc-id="${escapeHtml(estimate.id)}" type="button" ${viewed && portalMode.canWrite ? "" : "disabled"}>${iconMarkup("x-circle")}<span>Do not accept</span></button>
         <small>Your response will be saved with this estimate version.</small>
       </div>
-    ` : `<p class="fine-print">Response controls appear in the secure customer portal sent by email.</p>`}
+    ` : `<p class="fine-print">Response controls appear when the customer opens their secure link.</p>`}
   `;
 }
 
@@ -2660,7 +2714,7 @@ function openJobDialog(job = null) {
   els.customerEmail.value = job?.customerEmail || "";
   els.customerPhone.value = job?.customerPhone || "";
   els.serviceAddress.value = job?.serviceAddress || "";
-  els.jobStatus.value = job?.jobStatus || "Active";
+  els.jobStatus.value = normalizeJobStatus(job?.jobStatus);
   els.materialStatus.value = job?.materialStatus || "Not Ordered";
   els.projectedDate.value = job?.scheduledStart ? dateInputInTimezone(job.scheduledStart) : job?.projectedDate || "";
   els.scheduledTime.value = job?.scheduledStart ? timeInputInTimezone(job.scheduledStart) : "";
@@ -3195,8 +3249,6 @@ async function acceptEstimate(docId) {
       user_agent: navigator.userAgent,
     });
     if (error) throw error;
-    const { error: jobError } = await backend.client.from("jobs").update({ job_status: "Ready to Schedule" }).eq("id", job.id);
-    if (jobError) throw jobError;
   }
   job.estimateAcceptedAt = new Date().toISOString();
   job.acceptedEstimate = {
@@ -3206,7 +3258,6 @@ async function acceptEstimate(docId) {
     acceptedAt: job.estimateAcceptedAt,
   };
   job.estimateDecision = null;
-  job.jobStatus = "Ready to Schedule";
   job.timeline.push(`Customer accepted estimate version ${estimate.version || 1}`);
   render();
 }
@@ -3249,9 +3300,6 @@ async function recordEstimateDecision(docId, decision, notes = "") {
       user_agent: navigator.userAgent,
     });
     if (error) throw error;
-    const nextStatus = decision === "changes" ? "Waiting on Customer" : "On Hold";
-    const { error: jobError } = await backend.client.from("jobs").update({ job_status: nextStatus }).eq("id", job.id);
-    if (jobError) throw jobError;
   }
   job.estimateDecision = {
     documentId: estimate.id,
@@ -3263,7 +3311,6 @@ async function recordEstimateDecision(docId, decision, notes = "") {
   };
   job.estimateAcceptedAt = null;
   job.acceptedEstimate = null;
-  job.jobStatus = decision === "changes" ? "Waiting on Customer" : "On Hold";
   job.timeline.push(
     decision === "changes"
       ? `Customer accepted estimate version ${estimate.version || 1} with requested changes`
@@ -3314,8 +3361,8 @@ function bindEvents() {
     if (viewName === "dashboard") {
       renderDashboardStage();
     } else {
-      els.viewTitle.textContent = viewName === "customer" ? "Portal preview" : "Settings";
-      els.viewEyebrow.textContent = viewName === "customer" ? "Customer experience" : "Workspace";
+      els.viewTitle.textContent = viewName === "customer" ? "Customer View" : "Settings";
+      els.viewEyebrow.textContent = viewName === "customer" ? "Customers" : "Workspace";
     }
     if (els.quickStartJob) els.quickStartJob.hidden = true;
     if (viewName !== "dashboard") {
@@ -3327,7 +3374,9 @@ function bindEvents() {
   els.tabs.forEach((tab) => {
     tab.addEventListener("click", () => {
       if (tab.dataset.view === "dashboard") dashboardStage = "home";
+      if (tab.dataset.view === "customer" && !portalMode.active) customerViewStage = "list";
       setView(tab.dataset.view);
+      if (tab.dataset.view === "customer" && !portalMode.active) render();
     });
   });
   els.settingsGear.addEventListener("click", () => setView("settings"));
@@ -3342,6 +3391,7 @@ function bindEvents() {
     state.portalAccess.lastSentTo = job.customerEmail;
     state.portalAccess.channel = state.portalAccess.channel || "email";
     state.portalAccess.createdAt = state.portalAccess.createdAt || new Date().toISOString();
+    customerViewStage = "detail";
     render();
   });
 
@@ -3585,6 +3635,11 @@ function bindEvents() {
   els.customerPortal.addEventListener("click", (event) => {
     const actionTarget = event.target.closest("[data-action]");
     if (!actionTarget) return;
+    if (actionTarget.dataset.action === "back-to-customer-list" && !portalMode.active) {
+      customerViewStage = "list";
+      render();
+      return;
+    }
     if (actionTarget.dataset.action === "estimate-decision") {
       if (actionTarget.dataset.decision === "changes") {
         openEstimateChangesDialog(actionTarget.dataset.docId);
