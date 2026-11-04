@@ -21,7 +21,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet" />
-    <link rel="stylesheet" href="assets/styles.css?v=modern-ui-v9" />
+    <link rel="stylesheet" href="assets/styles.css?v=modern-ui-v10" />
   </head>
   <body>
     <div class="app-shell">
@@ -186,14 +186,21 @@
                   <i data-lucide="arrow-left" aria-hidden="true"></i><span>Back</span>
                 </button>
               </div>
-              <div class="job-list-heading">
-                <div>
-                  <p class="eyebrow">Current work</p>
-                  <h2 id="jobListHeading">Current jobs</h2>
+              <section class="job-summary-section" aria-labelledby="jobListHeading">
+                <div class="job-list-heading">
+                  <div>
+                    <p class="eyebrow">Current work</p>
+                    <h2 id="jobListHeading">Current jobs</h2>
+                  </div>
+                  <span id="filteredJobCount" class="count-chip">0 shown</span>
                 </div>
-                <span id="filteredJobCount" class="count-chip">0 shown</span>
-              </div>
-              <div id="jobList" class="job-list"></div>
+              </section>
+              <section class="job-results-section" aria-labelledby="jobResultsHeading">
+                <div class="job-results-heading">
+                  <h3 id="jobResultsHeading">Jobs</h3>
+                </div>
+                <div id="jobList" class="job-list"></div>
+              </section>
               <section class="job-filter-section" aria-labelledby="jobFilterHeading">
                 <div class="job-filter-heading">
                   <strong id="jobFilterHeading">Find a job</strong>
@@ -662,6 +669,6 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.110.1"></script>
     <script src="https://unpkg.com/lucide@1.24.0/dist/umd/lucide.js"></script>
     <script src="assets/config.js?v=accounts-v3"></script>
-    <script src="assets/app.js?v=modern-ui-v9"></script>
+    <script src="assets/app.js?v=modern-ui-v10"></script>
   </body>
 </html>

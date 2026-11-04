@@ -982,16 +982,27 @@ body.customer-view-active:not(.customer-portal-mode) .topbar h1 {
   min-height: 34px;
 }
 
+.job-summary-section,
+.job-results-section,
+.job-filter-section {
+  min-width: 0;
+}
+
+.job-summary-section {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface-subtle);
+}
+
 .job-list-heading {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  margin-bottom: 12px;
   border-left: 3px solid var(--accent);
-  border-radius: 6px;
-  padding: 10px 12px;
-  background: var(--surface-subtle);
+  border-radius: 7px;
+  padding: 13px 14px;
+  background: transparent;
 }
 
 .job-list-heading h2 {
@@ -1002,10 +1013,30 @@ body.customer-view-active:not(.customer-portal-mode) .topbar h1 {
   margin-bottom: 2px;
 }
 
+.job-results-section {
+  margin-top: 20px;
+  border-top: 3px solid var(--line-strong);
+  padding-top: 16px;
+}
+
+.job-results-heading {
+  display: flex;
+  align-items: center;
+  min-height: 30px;
+  margin-bottom: 10px;
+}
+
+.job-results-heading h3,
+.job-filter-heading strong {
+  color: var(--ink);
+  font-size: 0.92rem;
+  font-weight: 750;
+}
+
 .job-filter-section {
-  margin-top: 16px;
-  border-top: 1px solid var(--line);
-  padding-top: 14px;
+  margin-top: 22px;
+  border-top: 3px solid var(--line-strong);
+  padding-top: 17px;
 }
 
 .job-filter-heading {

@@ -150,6 +150,7 @@ assert(app.includes("A custom field with that name already exists."), "Custom fi
 assert(html.includes('id="jobActionMenu"'), "The contractor home must use a focused job-action menu");
 assert(!app.includes("ensureFilteredJobSelection"), "The update-job list must not auto-select a job");
 assert(app.includes('class="job-row-side"'), "Update-job rows must have a distinct status and navigation region");
+assert(html.includes('class="job-results-section"'), "Update-job summary, jobs, and search must be separate sections");
 assert(html.includes('id="startJob"') && html.includes('id="updateJob"'), "The contractor home must expose only start and update job choices");
 assert(!html.includes('id="quickStartJob"'), "The staged workflow must not duplicate the start-job action in the header");
 assert(html.includes('id="jobListPanel"') && html.includes('id="jobDetailPanel"'), "Job selection and job detail must be separate stages");
