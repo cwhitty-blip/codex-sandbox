@@ -247,6 +247,10 @@ small {
   background: #ffffff;
 }
 
+.portal-masthead-mark.has-logo > :not(img) {
+  display: none !important;
+}
+
 .brand-copy {
   min-width: 0;
 }
@@ -2536,14 +2540,15 @@ body.customer-portal-mode .customer-layout {
 
 @media (max-width: 640px) {
   .sidebar {
-    grid-template-columns: minmax(0, 1fr) auto;
-    gap: 10px;
-    padding: 10px 12px;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 8px;
+    padding: 10px 12px 8px;
   }
 
   .brand {
+    width: 100%;
     gap: 8px;
-    padding-right: 34px;
+    padding-right: 42px;
   }
 
   .brand-mark {
@@ -2552,7 +2557,7 @@ body.customer-portal-mode .customer-layout {
   }
 
   .brand strong {
-    font-size: 0.84rem;
+    font-size: 0.9rem;
   }
 
   .brand-copy span {
@@ -2566,6 +2571,7 @@ body.customer-portal-mode .customer-layout {
   }
 
   .nav-tabs {
+    width: 100%;
     gap: 4px;
   }
 

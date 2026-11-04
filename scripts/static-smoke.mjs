@@ -112,6 +112,7 @@ assert(!app.includes("Wave subscription infrastructure"), "Internal billing impl
 assert(app.includes("portalMode.active ?"), "Customer mutation controls must be limited to secure portal mode");
 assert(html.includes('id="workspaceLogo"'), "Company profile must include a logo picker");
 assert(html.includes('id="portalCompanyLogo"'), "Customer portal must include contractor branding");
+assert(!html.includes('id="sidebarBrandFallback"'), "The mobile company header must not show a fallback icon beneath the logo");
 assert(app.includes('emailType: "job_update"'), "Contractor job changes must request customer update emails");
 assert(emailEdge.includes('.from("job_update_events").insert'), "Contractor updates must be queued instead of sent immediately");
 assert(digestEdge.includes("Your job has been updated."), "Digest email must use the approved customer wording");

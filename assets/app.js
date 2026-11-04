@@ -327,7 +327,6 @@ const els = {
   activeJobCount: document.getElementById("activeJobCount"),
   billingProviderSummary: document.getElementById("billingProviderSummary"),
   sidebarCompanyLogo: document.getElementById("sidebarCompanyLogo"),
-  sidebarBrandFallback: document.getElementById("sidebarBrandFallback"),
   sidebarCompanyName: document.getElementById("sidebarCompanyName"),
   portalCompanyLogo: document.getElementById("portalCompanyLogo"),
   portalBrandFallback: document.getElementById("portalBrandFallback"),
@@ -1764,10 +1763,18 @@ function companyLogoUrl(company = backend.company) {
 }
 
 function renderBrandImage(image, fallback, url) {
-  if (!image || !fallback) return;
+  if (!image) return;
+  const hasLogo = Boolean(url);
   image.src = url || "";
-  image.hidden = !url;
-  fallback.hidden = Boolean(url);
+  image.hidden = !hasLogo;
+  const container = image.parentElement;
+  container?.classList.toggle("has-logo", hasLogo);
+  if (fallback) {
+    const currentFallback = document.getElementById(fallback.id) || fallback;
+    currentFallback.hidden = hasLogo;
+  } else if (container) {
+    container.hidden = !hasLogo;
+  }
 }
 
 function renderBranding() {
@@ -1775,7 +1782,7 @@ function renderBranding() {
   const logoUrl = companyLogoUrl();
   els.sidebarCompanyName.textContent = companyName;
   els.portalCompanyName.textContent = companyName;
-  renderBrandImage(els.sidebarCompanyLogo, els.sidebarBrandFallback, logoUrl);
+  renderBrandImage(els.sidebarCompanyLogo, null, logoUrl);
   renderBrandImage(els.portalCompanyLogo, els.portalBrandFallback, logoUrl);
 }
 
