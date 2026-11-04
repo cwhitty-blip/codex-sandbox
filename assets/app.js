@@ -1401,13 +1401,6 @@ function filteredJobs() {
   });
 }
 
-function ensureFilteredJobSelection(jobs = filteredJobs()) {
-  if (!jobs.some((job) => job.id === selectedJobId)) {
-    selectedJobId = jobs[0]?.id || null;
-  }
-  return jobs;
-}
-
 function attentionLabelForJob(job) {
   const categories = attentionCategoriesForJob(job);
   if (!categories.length) return "";
@@ -1864,7 +1857,7 @@ function renderUpcomingSchedule() {
 }
 
 function renderJobs() {
-  const jobs = ensureFilteredJobSelection();
+  const jobs = filteredJobs();
   els.jobSearch.value = jobSearchQuery;
   els.jobStatusFilter.value = jobStatusFilter;
   els.clearJobFilters.hidden = !jobSearchQuery && jobStatusFilter === "open" && !jobAttentionFilter;
@@ -3495,6 +3488,7 @@ function bindEvents() {
     jobSearchQuery = "";
     jobStatusFilter = "open";
     jobAttentionFilter = "";
+    selectedJobId = null;
     dashboardStage = "list";
     render();
   });
@@ -3547,26 +3541,24 @@ function bindEvents() {
     els.detailTitle.scrollIntoView({ behavior: "smooth", block: "start" });
   });
   els.mobileBackToJobs.addEventListener("click", () => {
+    selectedJobId = null;
     dashboardStage = "list";
     mobileDetailActive = false;
     render();
   });
   els.jobSearch.addEventListener("input", () => {
     jobSearchQuery = els.jobSearch.value;
-    ensureFilteredJobSelection();
     render();
   });
   els.jobStatusFilter.addEventListener("change", () => {
     jobStatusFilter = els.jobStatusFilter.value;
     jobAttentionFilter = "";
-    ensureFilteredJobSelection();
     render();
   });
   els.clearJobFilters.addEventListener("click", () => {
     jobSearchQuery = "";
     jobStatusFilter = "open";
     jobAttentionFilter = "";
-    ensureFilteredJobSelection();
     render();
   });
 
