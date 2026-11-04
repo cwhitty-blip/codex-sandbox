@@ -1890,7 +1890,10 @@ function renderJobs() {
             <small>${escapeHtml(job.customerName)}${multiTradeEnabled() ? ` · ${escapeHtml(tradeForCode(job.industry).label)}` : ""}</small>
             ${attentionLabel ? `<small class="job-attention-label">${escapeHtml(attentionLabel)}</small>` : ""}
           </span>
-          <em class="job-status" data-status="${escapeHtml(job.jobStatus)}">${escapeHtml(job.jobStatus)}</em>
+          <span class="job-row-side">
+            <em class="job-status" data-status="${escapeHtml(job.jobStatus)}">${escapeHtml(job.jobStatus)}</em>
+            ${iconMarkup("chevron-right")}
+          </span>
         </button>
       `;
       },
