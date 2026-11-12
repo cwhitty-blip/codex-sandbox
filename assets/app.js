@@ -2178,19 +2178,6 @@ function renderCustomerUploadList(documents) {
   `;
 }
 
-function customerTimelineFor(job) {
-  const items = ["Customer view opened"];
-  if (estimateFor(job)) items.push("Estimate ready for review");
-  if (job.estimateDecision?.status === "changes") items.push("Estimate accepted with requested changes");
-  if (job.estimateDecision?.status === "reject") items.push("Estimate not accepted");
-  if (job.acceptedEstimate || job.estimateAcceptedAt) items.push("Estimate accepted");
-  if (job.documents.some((doc) => doc.uploadedBy === "Customer")) items.push("File uploaded for contractor review");
-  const nextAppointment = nextOccurrenceForJob(job);
-  if (nextAppointment) items.push(`Next visit: ${formatScheduleDateTime(nextAppointment.start)}`);
-  else if (job.projectedDate) items.push(`Projected service date: ${formatDate(job.projectedDate)}`);
-  return items;
-}
-
 function renderCustomerAccessSummary() {
   renderCustomerJobSelector();
   els.customerAccessSummary.hidden = true;
@@ -2262,7 +2249,6 @@ function renderCustomerPortal() {
         <h2>${escapeHtml(job.name)}</h2>
         <p>${escapeHtml(job.serviceAddress)}</p>
       </div>
-      <span class="status-pill" data-status="${escapeHtml(job.jobStatus)}">${escapeHtml(job.jobStatus)}</span>
     </div>
     ${portalMode.active && !portalMode.canWrite ? `<div class="action-feedback" role="status">${iconMarkup("lock-keyhole")}<span>This customer view is temporarily read-only. Files and job details remain available.</span></div>` : ""}
     <div class="stat-grid">
@@ -2296,10 +2282,6 @@ function renderCustomerPortal() {
     <section class="plain-section">
       <h3>Shared documents</h3>
       <div class="document-list">${renderCustomerDocumentList(customerVisibleDocs)}</div>
-    </section>
-    <section class="plain-section">
-      <h3>Timeline</h3>
-      <ol class="timeline">${customerTimelineFor(job).map((event) => `<li>${escapeHtml(event)}</li>`).join("")}</ol>
     </section>
   `;
 }
