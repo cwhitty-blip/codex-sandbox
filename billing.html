@@ -1,0 +1,217 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="referrer" content="no-referrer" />
+    <title>Account Billing</title>
+    <script>
+      (() => {
+        const storageKey = "servicePortal.theme";
+        let savedTheme = "";
+        try {
+          savedTheme = localStorage.getItem(storageKey) || "";
+        } catch (_) {}
+        const theme = savedTheme === "light" || savedTheme === "dark"
+          ? savedTheme
+          : window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+        document.documentElement.dataset.theme = theme;
+      })();
+    </script>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="assets/billing-admin.css?v=billing-ops-v1" />
+  </head>
+  <body>
+    <header class="site-header">
+      <a class="brand" href="index.html" aria-label="Back to Service Portal">
+        <span class="brand-mark" aria-hidden="true"><i data-lucide="receipt-text"></i></span>
+        <span><strong>Account billing</strong><small>Service Portal owner tools</small></span>
+      </a>
+      <nav class="header-actions" aria-label="Billing tools">
+        <a class="icon-button" href="index.html" title="Back to portal" aria-label="Back to portal"><i data-lucide="layout-dashboard"></i></a>
+        <button class="icon-button" id="themeToggle" type="button" title="Change theme" aria-label="Change theme"><i data-lucide="sun-moon"></i></button>
+        <button class="text-button" id="signOutButton" type="button" hidden>Sign out</button>
+      </nav>
+    </header>
+
+    <main>
+      <section id="authView" class="auth-view">
+        <div class="auth-copy">
+          <p class="eyebrow">Private owner access</p>
+          <h1>Manage contractor billing</h1>
+          <p>Sign in with the owner account to manage trials, discounts, payments, and Wave references.</p>
+        </div>
+        <form id="signInForm" class="auth-form">
+          <label>Email address<input id="signInEmail" type="email" autocomplete="email" required /></label>
+          <label>Password<input id="signInPassword" type="password" autocomplete="current-password" required /></label>
+          <button class="primary-button" type="submit"><i data-lucide="log-in"></i><span>Sign in</span></button>
+          <a class="inline-link" href="index.html">Forgot password?</a>
+          <p id="signInMessage" class="form-message" role="status"></p>
+        </form>
+      </section>
+
+      <section id="accessDeniedView" class="empty-view" hidden>
+        <span class="empty-icon" aria-hidden="true"><i data-lucide="shield-alert"></i></span>
+        <h1>Owner access required</h1>
+        <p>This account can use the contractor portal, but it is not authorized to manage platform billing.</p>
+        <a class="secondary-button" href="index.html">Return to portal</a>
+      </section>
+
+      <section id="billingView" hidden>
+        <section class="page-intro">
+          <div>
+            <p class="eyebrow">Billing operations</p>
+            <h1>Contractor accounts</h1>
+            <p>Wave collects payments. This dashboard keeps the independent account record.</p>
+          </div>
+          <div class="page-actions">
+            <button id="refreshDashboard" class="icon-button" type="button" title="Refresh" aria-label="Refresh billing data"><i data-lucide="refresh-cw"></i></button>
+            <button id="downloadAccounts" class="secondary-button" type="button"><i data-lucide="download"></i><span>Download spreadsheet</span></button>
+          </div>
+        </section>
+
+        <section class="metric-grid" aria-label="Billing summary">
+          <article><span>Active</span><strong id="activeAccountsMetric">0</strong><small id="monthlyRevenueMetric">$0.00 monthly</small></article>
+          <article><span>Free trials</span><strong id="trialingAccountsMetric">0</strong><small>14-day trial</small></article>
+          <article><span>Needs attention</span><strong id="pastDueAccountsMetric">0</strong><small>Past due</small></article>
+          <article><span>Complimentary</span><strong id="compedAccountsMetric">0</strong><small>100% discount</small></article>
+        </section>
+
+        <section class="management-section accounts-section">
+          <div class="section-heading">
+            <div>
+              <p class="eyebrow">Accounts</p>
+              <h2>Trials and subscriptions</h2>
+            </div>
+            <div class="filters">
+              <label class="search-field"><i data-lucide="search" aria-hidden="true"></i><input id="accountSearch" type="search" placeholder="Search company or email" /></label>
+              <select id="accountStatusFilter" aria-label="Filter accounts by status">
+                <option value="all">All statuses</option>
+                <option value="trialing">Free trial</option>
+                <option value="active">Active</option>
+                <option value="past_due">Past due</option>
+                <option value="cancelled">Cancelled</option>
+                <option value="beta">Early access</option>
+              </select>
+            </div>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Company</th><th>Status</th><th>Monthly</th><th>Next date</th><th>Wave</th><th><span class="sr-only">Actions</span></th></tr></thead>
+              <tbody id="accountsTableBody"></tbody>
+            </table>
+          </div>
+          <div id="accountsMobileList" class="mobile-list"></div>
+          <p id="accountsEmpty" class="empty-row" hidden>No accounts match this view.</p>
+        </section>
+
+        <section class="management-section coupon-section">
+          <div class="section-heading">
+            <div>
+              <p class="eyebrow">Discounts</p>
+              <h2>Unique customer codes</h2>
+              <p>Each code works once and is tied to the intended account or email.</p>
+            </div>
+          </div>
+          <form id="couponForm" class="coupon-form">
+            <label>Assign to email<input id="couponEmail" type="email" placeholder="contractor@example.com" required /></label>
+            <label>Discount<select id="couponPercent"><option value="25">25% off</option><option value="50">50% off</option><option value="75">75% off</option><option value="100">100% off</option></select></label>
+            <label>Use by, optional<input id="couponEndsAt" type="date" /></label>
+            <label class="coupon-note">Private note<input id="couponNote" type="text" maxlength="240" placeholder="Why this discount was offered" /></label>
+            <button class="primary-button" type="submit"><i data-lucide="ticket-plus"></i><span>Create unique code</span></button>
+          </form>
+          <p id="couponFormMessage" class="form-message" role="status"></p>
+          <div id="couponList" class="coupon-list"></div>
+        </section>
+
+        <section class="management-section plan-section">
+          <div class="section-heading">
+            <div>
+              <p class="eyebrow">Wave links</p>
+              <h2>Monthly payment options</h2>
+              <p>Add the four Wave recurring checkout links after they are created. The 100% option never sends a customer to Wave.</p>
+            </div>
+          </div>
+          <div id="planOptions" class="plan-options"></div>
+        </section>
+
+        <section class="management-section payments-section">
+          <div class="section-heading">
+            <div>
+              <p class="eyebrow">Payment history</p>
+              <h2>Independent ledger</h2>
+            </div>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Date</th><th>Company</th><th>Status</th><th>Amount</th><th>Wave reference</th></tr></thead>
+              <tbody id="paymentsTableBody"></tbody>
+            </table>
+          </div>
+          <div id="paymentsMobileList" class="mobile-list"></div>
+          <p id="paymentsEmpty" class="empty-row" hidden>No payments have been recorded yet.</p>
+        </section>
+      </section>
+    </main>
+
+    <dialog id="accountDialog">
+      <form id="accountForm" class="dialog-form">
+        <div class="dialog-heading">
+          <div><p class="eyebrow">Account record</p><h2 id="accountDialogTitle">Manage account</h2><p id="accountDialogEmail"></p></div>
+          <button class="icon-button" id="closeAccountDialog" type="button" aria-label="Close" title="Close"><i data-lucide="x"></i></button>
+        </div>
+        <input id="accountCompanyId" type="hidden" />
+        <div class="form-grid">
+          <label>Status<select id="accountStatus"><option value="beta">Early access</option><option value="trialing">Free trial</option><option value="active">Active</option><option value="past_due">Past due</option><option value="cancelled">Cancelled</option></select></label>
+          <label>Billing email<input id="accountBillingEmail" type="email" /></label>
+          <label>Collection<select id="accountBillingMode"><option value="off">Billing off</option><option value="manual">Manual review</option><option value="wave">Wave automatic</option></select></label>
+          <label>Provider<select id="accountProvider"><option value="none">None</option><option value="wave">Wave</option></select></label>
+          <label>Next invoice<input id="accountNextInvoice" type="date" /></label>
+          <label>Paid through<input id="accountPeriodEnds" type="date" /></label>
+          <label>Grace ends<input id="accountGraceEnds" type="date" /></label>
+          <label>Wave customer ID<input id="accountWaveCustomer" type="text" /></label>
+          <label>Wave recurring ID<input id="accountWaveContract" type="text" /></label>
+          <label class="full-field">Wave invoice URL<input id="accountInvoiceUrl" type="url" /></label>
+          <label class="full-field">Private notes<textarea id="accountNotes" rows="3" maxlength="1000"></textarea></label>
+        </div>
+        <div class="dialog-actions">
+          <button id="openPaymentDialog" class="secondary-button" type="button"><i data-lucide="badge-dollar-sign"></i><span>Record payment</span></button>
+          <span></span>
+          <button id="cancelAccountDialog" class="text-button" type="button">Cancel</button>
+          <button class="primary-button" type="submit"><i data-lucide="save"></i><span>Save account</span></button>
+        </div>
+        <p id="accountFormMessage" class="form-message" role="status"></p>
+      </form>
+    </dialog>
+
+    <dialog id="paymentDialog">
+      <form id="paymentForm" class="dialog-form compact-dialog">
+        <div class="dialog-heading">
+          <div><p class="eyebrow">Independent ledger</p><h2>Record a payment</h2><p id="paymentCompanyName"></p></div>
+          <button class="icon-button" id="closePaymentDialog" type="button" aria-label="Close" title="Close"><i data-lucide="x"></i></button>
+        </div>
+        <input id="paymentCompanyId" type="hidden" />
+        <div class="form-grid">
+          <label>Amount<input id="paymentAmount" type="number" min="0" step="0.01" required /></label>
+          <label>Status<select id="paymentStatus"><option value="paid">Paid</option><option value="pending">Pending</option><option value="failed">Failed</option><option value="refunded">Refunded</option><option value="void">Void</option></select></label>
+          <label>Provider<select id="paymentProvider"><option value="wave">Wave</option><option value="manual">Manual</option></select></label>
+          <label>Payment date<input id="paymentDate" type="date" /></label>
+          <label>Wave payment ID<input id="paymentExternalId" type="text" /></label>
+          <label>Wave invoice ID<input id="paymentInvoiceId" type="text" /></label>
+          <label class="full-field">Invoice URL<input id="paymentInvoiceUrl" type="url" /></label>
+          <label class="full-field">Private note<textarea id="paymentNotes" rows="3" maxlength="500"></textarea></label>
+        </div>
+        <div class="dialog-actions"><span></span><span></span><button id="cancelPaymentDialog" class="text-button" type="button">Cancel</button><button class="primary-button" type="submit"><i data-lucide="check"></i><span>Record</span></button></div>
+        <p id="paymentFormMessage" class="form-message" role="status"></p>
+      </form>
+    </dialog>
+
+    <div id="toast" class="toast" role="status" aria-live="polite"></div>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.110.1"></script>
+    <script src="https://unpkg.com/lucide@1.24.0/dist/umd/lucide.js"></script>
+    <script src="assets/config.js?v=accounts-v3"></script>
+    <script src="assets/billing-admin.js?v=billing-ops-v1"></script>
+  </body>
+</html>

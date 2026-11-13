@@ -29,7 +29,7 @@ The publishable Supabase key in `assets/config.js` is intended for browser use. 
 
 The intended plan is 14 free days followed by `$12.99/month` through Wave. Billing remains explicitly disabled during early access.
 
-This build does not collect cards directly. Wave will host the recurring checkout and payment collection. Supabase has a provider-neutral subscription record and an idempotent Wave webhook receiver, but the endpoint does nothing until `WAVE_BILLING_ENABLED` is deliberately set to `true` at launch. See `docs/wave-billing-foundation-2026-07-11.md`.
+This build does not collect cards directly. Wave will host recurring checkout and payment collection. Supabase keeps the independent subscription ledger, one-use recipient discounts, payment history, and audit trail. The private owner dashboard is available at `billing.html`, but billing and the Wave webhook remain disabled until launch. See `docs/wave-billing-foundation-2026-07-11.md`.
 
 ## Included MVP Flows
 

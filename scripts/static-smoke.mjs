@@ -14,6 +14,9 @@ const assert = (condition, message) => {
 const html = read("index.html");
 const app = read("assets/app.js");
 const styles = read("assets/styles.css");
+const billingHtml = read("billing.html");
+const billingApp = read("assets/billing-admin.js");
+const billingStyles = read("assets/billing-admin.css");
 const config = read("assets/config.js");
 const edge = read("supabase/functions/customer-portal/index.ts");
 const emailEdge = read("supabase/functions/send-magic-link/index.ts");
@@ -29,6 +32,7 @@ const digestScheduleMigration = read("supabase/migrations/20260803002500_digest_
 const digestDetailsMigration = read("supabase/migrations/20261112120000_job_update_email_change_details.sql");
 const multiTradeMigration = read("supabase/migrations/20261101110000_multi_trade_workspaces.sql");
 const jobStatusMigration = read("supabase/migrations/20261103120000_job_status_pipeline.sql");
+const billingManagementMigration = read("supabase/migrations/20261113150000_billing_operations_management.sql");
 const waveEdge = read("supabase/functions/wave-webhook/index.ts");
 const supabaseConfig = read("supabase/config.toml");
 
@@ -53,6 +57,18 @@ assert(html.includes("lucide@1.24.0"), "Lucide icons must use the reviewed versi
 assert(!html.includes("app-statusbar") && !html.includes("app-homebar"), "Prototype phone chrome must not ship");
 assert(/billingMode:\s*"off"/.test(config), "Early-access billing must remain off");
 assert(/waveCheckoutUrl:\s*""/.test(config), "Wave checkout URL must remain empty before launch");
+assert(billingHtml.includes('id="downloadAccounts"'), "Billing management must provide a spreadsheet export");
+assert(billingHtml.includes('id="couponForm"'), "Billing management must provide unique coupon creation");
+assert(billingHtml.includes('id="paymentsTableBody"'), "Billing management must expose the independent payment ledger");
+assert(billingApp.includes('rpc("get_billing_admin_dashboard")'), "Billing data must come from the owner-only database boundary");
+assert(billingApp.includes('rpc("billing_admin_create_coupon"'), "Unique coupons must be generated server-side");
+assert(billingApp.includes('rpc("billing_admin_record_payment"'), "Manual payment reconciliation must be recorded server-side");
+assert(billingStyles.includes("@media (max-width: 760px)"), "Billing management must support phone layouts");
+assert(billingManagementMigration.includes("create table if not exists public.platform_billing_admins"), "Billing management must have a private administrator allowlist");
+assert(billingManagementMigration.includes("create table if not exists public.billing_payments"), "Billing management must keep an independent payment ledger");
+assert(billingManagementMigration.includes("percent_off in (25, 50, 75, 100)"), "Unique coupons must use the approved discount choices");
+assert(billingManagementMigration.includes("redemption_count >= promotion.max_redemptions"), "Unique coupons must enforce their redemption limit");
+assert(billingManagementMigration.includes("create table if not exists public.billing_change_log"), "Billing changes must be auditable");
 assert(/const trialDays = 14;/.test(app), "Contractor trials must last 14 days");
 assert(app.includes('rpc("get_my_company_entitlement")'), "The browser must load server-calculated subscription access");
 assert(html.includes('id="workspaceAccessNotice"'), "Expired workspaces must show a read-only notice");
@@ -100,6 +116,7 @@ assert(waveEdge.includes('Deno.env.get("WAVE_BUSINESS_ID")'), "Wave events must 
 assert(waveEdge.includes('Deno.env.get("WAVE_ACCESS_TOKEN")'), "Wave renewals must support customer reconciliation");
 assert(waveEdge.includes("verifyWaveSignature"), "Wave callbacks must verify their signatures");
 assert(waveEdge.includes('["processed", "ignored", "unmatched"]'), "Completed Wave events must be idempotent while failed events remain retryable");
+assert(waveEdge.includes('.from("billing_payments")'), "Verified Wave events must write the independent payment ledger");
 assert(/\[functions\.customer-portal\][\s\S]*?verify_jwt\s*=\s*false/.test(supabaseConfig), "Customer portal token function must allow public invocation");
 assert(/\[functions\.send-job-digests\][\s\S]*?verify_jwt\s*=\s*false/.test(supabaseConfig), "Digest worker must use its custom cron authentication");
 assert(/\[functions\.wave-webhook\][\s\S]*?verify_jwt\s*=\s*false/.test(supabaseConfig), "Wave webhook must allow provider callbacks");

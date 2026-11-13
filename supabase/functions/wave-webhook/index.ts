@@ -352,6 +352,7 @@ serve(async (req) => {
   const subscription = subscriptions[0];
   const now = new Date().toISOString();
   const paid = event.event_type === "checkout.paid" || event.event_type === "invoice.paid";
+  let paymentAmountCents = Number(subscription.plan_price_cents);
 
   if (event.event_type === "checkout.paid") {
     const permittedCheckoutId = String(subscription.external_checkout_id || expectedCheckoutId);
@@ -377,6 +378,7 @@ serve(async (req) => {
   if (paid) {
     const rawAmount = data.amount || data.amount_paid;
     const amountCents = Math.round(Number(rawAmount) * 100);
+    paymentAmountCents = amountCents;
     const currency = String(data.currency_code || "").toUpperCase();
     if (!Number.isFinite(amountCents) || amountCents < Number(subscription.plan_price_cents) || currency !== "USD") {
       await supabase.from("billing_events").update({
@@ -417,6 +419,34 @@ serve(async (req) => {
       error_message: "Could not update subscription",
     }).eq("id", billingEvent.id);
     return jsonResponse({ error: "Could not update subscription" }, 500);
+  }
+
+  const periodEndsAt = paid ? nextMonthlyPeriod(paidAt) : null;
+  const paymentReference = String(data.id || data.confirmation_code || event.event_id);
+  const { error: ledgerError } = await supabase
+    .from("billing_payments")
+    .insert({
+      company_id: subscription.company_id,
+      provider: "wave",
+      external_payment_id: `event:${paymentReference}`,
+      external_invoice_id: event.event_type.startsWith("invoice.") ? data.invoice_id || null : null,
+      amount_cents: paymentAmountCents,
+      currency_code: String(data.currency_code || "USD").toUpperCase(),
+      status: paid ? "paid" : "failed",
+      period_starts_at: paid ? validDate(paidAt).toISOString() : null,
+      period_ends_at: periodEndsAt,
+      due_at: data.due_date || null,
+      paid_at: paid ? validDate(paidAt).toISOString() : null,
+      notes: "Recorded automatically from a verified Wave event.",
+    });
+
+  if (ledgerError && ledgerError.code !== "23505") {
+    await supabase.from("billing_events").update({
+      company_id: subscription.company_id,
+      status: "error",
+      error_message: "Could not write the payment ledger",
+    }).eq("id", billingEvent.id);
+    return jsonResponse({ error: "Could not write the payment ledger" }, 500);
   }
 
   await supabase.from("billing_events").update({
