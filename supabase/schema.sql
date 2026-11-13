@@ -1878,8 +1878,26 @@ create table if not exists public.job_update_events (
   provider_message_id text,
   attempt_count integer not null default 0,
   last_error text,
+  change_summaries jsonb not null default '[]'::jsonb,
   constraint job_update_events_attempt_count_check check (attempt_count between 0 and 100)
 );
+
+alter table public.job_update_events
+add column if not exists change_summaries jsonb not null default '[]'::jsonb;
+
+do $$
+begin
+  if not exists (
+    select 1
+    from pg_constraint
+    where conname = 'job_update_events_change_summaries_array_check'
+  ) then
+    alter table public.job_update_events
+      add constraint job_update_events_change_summaries_array_check
+      check (jsonb_typeof(change_summaries) = 'array');
+  end if;
+end;
+$$;
 
 alter table public.job_update_events enable row level security;
 revoke all on public.job_update_events from anon, authenticated;

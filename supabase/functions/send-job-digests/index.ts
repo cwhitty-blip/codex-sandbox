@@ -8,6 +8,10 @@ type DigestClaim = {
   event_count: number | string;
 };
 
+type JobUpdateEvent = {
+  change_summaries: unknown;
+};
+
 const brandingBucket = "company-branding";
 
 function jsonResponse(body: unknown, status = 200) {
@@ -59,9 +63,22 @@ function resendFailure(status: number, body: string) {
   return `Resend rejected the digest with status ${status}`;
 }
 
+function digestChangeSummaries(events: JobUpdateEvent[]) {
+  const summaries = events.flatMap((event) => Array.isArray(event.change_summaries)
+    ? event.change_summaries.filter((summary): summary is string => typeof summary === "string")
+    : []);
+  const uniqueSummaries = [...new Set(
+    summaries.map((summary) => summary.replace(/\s+/g, " ").trim()).filter(Boolean),
+  )];
+  if (!uniqueSummaries.length) return ["Job details were updated"];
+  if (uniqueSummaries.length <= 12) return uniqueSummaries;
+  return [...uniqueSummaries.slice(0, 12), `${uniqueSummaries.length - 12} more updates`];
+}
+
 async function sendDigestForJob(
   supabase: ReturnType<typeof createClient>,
   claim: DigestClaim,
+  claimToken: string,
   resendApiKey: string,
   appBaseUrl: string,
   fromEmail: string,
@@ -82,6 +99,15 @@ async function sendDigestForJob(
     .select("name,logo_path")
     .eq("id", claim.company_id)
     .single();
+
+  const { data: updateEvents, error: updateEventsError } = await supabase
+    .from("job_update_events")
+    .select("change_summaries")
+    .eq("claim_token", claimToken)
+    .eq("job_id", claim.job_id)
+    .eq("company_id", claim.company_id);
+  if (updateEventsError) throw new Error("Could not load the queued job changes");
+  const changeSummaries = digestChangeSummaries((updateEvents || []) as JobUpdateEvent[]);
 
   const token = crypto.randomUUID() + crypto.randomUUID().replaceAll("-", "");
   const tokenHash = await sha256(token);
@@ -106,10 +132,15 @@ async function sendDigestForJob(
     ? supabase.storage.from(brandingBucket).getPublicUrl(company.logo_path).data.publicUrl
     : "";
   const logoMarkup = logoUrl
-    ? `<img src="${escapeHtml(logoUrl)}" alt="${escapeHtml(companyName)}" style="display:block;max-width:180px;max-height:72px;margin:0 0 24px;object-fit:contain;" />`
-    : `<p style="margin:0 0 24px;font-size:18px;font-weight:700;color:#172326;">${escapeHtml(companyName)}</p>`;
+    ? `<img src="${escapeHtml(logoUrl)}" alt="${escapeHtml(companyName)}" width="180" style="display:block;width:auto;max-width:180px;height:auto;max-height:72px;margin:0 0 10px;border:0;object-fit:contain;" />`
+    : "";
+  const brandMarkup = `${logoMarkup}<p style="margin:0;font-size:17px;font-weight:700;line-height:1.3;color:#172326;">${escapeHtml(companyName)}</p>`;
   const message = "Your job has been updated.";
   const safePortalLink = escapeHtml(portalLink);
+  const plainTextChanges = changeSummaries.map((summary) => `- ${summary}`).join("\n");
+  const htmlChanges = changeSummaries
+    .map((summary) => `<li style="margin:0 0 10px;padding-left:4px;">${escapeHtml(summary)}</li>`)
+    .join("");
   const emailResult = await fetch("https://api.resend.com/emails", {
     method: "POST",
     headers: {
@@ -119,14 +150,25 @@ async function sendDigestForJob(
     body: JSON.stringify({
       from: fromEmail,
       to: customer.email,
-      subject: `${companyName}: Your job has been updated`,
-      text: `${message}\n\nView your job: ${portalLink}`,
+      subject: `${companyName}: ${job.name || "Your job"} was updated`,
+      text: `${companyName}\n\n${message}\n\n${job.name || "Your job"}\n\nWhat changed:\n${plainTextChanges}\n\nView your job: ${portalLink}\n\nThis secure link expires in 7 days.`,
       html: `
-        <div style="margin:0;padding:28px;background:#f5f7f5;font-family:Arial,sans-serif;color:#172326;">
-          <div style="max-width:560px;margin:0 auto;padding:28px;background:#ffffff;border:1px solid #d8e0dd;border-radius:8px;">
-            ${logoMarkup}
-            <p style="margin:0 0 22px;font-size:18px;line-height:1.5;">${message}</p>
-            <a href="${safePortalLink}" style="display:inline-block;padding:12px 18px;background:#0d6f78;color:#ffffff;text-decoration:none;border-radius:6px;font-weight:700;">View your job</a>
+        <div style="margin:0;padding:28px 14px;background:#eef2f6;font-family:Arial,Helvetica,sans-serif;color:#172326;">
+          <div style="max-width:560px;margin:0 auto;overflow:hidden;background:#ffffff;border:1px solid #d7dee6;border-radius:8px;">
+            <div style="padding:24px 28px;border-bottom:1px solid #e5e9ee;">
+              ${brandMarkup}
+            </div>
+            <div style="padding:30px 28px;">
+              <p style="margin:0 0 8px;font-size:12px;font-weight:700;letter-spacing:1px;color:#2f6fed;text-transform:uppercase;">Job update</p>
+              <h1 style="margin:0 0 10px;font-size:26px;line-height:1.25;color:#172326;">${escapeHtml(job.name || "Your job")}</h1>
+              <p style="margin:0 0 24px;font-size:17px;line-height:1.55;color:#44515d;">${message}</p>
+              <div style="margin:0 0 26px;padding:18px 20px;background:#f6f8fb;border-left:4px solid #2f6fed;border-radius:4px;">
+                <p style="margin:0 0 13px;font-size:14px;font-weight:700;color:#172326;">What changed</p>
+                <ul style="margin:0;padding-left:20px;font-size:15px;line-height:1.5;color:#34414c;">${htmlChanges}</ul>
+              </div>
+              <a href="${safePortalLink}" style="display:inline-block;padding:13px 20px;background:#2f6fed;color:#ffffff;text-decoration:none;border-radius:6px;font-size:15px;font-weight:700;">View job details</a>
+              <p style="margin:24px 0 0;font-size:12px;line-height:1.5;color:#6b7785;">This secure link expires in 7 days. A newer customer email will replace it.</p>
+            </div>
           </div>
         </div>
       `,
@@ -197,6 +239,7 @@ serve(async (req) => {
       const providerMessageId = await sendDigestForJob(
         supabase,
         claim,
+        claimToken,
         resendApiKey,
         appBaseUrl,
         fromEmail,

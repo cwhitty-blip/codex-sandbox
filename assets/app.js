@@ -2657,7 +2657,9 @@ async function rescheduleSelectedOccurrence() {
     end.toISOString(),
   );
   els.scheduleVisitDialog.close();
-  await notifyCustomerOfJobUpdate(job.id, "Visit rescheduled.");
+  await notifyCustomerOfJobUpdate(job.id, "Visit rescheduled.", [
+    `Visit rescheduled from ${formatScheduleDateTime(els.scheduleVisitOriginalStart.value)} to ${formatScheduleDateTime(start.toISOString())}`,
+  ]);
 }
 
 async function skipSelectedOccurrence() {
@@ -2666,7 +2668,9 @@ async function skipSelectedOccurrence() {
   if (!window.confirm(`Skip this visit for "${job.name}"? The rest of the series will stay scheduled.`)) return;
   await saveScheduleException(job, els.scheduleVisitOriginalStart.value, "skipped");
   els.scheduleVisitDialog.close();
-  await notifyCustomerOfJobUpdate(job.id, "Visit skipped.");
+  await notifyCustomerOfJobUpdate(job.id, "Visit skipped.", [
+    `The visit scheduled for ${formatScheduleDateTime(els.scheduleVisitOriginalStart.value)} was skipped`,
+  ]);
 }
 
 function updateRecurrenceControls() {
@@ -2719,6 +2723,54 @@ function openJobDialog(job = null) {
   els.internalNotes.value = job?.internalNotes || "";
   renderCustomFieldInputs(job);
   els.jobDialog.showModal();
+}
+
+function customerVisibleJobChanges(existing, nextJob) {
+  const changes = [];
+  const text = (value) => String(value || "").trim();
+  const changed = (before, after) => text(before) !== text(after);
+
+  if (!existing) {
+    changes.push(`Job created: ${text(nextJob.name) || "New job"}`);
+    if (text(nextJob.serviceAddress)) changes.push(`Service address: ${text(nextJob.serviceAddress)}`);
+    if (nextJob.scheduledStart) changes.push(`First visit scheduled for ${formatScheduleDateTime(nextJob.scheduledStart)}`);
+    if (nextJob.recurrenceFrequency !== "none") changes.push(`Recurring visits added: ${recurrenceLabel(nextJob)}`);
+    if (text(nextJob.invoiceUrl)) changes.push("An invoice is now available");
+    return changes;
+  }
+
+  if (changed(existing.name, nextJob.name)) changes.push(`Job name changed to ${text(nextJob.name)}`);
+  if (changed(existing.serviceAddress, nextJob.serviceAddress)) {
+    changes.push(text(nextJob.serviceAddress) ? `Service address updated to ${text(nextJob.serviceAddress)}` : "Service address removed");
+  }
+  if (changed(existing.materialStatus, nextJob.materialStatus)) {
+    changes.push(`Material or parts status changed to ${text(nextJob.materialStatus)}`);
+  }
+
+  const previousStart = text(existing.scheduledStart);
+  const nextStart = text(nextJob.scheduledStart);
+  if (previousStart !== nextStart) {
+    if (!previousStart && nextStart) changes.push(`Next visit scheduled for ${formatScheduleDateTime(nextStart)}`);
+    else if (previousStart && !nextStart) changes.push("The scheduled visit was removed");
+    else changes.push(`Next visit moved to ${formatScheduleDateTime(nextStart)}`);
+  }
+
+  const previousFrequency = existing.recurrenceFrequency || "none";
+  const recurrenceChanged = previousFrequency !== nextJob.recurrenceFrequency
+    || Number(existing.recurrenceInterval || 1) !== Number(nextJob.recurrenceInterval || 1)
+    || text(existing.recurrenceUntil) !== text(nextJob.recurrenceUntil);
+  if (recurrenceChanged) {
+    if (nextJob.recurrenceFrequency === "none") changes.push("Recurring visits were turned off");
+    else changes.push(`Recurring visits updated: ${recurrenceLabel(nextJob)}${nextJob.recurrenceUntil ? ` through ${formatDate(nextJob.recurrenceUntil)}` : ""}`);
+  }
+
+  if (changed(existing.invoiceUrl, nextJob.invoiceUrl)) {
+    if (!text(existing.invoiceUrl) && text(nextJob.invoiceUrl)) changes.push("An invoice is now available");
+    else if (text(existing.invoiceUrl) && !text(nextJob.invoiceUrl)) changes.push("The invoice link was removed");
+    else changes.push("The invoice was updated");
+  }
+
+  return changes;
 }
 
 async function saveJobFromForm() {
@@ -2780,6 +2832,7 @@ async function saveJobFromForm() {
     viewedEstimateId: existing?.viewedEstimateId || null,
     magicLinkLastSent: existing?.magicLinkLastSent || null,
   };
+  const customerChanges = customerVisibleJobChanges(existing, payload);
 
   if (backend.live) {
     const { data, error } = await backend.client.rpc("save_scheduled_job_record", {
@@ -2812,7 +2865,7 @@ async function saveJobFromForm() {
     dashboardStage = "detail";
     mobileDetailActive = true;
     await loadLiveState();
-    return { jobId: savedJob.id, created: !existing };
+    return { jobId: savedJob.id, created: !existing, customerChanges };
   }
 
   if (existing) {
@@ -2825,7 +2878,7 @@ async function saveJobFromForm() {
   dashboardStage = "detail";
   mobileDetailActive = true;
   render();
-  return { jobId: id, created: !existing };
+  return { jobId: id, created: !existing, customerChanges };
 }
 
 async function sendCustomerAccessEmail() {
@@ -2859,19 +2912,29 @@ async function sendCustomerAccessEmail() {
   render();
 }
 
-async function notifyCustomerOfJobUpdate(jobId, savedMessage = "Change saved.") {
+async function notifyCustomerOfJobUpdate(jobId, savedMessage = "Change saved.", changeSummaries = []) {
   const job = state.jobs.find((item) => item.id === jobId);
   if (!job) return false;
+  const customerChanges = [...new Set(
+    changeSummaries
+      .filter((summary) => typeof summary === "string")
+      .map((summary) => summary.trim())
+      .filter(Boolean),
+  )].slice(0, 12);
+  if (!customerChanges.length) {
+    showToast(savedMessage, "success");
+    return true;
+  }
   if (!backend.live) {
     activatePortalAccess(job, "email");
-    job.timeline.push("Customer update queued for the next digest");
+    job.timeline.push(`Customer update queued: ${customerChanges.join("; ")}`);
     showToast(`${savedMessage} Customer update queued for the next email window.`, "success");
     render();
     return true;
   }
 
   const { data, error } = await backend.client.functions.invoke("send-magic-link", {
-    body: { jobId, emailType: "job_update" },
+    body: { jobId, emailType: "job_update", changes: customerChanges },
   });
   if (error) {
     const message = await edgeFunctionErrorMessage(error, "Customer update email could not be sent.");
@@ -3063,6 +3126,11 @@ async function addDocuments(files, uploadedBy, docType = "Other") {
       size: file.size,
       stored: Boolean(uploadedFiles[index].storagePath),
     }));
+  const customerChanges = docs
+    .filter((doc) => doc.visibility === "Customer Visible")
+    .map((doc) => doc.type === "Estimate"
+      ? `A new estimate was shared: ${doc.name}`
+      : `A new document was shared: ${doc.name}`);
 
   if (backend.live) {
     const { error } = await backend.client.from("documents").insert(
@@ -3089,6 +3157,7 @@ async function addDocuments(files, uploadedBy, docType = "Other") {
     await notifyCustomerOfJobUpdate(
       job.id,
       `${docs.length} file${docs.length === 1 ? "" : "s"} uploaded.`,
+      customerChanges,
     );
     return;
   }
@@ -3102,7 +3171,11 @@ async function addDocuments(files, uploadedBy, docType = "Other") {
     job.timeline.push(`${uploadedBy} uploaded ${files.length} document${files.length === 1 ? "" : "s"}`);
   }
   showToast(`${docs.length} file${docs.length === 1 ? "" : "s"} uploaded.`, "success");
-  await notifyCustomerOfJobUpdate(job.id, `${docs.length} file${docs.length === 1 ? "" : "s"} uploaded.`);
+  await notifyCustomerOfJobUpdate(
+    job.id,
+    `${docs.length} file${docs.length === 1 ? "" : "s"} uploaded.`,
+    customerChanges,
+  );
 }
 
 async function setDocumentArchived(docId, archived) {
@@ -3115,12 +3188,24 @@ async function setDocumentArchived(docId, archived) {
     const { error } = await backend.client.from("documents").update({ status: nextStatus }).eq("id", docId);
     if (error) throw error;
     await loadLiveState();
-    await notifyCustomerOfJobUpdate(job.id, `${archived ? "Archived" : "Restored"} ${doc.name}.`);
+    await notifyCustomerOfJobUpdate(
+      job.id,
+      `${archived ? "Archived" : "Restored"} ${doc.name}.`,
+      doc.visibility === "Customer Visible"
+        ? [`${archived ? "Document removed from" : "Document restored to"} the customer view: ${doc.name}`]
+        : [],
+    );
     return;
   }
   doc.status = nextStatus;
   job.timeline.push(`${archived ? "Archived" : "Restored"} ${doc.name}`);
-  await notifyCustomerOfJobUpdate(job.id, `${archived ? "Archived" : "Restored"} ${doc.name}.`);
+  await notifyCustomerOfJobUpdate(
+    job.id,
+    `${archived ? "Archived" : "Restored"} ${doc.name}.`,
+    doc.visibility === "Customer Visible"
+      ? [`${archived ? "Document removed from" : "Document restored to"} the customer view: ${doc.name}`]
+      : [],
+  );
 }
 
 async function markDocumentReviewed(docId) {
@@ -4005,7 +4090,11 @@ function bindEvents() {
     try {
       const savedJob = await saveJobFromForm();
       els.jobDialog.close();
-      await notifyCustomerOfJobUpdate(savedJob.jobId, savedJob.created ? "Job started." : "Job updated.");
+      await notifyCustomerOfJobUpdate(
+        savedJob.jobId,
+        savedJob.created ? "Job started." : "Job updated.",
+        savedJob.customerChanges,
+      );
     } catch (error) {
       console.warn("Job save failed", error);
       const validationMessage = /appointment date|Recurring work/i.test(String(error?.message || ""))

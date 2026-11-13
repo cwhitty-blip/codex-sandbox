@@ -26,6 +26,7 @@ const subscriptionMigration = read("supabase/migrations/20260802090000_subscript
 const schedulingMigration = read("supabase/migrations/20260802130000_scheduling_foundation.sql");
 const digestMigration = read("supabase/migrations/20260803001000_batched_job_update_notifications.sql");
 const digestScheduleMigration = read("supabase/migrations/20260803002500_digest_exact_delivery_windows.sql");
+const digestDetailsMigration = read("supabase/migrations/20261112120000_job_update_email_change_details.sql");
 const multiTradeMigration = read("supabase/migrations/20261101110000_multi_trade_workspaces.sql");
 const jobStatusMigration = read("supabase/migrations/20261103120000_job_status_pipeline.sql");
 const waveEdge = read("supabase/functions/wave-webhook/index.ts");
@@ -114,13 +115,19 @@ assert(html.includes('id="workspaceLogo"'), "Company profile must include a logo
 assert(html.includes('id="portalCompanyLogo"'), "Customer portal must include contractor branding");
 assert(!html.includes('id="sidebarBrandFallback"'), "The mobile company header must not show a fallback icon beneath the logo");
 assert(app.includes('emailType: "job_update"'), "Contractor job changes must request customer update emails");
+assert(app.includes("customerVisibleJobChanges"), "Job saves must describe customer-visible changes");
+assert(app.includes("changes: customerChanges"), "Queued job updates must include their change descriptions");
 assert(emailEdge.includes('.from("job_update_events").insert'), "Contractor updates must be queued instead of sent immediately");
+assert(emailEdge.includes("change_summaries: changeSummaries"), "Queued update events must store customer-safe change descriptions");
 assert(digestEdge.includes("Your job has been updated."), "Digest email must use the approved customer wording");
+assert(digestEdge.includes("What changed"), "Digest email must show the customer what changed");
+assert(digestEdge.includes("brandMarkup"), "Digest email must display the contractor brand");
 assert(digestEdge.includes('rpc("validate_job_digest_cron_secret"'), "Digest delivery must authenticate the scheduled caller");
 assert(digestEdge.includes('rpc("claim_due_job_update_digests"'), "Digest delivery must atomically claim due updates");
 assert(digestMigration.includes("in (10, 16, 21)"), "Customer digests must run at 10 AM, 4 PM, and 9 PM company time");
 assert(digestScheduleMigration.includes("'0 * * * *'"), "The digest worker must check due company windows at the start of each hour");
 assert(digestMigration.includes("enable row level security"), "Queued update events must have row-level security enabled");
+assert(digestDetailsMigration.includes("change_summaries jsonb"), "Queued updates must persist change descriptions as structured data");
 assert(emailEdge.includes("text: `${message}"), "Customer email must include a plain-text alternative");
 assert(emailEdge.includes('message_type: messageType'), "Customer email records must identify the message type");
 assert(edge.includes("customerSafeCompany"), "Customer portal must return safe company branding");

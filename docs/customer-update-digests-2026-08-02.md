@@ -12,11 +12,13 @@ The digest worker checks hourly and sends queued job updates when the company's 
 - 4:00 PM
 - 9:00 PM
 
-Multiple changes to the same job before a delivery window produce one email. The email keeps the approved wording, "Your job has been updated," and includes a new secure customer-portal link.
+Multiple customer-visible changes to the same job before a delivery window produce one email. The email keeps the approved wording, "Your job has been updated," lists the specific changes, displays the contractor's uploaded logo and company name, and includes a new secure customer-view link.
+
+Internal notes, contractor pipeline status, customer contact details, mileage, and staff-only documents are never included in customer emails. A save that changes only private contractor information does not queue an email.
 
 ## Components
 
-- `job_update_events` stores private pending and processed update events.
+- `job_update_events` stores private pending and processed update events together with customer-safe change descriptions.
 - `send-magic-link` authenticates the contractor and queues ordinary job updates.
 - `send-job-digests` claims due events, sends one email per job, and records provider outcomes.
 - Supabase Cron invokes the worker at the start of each hour.

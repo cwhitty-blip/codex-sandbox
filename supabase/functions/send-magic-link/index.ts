@@ -4,6 +4,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.4";
 type CustomerAccessRequest = {
   jobId: string;
   emailType?: "access" | "job_update";
+  changes?: unknown;
 };
 
 const brandingBucket = "company-branding";
@@ -45,6 +46,15 @@ function escapeHtml(value: string) {
     .replaceAll(">", "&gt;")
     .replaceAll('"', "&quot;")
     .replaceAll("'", "&#39;");
+}
+
+function normalizeChangeSummaries(value: unknown) {
+  if (!Array.isArray(value)) return [];
+  const summaries = value
+    .filter((item): item is string => typeof item === "string")
+    .map((item) => item.replace(/\s+/g, " ").trim().slice(0, 240))
+    .filter(Boolean);
+  return [...new Set(summaries)].slice(0, 12);
 }
 
 function serviceRoleKey() {
@@ -176,10 +186,12 @@ serve(async (req) => {
   }
 
   if (messageType === "job_update") {
+    const changeSummaries = normalizeChangeSummaries(payload.changes);
     const { error: queueError } = await supabase.from("job_update_events").insert({
       company_id: job.company_id,
       job_id: job.id,
       customer_id: job.customer_id,
+      change_summaries: changeSummaries.length ? changeSummaries : ["Job details were updated"],
     });
     if (queueError) {
       console.error("Could not queue customer job update", { jobId: job.id, code: queueError.code });
