@@ -3,3 +3,69 @@
 .phone-app-page .dial-actions{display:grid;grid-template-columns:1fr 1fr 1fr;align-items:center;justify-items:center;max-width:300px;margin:18px auto 22px;gap:20px}.dial-call,.dial-message,.dial-delete{width:66px;height:66px;border-radius:50%;font-size:25px;font-weight:800}.dial-call{background:#34c759;color:#fff}.dial-message{background:#0a84ff;color:#fff}.dial-delete{background:#e5e5ea;color:#333}.my-number-chip{display:block;margin:0 auto 18px;background:#fff;color:#555;border-radius:999px;padding:8px 13px;font-size:12px;font-weight:700}.message-identity{display:flex;align-items:center;justify-content:space-between;gap:12px;background:#fff;border-radius:18px;padding:14px;margin-bottom:12px}.message-identity div{display:flex;flex-direction:column;gap:2px}.message-identity strong{font-size:17px}.message-identity span{font-size:12px;color:#777}.message-identity button{background:#0a84ff;color:#fff;border-radius:999px;padding:9px 13px;font-weight:800}.message-list{display:flex;flex-direction:column;background:#fff;border-radius:18px;overflow:hidden}.message-list-row{width:100%;background:#fff;color:#111;display:grid;grid-template-columns:46px 1fr 16px;gap:10px;align-items:center;text-align:left;padding:12px 14px;border-bottom:1px solid #ececef}.message-list-row:last-child{border-bottom:0}.message-avatar{width:42px;height:42px;border-radius:50%;display:grid;place-items:center;background:#dfe8f7;color:#24547a;font-weight:800}.message-summary{display:flex;flex-direction:column;min-width:0}.message-summary strong,.message-summary span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.message-summary span{font-size:13px;color:#777;margin-top:3px}.message-chevron{font-size:25px;color:#bbb}.number-entry{width:100%;border:1px solid #d1d1d6;background:#fff;color:#111;border-radius:13px;padding:13px;font-size:20px;margin:10px 0 12px}.to-label{font-weight:800}.conversation-page .ios-nav{display:grid;grid-template-columns:auto 1fr}.conversation-page .ios-nav h2{font-size:18px}.conversation-subtitle{grid-column:2;font-size:11px;color:#777;margin-top:-8px}.safe-composer{bottom:calc(env(safe-area-inset-bottom) + 16px)!important;padding-bottom:9px!important}.conversation-page .clean-thread{padding-bottom:116px!important}#privateHomeIndicator{bottom:calc(env(safe-area-inset-bottom) + 3px)!important}.codename-box{padding-bottom:14px;margin-bottom:14px;border-bottom:1px solid #eee}.codename-box label{display:block;font-weight:800;margin-bottom:7px}.codename-box .primary{margin-top:8px}.calc-call-overlay .call-small{font-size:17px;font-weight:700}.calc-call-overlay .call-name{font-size:34px;font-weight:700}.calc-call-overlay .call-status{font-size:15px}
 /* Tap reliability */
 #home.active,#home.active .phone-shell,#home.active .phone-pages,#home.active .phone-page,#home.active .phone-grid{pointer-events:auto!important}.phone-app{pointer-events:auto!important;touch-action:manipulation;position:relative;z-index:2}.phone-icon,.phone-label{pointer-events:none}.phone-dock{pointer-events:auto!important;z-index:8}.phone-pages{z-index:2}.calc-call-overlay{z-index:5000}.calc-call-overlay[aria-hidden="true"]{display:none!important;pointer-events:none!important}
+
+/* Clear, organized Calculator Messages */
+.message-inbox-page,.new-message-page,.conversation-page{background:#f5f5f8;color:#111;min-height:100%}
+.message-inbox-page{padding-bottom:calc(30px + env(safe-area-inset-bottom))}
+.message-inbox-page .ios-nav,.new-message-page .ios-nav,.conversation-page .ios-nav{margin:0 -14px 14px;padding:calc(9px + env(safe-area-inset-top)) 16px 12px;background:#f5f5f8f2!important}
+.message-identity{position:relative;margin:0 0 12px;padding:16px;border:1px solid #0000000b;border-radius:22px;background:linear-gradient(140deg,#fff,#f6f9ff);box-shadow:0 8px 28px #2230460d}
+.message-identity-copy{min-width:0;display:grid!important;gap:3px!important}
+.message-identity-copy small{color:#73737b;font-size:9px;font-weight:900;letter-spacing:.13em}
+.message-identity-copy strong{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:20px;letter-spacing:-.025em}
+.message-identity-copy span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#676771!important;font-size:12px!important}
+.message-identity button{flex:0 0 auto;min-height:42px;border:0;border-radius:13px!important;padding:10px 13px!important;background:#0a84ff!important;color:#fff;font-size:13px;font-weight:850!important;box-shadow:0 7px 17px #0a84ff2c}
+.message-context-card{display:grid;grid-template-columns:28px minmax(0,1fr);gap:10px;align-items:start;margin-bottom:18px;padding:13px 14px;border:1px solid #d8e7fb;border-radius:17px;background:#eef6ff;color:#23415e}
+.message-context-card>span{width:26px;height:26px;display:grid;place-items:center;border-radius:50%;background:#fff;color:#0a70df;font-weight:900}
+.message-context-card strong{display:block;font-size:14px}
+.message-context-card p{margin:3px 0 0;color:#536a80;font-size:12px;line-height:1.4}
+.message-section-title{display:flex;align-items:end;justify-content:space-between;gap:12px;margin:0 3px 8px}
+.message-section-title strong{font-size:23px;letter-spacing:-.035em}
+.message-section-title span{color:#7c7c84;font-size:12px}
+.message-list{border:1px solid #0000000a;border-radius:20px;background:#fff;box-shadow:0 7px 26px #1f2c3d0a}
+.message-list-row{min-height:86px;grid-template-columns:48px minmax(0,1fr) 15px;gap:11px;padding:13px 14px}
+.message-avatar{width:46px;height:46px;background:linear-gradient(145deg,#d9e9ff,#b9d3f5);color:#214d7c;font-size:18px}
+.message-summary{display:grid;gap:2px;min-width:0}
+.message-summary-head{display:flex;align-items:baseline;justify-content:space-between;gap:10px;min-width:0}
+.message-summary-head strong{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:16px}
+.message-summary-head time{flex:0 0 auto;color:#9999a0;font-size:10px;font-weight:650}
+.message-summary small{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#8b8b93;font-size:10px}
+.message-summary p{margin:1px 0 0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#5e5e67;font-size:13px}
+.message-chevron{font-size:22px;color:#c0c0c6}
+.message-empty{display:grid;justify-items:center;gap:5px;padding:46px 22px;text-align:center;color:#777780}
+.message-empty>span{width:52px;height:52px;display:grid;place-items:center;margin-bottom:5px;border-radius:17px;background:#eef5ff;color:#0a84ff;font-size:25px}
+.message-empty strong{color:#29292f;font-size:18px}
+.message-empty p{max-width:280px;margin:0;font-size:13px;line-height:1.45}
+.new-message-intro{display:grid;grid-template-columns:48px minmax(0,1fr);gap:12px;align-items:center;margin:2px 0 12px;padding:15px;border-radius:20px;background:linear-gradient(145deg,#eaf4ff,#fff);border:1px solid #d7e9ff}
+.new-message-intro>span{width:46px;height:46px;display:grid;place-items:center;border-radius:15px;background:#0a84ff;color:#fff;font-size:25px;font-weight:900}
+.new-message-intro strong{font-size:17px}
+.new-message-intro p{margin:3px 0 0;color:#647185;font-size:12px;line-height:1.4}
+.new-message-card{padding:17px!important;border-radius:20px!important}
+.to-label{display:block;color:#202026;font-size:15px;font-weight:800}
+.number-entry-help{margin-top:3px;color:#7c7c84;font-size:12px}
+.number-entry{box-sizing:border-box;margin:10px 0 12px!important;border:1px solid #cfcfd6!important;border-radius:14px!important;padding:14px!important;color:#111!important;-webkit-text-fill-color:#111!important;caret-color:#0a84ff;font-size:22px!important;font-variant-numeric:tabular-nums;letter-spacing:.02em}
+.number-entry:focus{border-color:#0a84ff!important;box-shadow:0 0 0 4px #0a84ff1a;outline:none}
+.message-continue{width:100%;min-height:46px;border-radius:14px!important}
+.message-continue:disabled{opacity:.42;box-shadow:none}
+.new-message-note{margin:2px 7px;color:#777780;font-size:12px;line-height:1.45;text-align:center}
+.conversation-page{padding-bottom:0!important}
+.conversation-page .ios-nav{position:sticky;top:0;z-index:20;margin-bottom:0!important;display:grid!important;grid-template-columns:auto minmax(0,1fr);grid-template-rows:auto auto;column-gap:10px;align-items:center}
+.conversation-page .ios-back{grid-row:1/3}
+.conversation-page .ios-nav h2{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:18px!important}
+.conversation-subtitle{grid-column:2;grid-row:2;margin-top:-5px!important;color:#777780!important;font-size:10px!important}
+.conversation-context{display:flex;align-items:center;justify-content:center;gap:7px;padding:8px 12px;border-bottom:1px solid #dfe0e5;background:#eef5ff;color:#53677d;font-size:10px}
+.conversation-context strong{padding:4px 7px;border-radius:999px;background:#dcecff;color:#1768bb;font-size:9px;letter-spacing:.04em;text-transform:uppercase}
+.conversation-page .clean-thread{min-height:calc(100vh - 175px);gap:6px;padding:14px 10px calc(118px + env(safe-area-inset-bottom))!important;background:linear-gradient(#f8f8fb,#f4f4f7)}
+.message-day-divider{align-self:center;margin:9px 0 5px;padding:5px 9px;border-radius:999px;background:#e7e7ec;color:#707078;font-size:10px;font-weight:750}
+.conversation-page .msg-bubble{max-width:min(82%,520px);padding:10px 12px;border:1px solid #0000000a;box-shadow:0 2px 8px #0000000b;line-height:1.38}
+.conversation-page .bubble-row.me .msg-bubble{border-color:#0a84ff;background:linear-gradient(145deg,#2494ff,#0879e8)}
+.message-text{white-space:pre-wrap}
+.conversation-page .msg-time{margin-top:5px;font-size:9px;letter-spacing:.01em}
+.conversation-empty{align-self:center;display:grid;justify-items:center;gap:5px;max-width:300px;margin:auto;padding:42px 18px;text-align:center;color:#7b7b84}
+.conversation-empty>span{font-size:34px;color:#0a84ff}
+.conversation-empty strong{color:#303036;font-size:17px}
+.conversation-empty p{margin:0;font-size:12px;line-height:1.45}
+.organized-composer{bottom:0!important;align-items:center;gap:8px;padding:9px 10px calc(9px + env(safe-area-inset-bottom))!important;background:#f7f7faef!important}
+.organized-composer input{min-width:0;min-height:44px;padding:11px 14px!important;border-radius:18px!important;font-size:16px}
+.organized-composer button{width:auto!important;min-width:62px;height:42px;border-radius:15px!important;padding:0 13px;background:#0a84ff;color:#fff;font-size:13px;font-weight:850}
+.organized-composer button:disabled{opacity:.38}
+@media(max-width:360px){.message-identity{padding:13px}.message-identity button{padding-inline:10px!important}.message-context-card{padding:11px}.message-list-row{padding-inline:11px}.organized-composer button{min-width:56px;padding-inline:10px}}
