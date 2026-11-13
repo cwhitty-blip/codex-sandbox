@@ -72,7 +72,11 @@ assert(app.includes("els.settingsAccountPanel.hidden = !backend.live"), "Account
 assert(html.includes('id="authConfirmPassword"'), "Account creation must include password confirmation");
 assert(app.includes('password !== confirmPassword'), "Mismatched account passwords must be rejected before signup");
 assert(html.includes('id="recoveryConfirmPassword"'), "Password recovery must include password confirmation");
+assert(html.includes('id="recoveryCancel"'), "Password recovery must provide a route back to sign in");
 assert(app.includes('password !== confirmPassword'), "Mismatched recovery passwords must be rejected before saving");
+assert(app.includes("function clearAuthFieldsForRecovery"), "Opening a reset link must clear the previous sign-in fields");
+assert(app.includes("function recoveryPasswordErrorFeedback"), "Password-save failures must explain the recovery problem");
+assert(app.includes('title: "Reset link expired"'), "Expired reset links must provide a specific recovery explanation");
 assert(html.includes('id="authAssistance"'), "Sign-in failures must expose guided account recovery");
 assert(app.includes('type: "signup"'), "Unconfirmed accounts must support a new confirmation email");
 assert(app.includes('action: "workspace"'), "Workspace setup failures must be distinct from credential failures");

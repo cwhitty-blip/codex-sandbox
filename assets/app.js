@@ -454,6 +454,7 @@ const els = {
   recoveryPassword: document.getElementById("recoveryPassword"),
   recoveryConfirmPassword: document.getElementById("recoveryConfirmPassword"),
   recoverySubmit: document.getElementById("recoverySubmit"),
+  recoveryCancel: document.getElementById("recoveryCancel"),
   signOut: document.getElementById("signOut"),
   settingsAccountPanel: document.getElementById("settingsAccountPanel"),
   settingsAccountEmail: document.getElementById("settingsAccountEmail"),
@@ -628,6 +629,69 @@ function authErrorFeedback(error, mode = "signin") {
   };
 }
 
+function recoveryPasswordErrorFeedback(error) {
+  const rawMessage = String(error?.message || error || "").replace(/\s+/g, " ").trim();
+  if (/same password|different from.*(?:old|current|previous)|new password should be different/i.test(rawMessage)) {
+    return {
+      title: "Choose a different password",
+      message: "The new password must be different from the password currently on the account.",
+    };
+  }
+  if (/weak|easy to guess|compromised|pwned|password strength/i.test(rawMessage)) {
+    return {
+      title: "Choose a stronger password",
+      message: "That password was rejected because it is too easy to guess. Use a longer, unique password.",
+    };
+  }
+  if (/at least|too short|minimum|characters|password length/i.test(rawMessage)) {
+    return {
+      title: "Password is too short",
+      message: "Use a password with at least 6 characters. A longer, unique password is safer.",
+    };
+  }
+  if (/session.*missing|session.*expired|expired.*(?:link|token|otp)|invalid.*(?:token|jwt|otp)|refresh token|reauthentication/i.test(rawMessage)) {
+    return {
+      title: "Reset link expired",
+      message: "This reset link is no longer valid. Return to sign in, request a new reset email, and use the newest link.",
+    };
+  }
+  if (/rate limit|too many requests|over request rate/i.test(rawMessage)) {
+    return {
+      title: "Please wait before trying again",
+      message: "Too many password attempts were made. Wait a few minutes, then request one new reset email.",
+    };
+  }
+  if (/network|fetch|timeout|load failed|offline/i.test(rawMessage)) {
+    return {
+      title: "Connection issue",
+      message: "The password could not be saved because the connection was interrupted. Check the connection and try once more.",
+    };
+  }
+  return {
+    title: "Could not save password",
+    message: rawMessage
+      ? `The password service reported: ${rawMessage.slice(0, 180)}`
+      : "The password service did not provide a reason. Return to sign in and request a new reset email.",
+  };
+}
+
+function clearAuthFieldsForRecovery() {
+  backend.authMode = "signin";
+  backend.authFeedback = null;
+  els.authEmail.value = "";
+  els.authPassword.value = "";
+  els.authConfirmPassword.value = "";
+  els.recoveryPassword.value = "";
+  els.recoveryConfirmPassword.value = "";
+}
+
+function enterPasswordRecovery(session = null) {
+  backend.recovery = true;
+  backend.session = session || null;
+  backend.user = session?.user || null;
+  clearAuthFieldsForRecovery();
+}
+
 function beginAuthEmailCooldown() {
   backend.authEmailCooldownUntil = Date.now() + 60_000;
   window.clearTimeout(authEmailCooldownTimer);
@@ -735,6 +799,7 @@ function renderAuth() {
   els.authSubmit.disabled = backend.authBusy;
   els.authCreate.disabled = backend.authBusy;
   els.recoverySubmit.disabled = backend.authBusy;
+  els.recoveryCancel.disabled = backend.authBusy;
   if (backend.recovery) {
     els.authStatus.textContent = "Choose a new password";
     els.backendStatus.textContent = "Enter a new password for your contractor account.";
@@ -822,7 +887,7 @@ async function initBackend() {
         action: "workspace",
       };
     } else if (previewState === "recovery") {
-      backend.recovery = true;
+      enterPasswordRecovery();
     }
     renderAuth();
     return;
@@ -849,6 +914,7 @@ async function initBackend() {
   });
   backend.loading = true;
   backend.recovery = isRecoveryRequest();
+  if (backend.recovery) clearAuthFieldsForRecovery();
   renderAuth();
 
   const portalToken = portalTokenFromUrl();
@@ -860,8 +926,7 @@ async function initBackend() {
 
   const { data } = await backend.client.auth.getSession();
   if (backend.recovery) {
-    backend.session = data.session || null;
-    backend.user = data.session?.user || null;
+    enterPasswordRecovery(data.session);
     backend.loading = false;
     renderAuth();
   } else {
@@ -869,9 +934,7 @@ async function initBackend() {
   }
   backend.client.auth.onAuthStateChange((event, session) => {
     if (event === "PASSWORD_RECOVERY") {
-      backend.recovery = true;
-      backend.session = session || null;
-      backend.user = session?.user || null;
+      enterPasswordRecovery(session);
       backend.loading = false;
       renderAuth();
       return;
@@ -967,7 +1030,11 @@ async function sendPasswordReset() {
   const redirectTo = window.SERVICE_PORTAL_CONFIG?.appBaseUrl || window.location.href.split("#")[0];
   const { error } = await backend.client.auth.resetPasswordForEmail(email, { redirectTo });
   backend.authBusy = false;
-  if (!error) window.localStorage.setItem("servicePortalPasswordResetPending", "true");
+  if (!error) {
+    window.localStorage.setItem("servicePortalPasswordResetPending", "true");
+    els.authPassword.value = "";
+    els.authConfirmPassword.value = "";
+  }
   backend.authFeedback = {
     title: error ? "Could not send reset email" : "Check your email",
     message: error
@@ -1032,16 +1099,46 @@ async function saveRecoveryPassword() {
   const { error } = await backend.client.auth.updateUser({ password });
   backend.authBusy = false;
   if (error) {
+    backend.authFeedback = recoveryPasswordErrorFeedback(error);
+    els.recoveryPassword.value = "";
+    els.recoveryConfirmPassword.value = "";
     renderAuth();
-    els.backendStatus.textContent = publicError(error, "Could not save the new password.");
+    els.recoveryPassword.focus();
     return;
   }
   backend.recovery = false;
+  backend.authFeedback = null;
   window.localStorage.removeItem("servicePortalPasswordResetPending");
   window.history.replaceState({}, document.title, window.location.pathname);
   els.recoveryPassword.value = "";
   els.recoveryConfirmPassword.value = "";
   await handleSession(backend.session);
+}
+
+async function leavePasswordRecovery() {
+  if (backend.authBusy) return;
+  backend.recovery = false;
+  backend.authFeedback = null;
+  backend.authMode = "signin";
+  window.localStorage.removeItem("servicePortalPasswordResetPending");
+  window.history.replaceState({}, document.title, window.location.pathname);
+  els.recoveryPassword.value = "";
+  els.recoveryConfirmPassword.value = "";
+  els.authPassword.value = "";
+  els.authConfirmPassword.value = "";
+  if (backend.client && backend.session) {
+    backend.authBusy = true;
+    try {
+      await backend.client.auth.signOut();
+    } finally {
+      backend.authBusy = false;
+    }
+  }
+  backend.session = null;
+  backend.user = null;
+  backend.live = false;
+  renderAuth();
+  els.authEmail.focus();
 }
 
 async function handleSession(session) {
@@ -3538,11 +3635,20 @@ function bindEvents() {
     event.preventDefault();
     saveRecoveryPassword().catch((error) => {
       backend.authBusy = false;
-      backend.authFeedback = {
-        title: "Could not save password",
-        message: publicError(error, "Could not save the new password. Please request a new reset link."),
-      };
+      backend.authFeedback = recoveryPasswordErrorFeedback(error);
+      els.recoveryPassword.value = "";
+      els.recoveryConfirmPassword.value = "";
       renderAuth();
+    });
+  });
+
+  els.recoveryCancel.addEventListener("click", () => {
+    leavePasswordRecovery().catch((error) => {
+      backend.authBusy = false;
+      backend.recovery = false;
+      backend.authFeedback = null;
+      renderAuth();
+      showToast(publicError(error, "Could not return to sign in. Reload the page and try again."), "error");
     });
   });
 

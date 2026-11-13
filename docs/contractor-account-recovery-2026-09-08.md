@@ -11,7 +11,9 @@ Use this workflow when a contractor cannot remember whether an account already e
    - **Please wait before trying again:** stop submitting the form and wait a few minutes before one new attempt.
    - **Workspace could not open:** retry opening the workspace once, then contact the person who invited them.
 3. Check Inbox, Spam or Junk, and Promotions. Allow a few minutes for the email to arrive.
-4. Return to the portal after confirming the email or choosing a new password.
+4. Open the newest reset link. The portal clears the previous sign-in fields and shows only the new-password form.
+5. If the password cannot be saved, follow the specific explanation shown for an expired link, reused password, weak password, rate limit, or connection problem. Use **Back to sign in** to request a fresh link when needed.
+6. Return to the portal after confirming the email or choosing a new password.
 
 The contractor should never send a password, reset link, or confirmation link to support.
 
