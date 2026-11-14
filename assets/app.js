@@ -2098,6 +2098,10 @@ function renderJobDetail() {
     </details>
     ${state.settings.mileageTrackingEnabled ? `<details class="detail-disclosure"><summary>${iconMarkup("route")}<span><strong>Mileage</strong><small>Track travel for this job</small></span>${iconMarkup("chevron-down")}</summary><div class="disclosure-content">${renderMileageTracker(job)}</div></details>` : ""}
     ${job.timeline.length ? `<details class="detail-disclosure"><summary>${iconMarkup("history")}<span><strong>Activity</strong><small>${job.timeline.length} recorded event${job.timeline.length === 1 ? "" : "s"}</small></span>${iconMarkup("chevron-down")}</summary><div class="disclosure-content"><ol class="timeline">${job.timeline.map((event) => `<li>${escapeHtml(event)}</li>`).join("")}</ol></div></details>` : ""}
+    <div class="job-delete-zone">
+      <span><strong>Remove this job</strong><small>This permanently deletes the job and its records.</small></span>
+      <button class="danger-button" data-action="delete-job" data-job-id="${escapeHtml(job.id)}" data-requires-write type="button">${iconMarkup("trash-2")}<span>Delete job</span></button>
+    </div>
   `;
 }
 
@@ -3746,6 +3750,10 @@ function bindEvents() {
     if (!actionTarget) return;
     const action = actionTarget.dataset.action;
     if (action === "edit-job") openJobDialog(selectedJob());
+    if (action === "delete-job") deleteJobById(actionTarget.dataset.jobId).catch((error) => {
+      console.warn("Job delete failed", error);
+      showToast("Could not delete the job.", "error");
+    });
     if (action === "send-email") sendCustomerAccessEmail().catch((error) => {
       console.warn("Customer email failed", error);
       selectedJob().timeline.push("Customer email could not be sent");
@@ -4243,46 +4251,54 @@ function bindEvents() {
     els.estimateChangesDialog.close();
   });
 
-  els.deleteJob.addEventListener("click", async () => {
+  els.deleteJob.addEventListener("click", () => {
     if (!requireWorkspaceWriteAccess()) return;
-    const id = els.jobId.value;
-    const job = state.jobs.find((item) => item.id === id);
-    if (!job) return;
-    if (!window.confirm(`Delete "${job.name}" and all of its records? This cannot be undone.`)) return;
-    if (backend.live) {
-      const storagePaths = job.documents.map((doc) => doc.storagePath).filter(Boolean);
-      const { error } = await backend.client.from("jobs").delete().eq("id", id);
-      if (error) {
-        console.warn("Job delete failed", error);
-        showToast("Could not delete the job.", "error");
-        return;
-      }
-      let storageWarning = false;
-      if (storagePaths.length) {
-        const { error: storageError } = await backend.client.storage.from(DOCUMENT_BUCKET).remove(storagePaths);
-        storageWarning = Boolean(storageError);
-        if (storageError) console.warn("Job files could not be removed", storageError);
-      }
-      els.jobDialog.close();
-      await loadLiveState();
-      dashboardStage = "list";
-      showToast("Job deleted.", "success");
-      render();
-      if (storageWarning) showToast("Job deleted, but some uploaded files need support cleanup.", "error");
-      return;
-    }
-    state.jobs = state.jobs.filter((job) => job.id !== id);
-    selectedJobId = state.jobs[0]?.id || null;
-    if (state.portalAccess.jobId === id) {
-      state.portalAccess.jobId = selectedJobId;
-      state.portalAccess.token = selectedJobId ? "demo-access-reset" : null;
-      state.portalAccess.lastSentTo = selectedJob()?.customerEmail || "";
-    }
-    els.jobDialog.close();
-    dashboardStage = "list";
-    showToast("Job deleted in preview mode.", "success");
-    render();
+    deleteJobById(els.jobId.value).catch((error) => {
+      console.warn("Job delete failed", error);
+      showToast("Could not delete the job.", "error");
+    });
   });
+}
+
+async function deleteJobById(id) {
+  if (!requireWorkspaceWriteAccess()) return;
+  const job = state.jobs.find((item) => item.id === id);
+  if (!job) return;
+  if (!window.confirm(`Delete "${job.name}" and all of its records? This cannot be undone.`)) return;
+
+  if (backend.live) {
+    const storagePaths = job.documents.map((doc) => doc.storagePath).filter(Boolean);
+    const { error } = await backend.client.from("jobs").delete().eq("id", id);
+    if (error) throw error;
+
+    let storageWarning = false;
+    if (storagePaths.length) {
+      const { error: storageError } = await backend.client.storage.from(DOCUMENT_BUCKET).remove(storagePaths);
+      storageWarning = Boolean(storageError);
+      if (storageError) console.warn("Job files could not be removed", storageError);
+    }
+    if (els.jobDialog.open) els.jobDialog.close();
+    await loadLiveState();
+    dashboardStage = "list";
+    mobileDetailActive = false;
+    showToast("Job deleted.", "success");
+    render();
+    if (storageWarning) showToast("Job deleted, but some uploaded files need support cleanup.", "error");
+    return;
+  }
+
+  state.jobs = state.jobs.filter((item) => item.id !== id);
+  selectedJobId = state.jobs[0]?.id || null;
+  if (state.portalAccess.jobId === id) {
+    state.portalAccess.jobId = selectedJobId;
+    state.portalAccess.token = selectedJobId ? "demo-access-reset" : null;
+    state.portalAccess.lastSentTo = selectedJob()?.customerEmail || "";
+  }
+  if (els.jobDialog.open) els.jobDialog.close();
+  dashboardStage = "list";
+  mobileDetailActive = false;
+  showToast("Job deleted in preview mode.", "success");
+  render();
 }
 
 initStaticControls();

@@ -1368,6 +1368,28 @@ body.customer-view-active:not(.customer-portal-mode) .topbar h1 {
   font-size: 0.82rem;
 }
 
+.job-delete-zone {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  border-top: 1px solid var(--border);
+  padding-top: 18px;
+}
+
+.job-delete-zone > span {
+  display: grid;
+  gap: 3px;
+}
+
+.job-delete-zone small {
+  color: var(--muted);
+}
+
+.job-delete-zone .danger-button {
+  flex: 0 0 auto;
+}
+
 .job-focus {
   display: grid;
   gap: 12px;
@@ -2822,6 +2844,15 @@ body.customer-portal-mode .customer-layout {
   .detail-actions .primary-button,
   .detail-actions .ghost-button {
     padding: 0 9px;
+  }
+
+  .job-delete-zone {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .job-delete-zone .danger-button {
+    width: 100%;
   }
 
   .stat-grid,
