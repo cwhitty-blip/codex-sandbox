@@ -308,7 +308,9 @@ let mobileDetailActive = false;
 let currentView = "dashboard";
 let dashboardStage = "home";
 let customerViewStage = "list";
-let marketingAuthOpen = false;
+const entryParams = new URLSearchParams(window.location.search);
+let marketingAuthOpen = entryParams.has("signup") || entryParams.has("signin");
+if (entryParams.has("signup")) backend.authMode = "signup";
 
 const els = {
   marketingLanding: document.getElementById("marketingLanding"),
