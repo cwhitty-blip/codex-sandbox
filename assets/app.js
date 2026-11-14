@@ -372,6 +372,11 @@ const els = {
   billingSync: document.getElementById("billingSync"),
   mileageTrackingEnabled: document.getElementById("mileageTrackingEnabled"),
   mileageTrackingStatus: document.getElementById("mileageTrackingStatus"),
+  jobExportForm: document.getElementById("jobExportForm"),
+  jobExportScope: document.getElementById("jobExportScope"),
+  jobExportJobLabel: document.getElementById("jobExportJobLabel"),
+  jobExportJob: document.getElementById("jobExportJob"),
+  downloadJobExport: document.getElementById("downloadJobExport"),
   tradeSettingsForm: document.getElementById("tradeSettingsForm"),
   tradeSettingsStatus: document.getElementById("tradeSettingsStatus"),
   tradeToggleList: document.getElementById("tradeToggleList"),
@@ -1607,6 +1612,106 @@ function formatMiles(value) {
   return new Intl.NumberFormat(undefined, { maximumFractionDigits: 1 }).format(Number(value || 0));
 }
 
+function spreadsheetCell(value) {
+  const text = String(value ?? "");
+  const protectedText = /^[=+\-@]/.test(text) ? `'${text}` : text;
+  return `"${protectedText.replaceAll('"', '""')}"`;
+}
+
+function exportDateTime(value) {
+  if (!value) return "";
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? "" : date.toISOString();
+}
+
+function estimateExportStatus(job) {
+  if (job.estimateDecision?.status === "changes") return "Changes requested";
+  if (job.estimateDecision?.status === "decline") return "Declined";
+  if (job.estimateAcceptedAt) return "Accepted";
+  return "";
+}
+
+function jobExportRows(jobs) {
+  const customFieldLabels = state.settings.customFields.map((field) => field.label);
+  const headers = [
+    "Job ID",
+    "Job name",
+    "Trade",
+    "Status",
+    "Customer name",
+    "Customer email",
+    "Customer phone",
+    "Service address",
+    "Next action",
+    "Scheduled start",
+    "Scheduled end",
+    "Estimated hours",
+    "Recurrence",
+    "Recurrence through",
+    "Material or parts status",
+    "Documents",
+    "Mileage",
+    "Estimate decision",
+    "Invoice URL",
+    "Private notes",
+    ...customFieldLabels,
+  ];
+  const rows = jobs.map((job) => [
+    job.id,
+    job.name,
+    tradeForCode(job.industry).label,
+    job.jobStatus,
+    job.customerName,
+    job.customerEmail,
+    job.customerPhone,
+    job.serviceAddress,
+    job.nextAction,
+    exportDateTime(job.scheduledStart),
+    exportDateTime(job.scheduledEnd),
+    Number(job.estimatedDurationMinutes || 0) / 60,
+    recurrenceLabel(job),
+    job.recurrenceUntil || "",
+    job.materialStatus,
+    (job.documents || []).length,
+    (job.mileageEntries || []).reduce((total, entry) => total + Number(entry.miles || 0), 0),
+    estimateExportStatus(job),
+    job.invoiceUrl,
+    job.internalNotes,
+    ...customFieldLabels.map((label) => job.customValues?.[label] || ""),
+  ]);
+  return [headers, ...rows];
+}
+
+function safeExportFileName(value) {
+  return String(value || "jobs")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 60) || "jobs";
+}
+
+function downloadJobSpreadsheet(jobs) {
+  if (!jobs.length) {
+    showToast("There are no jobs to export.", "error");
+    return;
+  }
+  const csv = jobExportRows(jobs)
+    .map((row) => row.map(spreadsheetCell).join(","))
+    .join("\r\n");
+  const blob = new Blob(["\uFEFF", csv], { type: "text/csv;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  const date = new Date().toISOString().slice(0, 10);
+  const subject = jobs.length === 1 ? safeExportFileName(jobs[0].name) : "all-jobs";
+  link.href = url;
+  link.download = `pocket-planner-${subject}-${date}.csv`;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+  showToast(`${jobs.length} ${jobs.length === 1 ? "job" : "jobs"} exported.`, "success");
+}
+
 function todayInputValue() {
   const now = new Date();
   const local = new Date(now.getTime() - now.getTimezoneOffset() * 60_000);
@@ -2494,6 +2599,13 @@ function renderSettings() {
   els.mileageTrackingEnabled.checked = Boolean(state.settings.mileageTrackingEnabled);
   els.mileageTrackingStatus.textContent = state.settings.mileageTrackingEnabled ? "On" : "Off";
   els.mileageTrackingStatus.dataset.status = state.settings.mileageTrackingEnabled ? "Active" : "Empty";
+  const exportSelection = els.jobExportJob.value;
+  els.jobExportJob.innerHTML = state.jobs
+    .map((job) => `<option value="${escapeHtml(job.id)}">${escapeHtml(job.name)} — ${escapeHtml(job.customerName)}</option>`)
+    .join("");
+  if (state.jobs.some((job) => job.id === exportSelection)) els.jobExportJob.value = exportSelection;
+  els.jobExportJobLabel.hidden = els.jobExportScope.value !== "one";
+  els.downloadJobExport.disabled = !state.jobs.length;
   renderTradeSettings();
   if (![...els.scheduleTimezone.options].some((option) => option.value === scheduleTimezone())) {
     els.scheduleTimezone.add(new Option(scheduleTimezone(), scheduleTimezone()));
@@ -3709,6 +3821,16 @@ function bindEvents() {
   els.exitDemo.addEventListener("click", exitDemoMode);
   els.signOut.addEventListener("click", () => signOutCurrentAccount(els.signOut));
   els.settingsSignOut.addEventListener("click", () => signOutCurrentAccount(els.settingsSignOut));
+  els.jobExportScope.addEventListener("change", () => {
+    els.jobExportJobLabel.hidden = els.jobExportScope.value !== "one";
+  });
+  els.jobExportForm.addEventListener("submit", (event) => {
+    event.preventDefault();
+    const jobs = els.jobExportScope.value === "one"
+      ? state.jobs.filter((job) => job.id === els.jobExportJob.value)
+      : state.jobs;
+    downloadJobSpreadsheet(jobs);
+  });
 
   els.startJob?.addEventListener("click", () => openJobDialog());
   els.updateJob?.addEventListener("click", () => {
