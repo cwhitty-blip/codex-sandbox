@@ -308,8 +308,15 @@ let mobileDetailActive = false;
 let currentView = "dashboard";
 let dashboardStage = "home";
 let customerViewStage = "list";
+let marketingAuthOpen = false;
 
 const els = {
+  marketingLanding: document.getElementById("marketingLanding"),
+  marketingSignIn: document.getElementById("marketingSignIn"),
+  marketingTrial: document.getElementById("marketingTrial"),
+  marketingSignInButtons: document.querySelectorAll("[data-marketing-sign-in]"),
+  marketingTrialButtons: document.querySelectorAll("[data-marketing-trial]"),
+  closeAuthPanel: document.getElementById("closeAuthPanel"),
   tabs: document.querySelectorAll(".nav-tab"),
   themeToggles: document.querySelectorAll("[data-theme-toggle]"),
   settingsGear: document.querySelector(".settings-gear"),
@@ -733,6 +740,21 @@ function setContractorLock(locked) {
   document.body.classList.toggle("contractor-locked", locked && !portalMode.active);
 }
 
+function setMarketingLanding(visible) {
+  els.marketingLanding.hidden = !visible;
+  document.body.classList.toggle("marketing-visible", visible);
+  document.body.classList.toggle("marketing-auth-open", !visible && marketingAuthOpen);
+}
+
+function openMarketingAuth(mode = "signin") {
+  backend.authFeedback = null;
+  backend.authMode = mode;
+  marketingAuthOpen = true;
+  renderAuth();
+  window.scrollTo({ top: 0, behavior: "smooth" });
+  window.setTimeout(() => els.authEmail.focus(), 100);
+}
+
 function renderAuth() {
   queueMicrotask(refreshIcons);
   els.demoWorkspaceNotice.hidden = !demoMode() || portalMode.active;
@@ -740,6 +762,7 @@ function renderAuth() {
   els.recoveryForm.hidden = true;
   els.forgotPassword.hidden = true;
   if (portalMode.active) {
+    setMarketingLanding(false);
     document.body.classList.add("customer-portal-mode");
     setContractorLock(false);
     els.authPanel.hidden = true;
@@ -749,6 +772,7 @@ function renderAuth() {
   }
 
   if (demoMode()) {
+    setMarketingLanding(false);
     document.body.classList.add("service-portal-signed-in");
     setContractorLock(false);
     els.authPanel.hidden = true;
@@ -758,6 +782,7 @@ function renderAuth() {
   }
 
   if (!backendConfigured()) {
+    setMarketingLanding(true);
     setContractorLock(false);
     els.authStatus.textContent = "Account setup";
     els.backendStatus.textContent = "Account services are not available for this build.";
@@ -767,6 +792,7 @@ function renderAuth() {
   }
 
   if (backend.loading) {
+    setMarketingLanding(true);
     setContractorLock(true);
     els.authStatus.textContent = "Connecting";
     els.backendStatus.textContent = "Checking your session...";
@@ -776,6 +802,7 @@ function renderAuth() {
   }
 
   if (backend.live) {
+    setMarketingLanding(false);
     setContractorLock(false);
     document.body.classList.add("service-portal-signed-in");
     els.authStatus.textContent = backend.company?.name || "Live workspace";
@@ -786,6 +813,8 @@ function renderAuth() {
     return;
   }
 
+  const showAuth = backend.recovery || marketingAuthOpen || backend.authMode === "signup" || Boolean(backend.authFeedback);
+  setMarketingLanding(!showAuth);
   setContractorLock(true);
   els.authPanel.hidden = false;
   document.body.classList.remove("service-portal-signed-in");
@@ -3490,6 +3519,17 @@ async function recordEstimateDecision(docId, decision, notes = "") {
 }
 
 function bindEvents() {
+  els.marketingSignIn.addEventListener("click", () => openMarketingAuth("signin"));
+  els.marketingTrial.addEventListener("click", () => openMarketingAuth("signup"));
+  els.marketingSignInButtons.forEach((button) => button.addEventListener("click", () => openMarketingAuth("signin")));
+  els.marketingTrialButtons.forEach((button) => button.addEventListener("click", () => openMarketingAuth("signup")));
+  els.closeAuthPanel.addEventListener("click", () => {
+    if (backend.recovery || backend.authBusy) return;
+    backend.authFeedback = null;
+    backend.authMode = "signin";
+    marketingAuthOpen = false;
+    renderAuth();
+  });
   function applyTheme(theme, persist = true) {
     const nextTheme = theme === "dark" ? "dark" : "light";
     document.documentElement.dataset.theme = nextTheme;
