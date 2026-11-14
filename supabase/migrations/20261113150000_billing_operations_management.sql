@@ -210,8 +210,8 @@ begin
 
   while attempt < 10 loop
     attempt := attempt + 1;
-    generated_code := 'SAVE-' || upper(substr(encode(gen_random_bytes(4), 'hex'), 1, 4))
-      || '-' || upper(substr(encode(gen_random_bytes(4), 'hex'), 1, 4));
+    generated_code := 'SAVE-' || upper(substr(encode(extensions.gen_random_bytes(4), 'hex'), 1, 4))
+      || '-' || upper(substr(encode(extensions.gen_random_bytes(4), 'hex'), 1, 4));
 
     insert into public.billing_promo_codes (
       code,
