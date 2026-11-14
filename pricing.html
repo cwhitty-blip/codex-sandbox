@@ -10,7 +10,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet" />
-    <link rel="stylesheet" href="assets/styles.css?v=pocket-planner-pricing-v1" />
+    <link rel="stylesheet" href="assets/styles.css?v=pocket-planner-pricing-v2" />
   </head>
   <body class="pricing-page-body">
     <header class="marketing-nav pricing-nav">
@@ -37,20 +37,65 @@
         </div>
       </section>
 
-      <section class="plan-overview" aria-labelledby="planTitle">
-        <div class="plan-summary">
+      <section class="public-plan-section" aria-labelledby="planTitle">
+        <div class="catalog-heading">
           <span class="availability-badge available"><i data-lucide="circle-check"></i>Available now</span>
-          <p class="marketing-kicker">Pocket Planner</p>
-          <h2 id="planTitle">One complete workspace</h2>
-          <p>Job management, customer communication, scheduling, and files are included together. We are finalizing public launch pricing before the trial converts to a paid plan.</p>
-          <a class="primary-button" href="index.html?signup=1">Try the complete workspace</a>
-          <small>We will show the final price and billing terms before any payment is due.</small>
+          <p class="marketing-kicker">Simple plans</p>
+          <h2 id="planTitle">Start small. Keep your history.</h2>
+          <p>Plan limits are based on active work and file storage. Completed or archived jobs remain in your account and do not consume an active-job slot.</p>
         </div>
-        <div class="plan-highlights">
-          <div><i data-lucide="briefcase-business"></i><span><strong>One job record</strong><small>Details, schedule, files, status, and next action</small></span></div>
-          <div><i data-lucide="contact-round"></i><span><strong>Branded customer view</strong><small>Your company name, logo, documents, and updates</small></span></div>
-          <div><i data-lucide="smartphone"></i><span><strong>Built for the field</strong><small>Use it from a phone, tablet, or desktop browser</small></span></div>
+        <div class="public-plan-grid">
+          <article class="public-plan-card">
+            <div class="public-plan-heading">
+              <span>Forever Free</span>
+              <div><strong>$0</strong><small>/ month</small></div>
+              <p>For a contractor testing a better way to stay organized.</p>
+            </div>
+            <ul>
+              <li><i data-lucide="check"></i>Up to 5 active jobs</li>
+              <li><i data-lucide="check"></i>1 contractor account</li>
+              <li><i data-lucide="check"></i>250 MB document storage</li>
+              <li><i data-lucide="check"></i>Customer job views</li>
+              <li><i data-lucide="check"></i>Estimates and customer uploads</li>
+              <li><i data-lucide="check"></i>Scheduling and recurring visits</li>
+            </ul>
+            <a class="ghost-button" href="index.html?signup=1">Start free</a>
+          </article>
+          <article class="public-plan-card featured">
+            <span class="plan-ribbon">Full workspace</span>
+            <div class="public-plan-heading">
+              <span>Pocket Planner</span>
+              <div><strong>$12.99</strong><small>/ month</small></div>
+              <p>For a working contractor managing an active book of business.</p>
+            </div>
+            <ul>
+              <li><i data-lucide="check"></i>Up to 50 active jobs</li>
+              <li><i data-lucide="check"></i>5 GB document storage</li>
+              <li><i data-lucide="check"></i>Every current Pocket Planner feature</li>
+              <li><i data-lucide="check"></i>Company branding and customer emails</li>
+              <li><i data-lucide="check"></i>Custom fields and multi-trade settings</li>
+              <li><i data-lucide="check"></i>Mileage and customer update history</li>
+            </ul>
+            <a class="primary-button" href="index.html?signup=1">Start 14 days free</a>
+          </article>
+          <article class="public-plan-card future-plan">
+            <div class="public-plan-heading">
+              <span>Crew</span>
+              <div><strong>Coming next</strong></div>
+              <p>For office managers coordinating teams, assignments, and field access.</p>
+            </div>
+            <ul>
+              <li><i data-lucide="sparkles"></i>Office manager controls</li>
+              <li><i data-lucide="sparkles"></i>Teams and crew membership</li>
+              <li><i data-lucide="sparkles"></i>Job assignments</li>
+              <li><i data-lucide="sparkles"></i>Assigned-job field access</li>
+              <li><i data-lucide="sparkles"></i>Crew document and photo uploads</li>
+              <li><i data-lucide="sparkles"></i>Team workload and activity reporting</li>
+            </ul>
+            <span class="plan-note">Pricing will be posted before release.</span>
+          </article>
         </div>
+        <p class="usage-policy"><strong>No surprise overages.</strong> When an account reaches its active-job or storage limit, existing records remain available. The account can archive completed work, remove unneeded files, or move to the appropriate plan before adding more.</p>
       </section>
 
       <section class="feature-catalog" aria-labelledby="includedTitle">
@@ -116,7 +161,7 @@
           <article><i data-lucide="credit-card"></i><span><strong>Integrated customer billing</strong><small>Create invoices, collect payments, and connect payment status to the job.</small></span><em>Planned</em></article>
           <article><i data-lucide="calendar-sync"></i><span><strong>Google and Apple calendar sync</strong><small>Keep Pocket Planner visits visible on the calendars your crew already uses.</small></span><em>Planned</em></article>
           <article><i data-lucide="badge-dollar-sign"></i><span><strong>Accounting connections</strong><small>Reduce duplicate entry with carefully scoped QuickBooks and Wave workflows.</small></span><em>Exploring</em></article>
-          <article><i data-lucide="user-cog"></i><span><strong>Team roles and assignments</strong><small>Assign owners, control staff access, and make responsibility obvious.</small></span><em>Planned</em></article>
+          <article><i data-lucide="user-cog"></i><span><strong>Team roles and assignments</strong><small>Assign owners, control field access, and make responsibility obvious.</small></span><em>In development</em></article>
           <article><i data-lucide="chart-no-axes-combined"></i><span><strong>Business reporting</strong><small>See job volume, stage aging, completion trends, and team workload.</small></span><em>Planned</em></article>
           <article><i data-lucide="route"></i><span><strong>Route-aware scheduling</strong><small>Consider drive time and job location when suggesting the next opening.</small></span><em>Exploring</em></article>
           <article><i data-lucide="download"></i><span><strong>Data export and backup tools</strong><small>Download job and customer records in practical, portable formats.</small></span><em>Planned</em></article>
@@ -128,8 +173,9 @@
       <section class="pricing-faq" aria-labelledby="pricingFaqTitle">
         <div class="catalog-heading"><p class="marketing-kicker">Good to know</p><h2 id="pricingFaqTitle">Pricing questions, answered plainly.</h2></div>
         <div class="faq-list">
-          <details><summary>Why is the public price not listed yet?<i data-lucide="plus"></i></summary><p>Pocket Planner is in early access while we verify real usage, document storage, email volume, and support needs. We will publish the final plan price before any trial converts to paid access.</p></details>
+          <details><summary>How are job and storage limits measured?<i data-lucide="plus"></i></summary><p>Only current, active jobs count toward the job limit. Completed and archived jobs stay searchable without consuming an active-job slot. Uploaded files count toward the company’s storage allowance.</p></details>
           <details><summary>Will I be charged when I start the trial?<i data-lucide="plus"></i></summary><p>No. A credit card is not required to begin the 14-day trial. Billing terms will be shown before a payment is authorized.</p></details>
+          <details><summary>What happens when I reach a limit?<i data-lucide="plus"></i></summary><p>Your existing records remain available. You can archive completed jobs, clean up unneeded files, or upgrade before adding more active work. Pocket Planner will not add surprise usage charges.</p></details>
           <details><summary>Are upcoming features guaranteed?<i data-lucide="plus"></i></summary><p>No. Roadmap items show product direction, not a contractual commitment. We may change the scope or order based on contractor feedback and technical testing.</p></details>
           <details><summary>Will the basics become expensive add-ons?<i data-lucide="plus"></i></summary><p>Our goal is to keep the core job, customer, document, schedule, and communication workflow together rather than create a maze of essential add-ons.</p></details>
         </div>
