@@ -4,7 +4,11 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="referrer" content="no-referrer" />
-    <title>Service Portal</title>
+    <meta name="description" content="Pocket Planner keeps jobs, customers, documents, and updates together in one simple contractor workspace." />
+    <title>Pocket Planner | Every job. Right in your pocket.</title>
+    <meta name="theme-color" content="#102b25" />
+    <link rel="icon" type="image/png" href="assets/pocket-planner-mark.png" />
+    <link rel="apple-touch-icon" href="assets/pocket-planner-mark.png" />
     <script>
       (() => {
         const storageKey = "servicePortal.theme";
@@ -21,18 +25,18 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet" />
-    <link rel="stylesheet" href="assets/styles.css?v=premium-ui-v1" />
+    <link rel="stylesheet" href="assets/styles.css?v=pocket-planner-brand-v1" />
   </head>
   <body>
     <div class="app-shell">
       <aside class="sidebar">
         <div class="brand">
           <div class="brand-mark" aria-hidden="true">
-            <img id="sidebarCompanyLogo" alt="" hidden />
+            <img src="assets/pocket-planner-mark.png" alt="" />
           </div>
           <div class="brand-copy">
-            <strong id="sidebarCompanyName">Service Portal</strong>
-            <span>Jobs and customer access</span>
+            <strong class="brand-name">Pocket <em>Planner</em></strong>
+            <span class="brand-tagline">Every job. Right in your pocket.</span>
           </div>
           <button class="settings-gear" data-view="settings" type="button" aria-label="Settings" title="Settings">
             <i data-lucide="settings"></i>
@@ -670,6 +674,6 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.110.1"></script>
     <script src="https://unpkg.com/lucide@1.24.0/dist/umd/lucide.js"></script>
     <script src="assets/config.js?v=accounts-v3"></script>
-    <script src="assets/app.js?v=account-recovery-v1"></script>
+    <script src="assets/app.js?v=pocket-planner-brand-v1"></script>
   </body>
 </html>

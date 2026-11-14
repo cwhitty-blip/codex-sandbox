@@ -326,8 +326,6 @@ const els = {
   todayContext: document.getElementById("todayContext"),
   activeJobCount: document.getElementById("activeJobCount"),
   billingProviderSummary: document.getElementById("billingProviderSummary"),
-  sidebarCompanyLogo: document.getElementById("sidebarCompanyLogo"),
-  sidebarCompanyName: document.getElementById("sidebarCompanyName"),
   portalCompanyLogo: document.getElementById("portalCompanyLogo"),
   portalBrandFallback: document.getElementById("portalBrandFallback"),
   portalCompanyName: document.getElementById("portalCompanyName"),
@@ -1393,7 +1391,7 @@ function applyPortalCompany(companyData) {
   if (!companyData) return;
   backend.company = {
     id: companyData.id || null,
-    name: companyData.name || "Service Portal",
+    name: companyData.name || "Pocket Planner",
     logo_url: companyData.logo_url || "",
     logo_path: null,
   };
@@ -1875,11 +1873,9 @@ function renderBrandImage(image, fallback, url) {
 }
 
 function renderBranding() {
-  const companyName = backend.company?.name || "Service Portal";
+  const companyName = backend.company?.name || "Pocket Planner";
   const logoUrl = companyLogoUrl();
-  els.sidebarCompanyName.textContent = companyName;
   els.portalCompanyName.textContent = companyName;
-  renderBrandImage(els.sidebarCompanyLogo, null, logoUrl);
   renderBrandImage(els.portalCompanyLogo, els.portalBrandFallback, logoUrl);
 }
 

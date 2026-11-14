@@ -1,6 +1,6 @@
-# Service Job Portal
+# Pocket Planner
 
-Early-access SaaS customer portal for service businesses. Contractors manage jobs and documents; customers use a time-limited email link to review estimates and upload insurance files.
+Pocket Planner is an early-access job and customer portal for service businesses. Contractors manage jobs and documents; customers use a time-limited email link to review estimates and upload insurance files.
 
 ## Open
 
