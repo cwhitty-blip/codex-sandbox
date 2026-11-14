@@ -64,7 +64,6 @@ const tradeCatalog = [
 const tradeCodes = new Set(tradeCatalog.map((trade) => trade.code));
 const monthlyPlanCents = 1299;
 const trialDays = 14;
-const previewPromoCodes = { "20off": 20, "30off": 30 };
 const scheduleTimezones = [
   { value: "America/New_York", label: "Eastern Time" },
   { value: "America/Chicago", label: "Central Time" },
@@ -481,12 +480,6 @@ const els = {
   workspaceLogoFallback: document.getElementById("workspaceLogoFallback"),
   chooseWorkspaceLogo: document.getElementById("chooseWorkspaceLogo"),
   removeWorkspaceLogo: document.getElementById("removeWorkspaceLogo"),
-  subscriptionStatus: document.getElementById("subscriptionStatus"),
-  subscriptionSummary: document.getElementById("subscriptionSummary"),
-  subscriptionFinePrint: document.getElementById("subscriptionFinePrint"),
-  promoForm: document.getElementById("promoForm"),
-  promoCode: document.getElementById("promoCode"),
-  checkoutButton: document.getElementById("checkoutButton"),
   workspaceAccessNotice: document.getElementById("workspaceAccessNotice"),
   toastRegion: document.getElementById("toastRegion"),
 };
@@ -2620,7 +2613,6 @@ function renderSettings() {
   });
   els.scheduleSettingsStatus.textContent = backend.live ? "Saved" : "Preview";
   els.scheduleSettingsStatus.dataset.status = "Active";
-  renderSubscriptionSettings();
   els.fieldCount.textContent = String(state.settings.customFields.length);
   els.customFieldList.innerHTML = state.settings.customFields.length
     ? state.settings.customFields
@@ -2685,104 +2677,10 @@ function normalizePromoCode(value) {
   return (value || "").trim().toLowerCase();
 }
 
-function promoPercentFor(value) {
-  return previewPromoCodes[normalizePromoCode(value)] || 0;
-}
-
-function formatMoney(cents) {
-  return `$${(cents / 100).toFixed(2)}`;
-}
-
 function trialDaysLeft() {
   if (!state.settings.trialEndsAt) return trialDays;
   const ms = new Date(state.settings.trialEndsAt).getTime() - Date.now();
   return Math.max(0, Math.ceil(ms / 86400000));
-}
-
-function renderSubscriptionSettings() {
-  const billingMode = state.settings.billingMode || "off";
-  const status = state.settings.subscriptionStatus || "trialing";
-  const canWrite = workspaceCanWrite();
-  const basePrice = Number(state.settings.basePlanPriceCents || monthlyPlanCents);
-  const planPrice = Number(state.settings.planPriceCents || basePrice);
-  const checkoutUrl = safeExternalUrl(state.settings.checkoutUrl || window.SERVICE_PORTAL_CONFIG?.waveCheckoutUrl);
-  const promoPercent = Number(state.settings.promoPercentOff || 0);
-  const daysLeft = trialDaysLeft();
-
-  els.promoCode.value = state.settings.promoCode || "";
-  els.subscriptionStatus.dataset.status = canWrite ? "Active" : "On Hold";
-
-  if (billingMode === "off") {
-    els.subscriptionStatus.textContent = "Early access";
-    els.subscriptionSummary.innerHTML = `
-      <span>
-        <strong>Free early access</strong>
-        <small>Billing is prepared but has not been activated.</small>
-      </span>
-      <small>You will receive notice before the 14-day paid trial begins.</small>
-    `;
-    els.promoForm.hidden = false;
-    els.checkoutButton.hidden = true;
-    els.subscriptionFinePrint.textContent = "Early access remains free until billing is deliberately activated. A valid promo will be saved for your future plan.";
-    return;
-  }
-
-  if (status === "active") {
-    els.subscriptionStatus.textContent = "Active";
-    els.subscriptionSummary.innerHTML = `
-      <span>
-        <strong>${formatMoney(planPrice)} per month</strong>
-        <small>${promoPercent ? `${promoPercent}% promo applied. ` : ""}${state.settings.cancelAtPeriodEnd ? "Cancellation is scheduled." : "Payment is current."}</small>
-      </span>
-      <small>${state.settings.currentPeriodEndsAt ? `Current access runs through ${formatDate(state.settings.currentPeriodEndsAt)}.` : "Monthly access is active."}</small>
-    `;
-  } else if (status === "trialing" && canWrite) {
-    els.subscriptionStatus.textContent = "Free trial";
-    els.subscriptionSummary.innerHTML = `
-      <span>
-        <strong>${daysLeft} ${daysLeft === 1 ? "day" : "days"} left in your 14-day trial</strong>
-        <small>Then ${formatMoney(planPrice)} per month${promoPercent ? ` with ${promoPercent}% off` : ""}.</small>
-      </span>
-      <small>No payment is collected until you complete Wave checkout.</small>
-    `;
-  } else if (status === "past_due" && canWrite) {
-    els.subscriptionStatus.textContent = "Payment due";
-    els.subscriptionSummary.innerHTML = `
-      <span>
-        <strong>Payment needs attention</strong>
-        <small>Your workspace remains editable during the grace period.</small>
-      </span>
-      <small>${state.settings.graceEndsAt ? `Grace access ends ${formatDate(state.settings.graceEndsAt)}.` : "Please restore payment soon."}</small>
-    `;
-  } else if (status === "cancelled" && canWrite) {
-    els.subscriptionStatus.textContent = "Ending";
-    els.subscriptionSummary.innerHTML = `
-      <span>
-        <strong>Cancellation is scheduled</strong>
-        <small>Your workspace remains editable through the paid period.</small>
-      </span>
-      <small>${state.settings.currentPeriodEndsAt ? `Access continues through ${formatDate(state.settings.currentPeriodEndsAt)}.` : "Access will end after the current period."}</small>
-    `;
-  } else {
-    els.subscriptionStatus.textContent = "Read-only";
-    els.subscriptionSummary.innerHTML = `
-      <span>
-        <strong>Your records are still here</strong>
-        <small>Jobs and files remain viewable, but changes are paused.</small>
-      </span>
-      <small>Restore the ${formatMoney(planPrice)} monthly plan to continue working.</small>
-    `;
-  }
-
-  els.promoForm.hidden = status === "active" || state.settings.cancelAtPeriodEnd;
-  els.checkoutButton.hidden = !checkoutUrl || status === "active";
-  els.checkoutButton.dataset.checkoutUrl = checkoutUrl;
-  els.checkoutButton.textContent = status === "trialing"
-    ? "Set up monthly payment"
-    : status === "cancelled" && canWrite
-      ? "Restart monthly access"
-      : "Restore monthly access";
-  els.subscriptionFinePrint.textContent = "Payments are handled securely by Wave. The app does not store card or bank details.";
 }
 
 function renderWorkspaceAccess() {
@@ -4250,44 +4148,6 @@ function bindEvents() {
     state.settings.billingConnected = true;
     showToast("Billing preference saved in preview mode.", "success");
     render();
-  });
-
-  els.promoForm.addEventListener("submit", async (event) => {
-    event.preventDefault();
-    const code = normalizePromoCode(els.promoCode.value);
-    if (!code) {
-      showToast("Enter a promo code.", "error");
-      return;
-    }
-    if (backend.live) {
-      const { error } = await backend.client.rpc("apply_billing_promo_code", { input_code: code });
-      if (error) {
-        console.warn("Promo save failed", error);
-        showToast("That promo code is not active.", "error");
-        return;
-      }
-      await loadLiveState();
-    } else {
-      const percent = promoPercentFor(code);
-      if (!percent) {
-        showToast("That promo code is not active.", "error");
-        return;
-      }
-      state.settings.promoCode = code;
-      state.settings.promoPercentOff = percent;
-      state.settings.planPriceCents = Math.round(monthlyPlanCents * (100 - percent) / 100);
-    }
-    showToast("Promo code applied.", "success");
-    render();
-  });
-
-  els.checkoutButton.addEventListener("click", () => {
-    const checkoutUrl = safeExternalUrl(els.checkoutButton.dataset.checkoutUrl);
-    if (!checkoutUrl) {
-      showToast("Billing is off during early access.", "info");
-      return;
-    }
-    window.open(checkoutUrl, "_blank", "noopener,noreferrer");
   });
 
   els.fieldForm.addEventListener("submit", async (event) => {
