@@ -446,6 +446,7 @@ const els = {
   authConfirmPasswordLabel: document.getElementById("authConfirmPasswordLabel"),
   authConfirmPassword: document.getElementById("authConfirmPassword"),
   authCompany: document.getElementById("authCompany"),
+  authPromoCodeLabel: document.getElementById("authPromoCodeLabel"),
   authPromoCode: document.getElementById("authPromoCode"),
   authSubmit: document.getElementById("authSubmit"),
   authCreate: document.getElementById("authCreate"),
@@ -825,6 +826,7 @@ function renderAuth() {
   const feedbackAction = backend.authFeedback?.action || "";
   els.forgotPassword.hidden = backend.recovery || backend.authMode === "signup" || Boolean(feedbackAction);
   els.authConfirmPasswordLabel.hidden = backend.recovery || backend.authMode !== "signup";
+  els.authPromoCodeLabel.hidden = backend.recovery || backend.authMode !== "signup";
   els.authSubmit.disabled = backend.authBusy;
   els.authCreate.disabled = backend.authBusy;
   els.recoverySubmit.disabled = backend.authBusy;
@@ -2607,9 +2609,9 @@ function renderSubscriptionSettings() {
       </span>
       <small>You will receive notice before the 14-day paid trial begins.</small>
     `;
-    els.promoForm.hidden = true;
+    els.promoForm.hidden = false;
     els.checkoutButton.hidden = true;
-    els.subscriptionFinePrint.textContent = "Early access remains free until billing is deliberately activated.";
+    els.subscriptionFinePrint.textContent = "Early access remains free until billing is deliberately activated. A valid promo will be saved for your future plan.";
     return;
   }
 
