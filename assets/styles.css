@@ -214,11 +214,16 @@ small {
 
 .brand {
   position: relative;
-  display: flex;
+  display: grid;
+  grid-template-columns: 42px minmax(0, 1fr) 36px;
+  grid-template-areas:
+    "mark name settings"
+    "tagline tagline tagline";
   align-items: center;
-  gap: 12px;
+  column-gap: 10px;
+  row-gap: 5px;
   min-width: 0;
-  padding-right: 38px;
+  padding-right: 0;
 }
 
 .brand-mark,
@@ -233,6 +238,7 @@ small {
 }
 
 .brand-mark {
+  grid-area: mark;
   overflow: hidden;
   background: #102b25;
   box-shadow: 0 10px 24px rgba(8, 30, 25, 0.22);
@@ -265,7 +271,7 @@ small {
 }
 
 .brand-copy {
-  min-width: 0;
+  display: contents;
 }
 
 .brand strong,
@@ -277,8 +283,9 @@ small {
 }
 
 .brand strong {
+  grid-area: name;
   color: var(--sidebar-ink);
-  font-size: 1.02rem;
+  font-size: 0.9rem;
   font-weight: 800;
   letter-spacing: 0;
 }
@@ -288,17 +295,21 @@ small {
   font-style: normal;
 }
 
-.brand-tagline {
-  margin-top: 3px;
+.brand .brand-tagline {
+  grid-area: tagline;
+  margin-top: 0;
   color: var(--sidebar-muted);
   font-size: 0.72rem;
   font-weight: 600;
+  line-height: 1.3;
+  overflow: visible;
+  text-overflow: clip;
+  white-space: normal;
 }
 
 .settings-gear {
-  position: absolute;
-  top: 2px;
-  right: 0;
+  position: static;
+  grid-area: settings;
   width: 36px;
   height: 36px;
   border: 1px solid var(--sidebar-line);
@@ -3205,8 +3216,9 @@ body.service-portal-signed-in .auth-close, body.customer-portal-mode .auth-close
 
   .brand {
     width: 100%;
+    grid-template-columns: 34px minmax(0, 1fr) 34px;
     gap: 8px;
-    padding-right: 42px;
+    padding-right: 0;
   }
 
   .brand-mark {
@@ -3225,7 +3237,6 @@ body.service-portal-signed-in .auth-close, body.customer-portal-mode .auth-close
   }
 
   .settings-gear {
-    top: 1px;
     width: 34px;
     height: 34px;
   }
