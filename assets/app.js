@@ -309,6 +309,7 @@ let dashboardStage = "home";
 let customerViewStage = "list";
 const entryParams = new URLSearchParams(window.location.search);
 let marketingAuthOpen = entryParams.has("signup") || entryParams.has("signin");
+const marketingPreviewMode = entryParams.has("marketing");
 if (entryParams.has("signup")) backend.authMode = "signup";
 
 const els = {
@@ -797,6 +798,16 @@ function renderAuth() {
     setContractorLock(true);
     els.authStatus.textContent = "Connecting";
     els.backendStatus.textContent = "Checking your session...";
+    els.authForm.hidden = true;
+    els.signOut.hidden = true;
+    return;
+  }
+
+  if (marketingPreviewMode && !marketingAuthOpen) {
+    setMarketingLanding(true);
+    setContractorLock(false);
+    document.body.classList.remove("service-portal-signed-in");
+    els.authPanel.hidden = true;
     els.authForm.hidden = true;
     els.signOut.hidden = true;
     return;
