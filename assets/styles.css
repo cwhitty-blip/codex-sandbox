@@ -1237,9 +1237,9 @@ body.customer-view-active:not(.customer-portal-mode) .topbar h1 {
 
 .topbar-doodle {
   display: none;
-  width: 78px;
-  height: 68px;
-  flex-basis: 78px;
+  width: 64px;
+  height: 56px;
+  flex-basis: 64px;
   margin-left: auto;
   border-radius: 0;
   background: transparent;
@@ -1256,9 +1256,9 @@ body.dashboard-stage-list .topbar-actions { margin-left: 8px; }
 }
 
 .section-doodle {
-  width: 54px;
-  height: 54px;
-  flex-basis: 54px;
+  width: 46px;
+  height: 46px;
+  flex-basis: 46px;
   border-radius: 14px;
   background: rgba(255, 255, 255, .48);
 }
@@ -1295,9 +1295,9 @@ body.dashboard-stage-list .topbar-actions { margin-left: 8px; }
 }
 
 .job-doodle {
-  width: 50px;
-  height: 50px;
-  flex-basis: 50px;
+  width: 40px;
+  height: 40px;
+  flex-basis: 40px;
   border-radius: 14px;
   background: var(--accent-soft);
   transition: transform 160ms ease;
@@ -1307,6 +1307,60 @@ body.dashboard-stage-list .topbar-actions { margin-left: 8px; }
 .job-list-panel .job-row:nth-child(odd) .job-doodle { transform: rotate(-2deg); }
 .job-list-panel .job-row:hover .job-doodle { transform: rotate(0) scale(1.06); }
 .job-row-copy { flex: 1 1 auto; }
+
+.settings-grid .panel,
+.job-detail .plain-section,
+.job-detail .detail-disclosure,
+.customer-portal .plain-section,
+.customer-hero {
+  position: relative;
+  overflow: hidden;
+}
+
+.settings-grid .panel::after,
+.job-detail .plain-section::after,
+.job-detail .detail-disclosure::after,
+.customer-portal .plain-section::after,
+.customer-hero::after {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  bottom: auto;
+  width: 44px;
+  height: 44px;
+  background: url("pocket-planner-field-doodles.png") var(--panel-doodle-position, 0%) center / 500% auto no-repeat;
+  content: "";
+  opacity: .64;
+  pointer-events: none;
+  transform: rotate(var(--panel-doodle-rotation, -2deg));
+}
+
+.settings-grid .panel:nth-child(5n + 1),
+.job-detail > :nth-child(5n + 1),
+.customer-portal > :nth-child(5n + 1) { --panel-doodle-position: 0%; }
+.settings-grid .panel:nth-child(5n + 2),
+.job-detail > :nth-child(5n + 2),
+.customer-portal > :nth-child(5n + 2) { --panel-doodle-position: 25%; --panel-doodle-rotation: 2deg; }
+.settings-grid .panel:nth-child(5n + 3),
+.job-detail > :nth-child(5n + 3),
+.customer-portal > :nth-child(5n + 3) { --panel-doodle-position: 50%; }
+.settings-grid .panel:nth-child(5n + 4),
+.job-detail > :nth-child(5n + 4),
+.customer-portal > :nth-child(5n + 4) { --panel-doodle-position: 75%; --panel-doodle-rotation: 2deg; }
+.settings-grid .panel:nth-child(5n),
+.job-detail > :nth-child(5n),
+.customer-portal > :nth-child(5n) { --panel-doodle-position: 100%; }
+
+.customer-hero { padding-right: 82px; }
+.customer-hero::after { top: 16px; right: 18px; width: 56px; height: 56px; --panel-doodle-position: 75%; opacity: .82; }
+.detail-disclosure::after { opacity: .42; }
+.detail-disclosure[open]::after { opacity: .24; }
+
+html[data-theme="dark"] .settings-grid .panel::after,
+html[data-theme="dark"] .job-detail .plain-section::after,
+html[data-theme="dark"] .job-detail .detail-disclosure::after,
+html[data-theme="dark"] .customer-portal .plain-section::after,
+html[data-theme="dark"] .customer-hero::after { opacity: .48; }
 
 .job-list-panel .job-row:hover {
   border-color: color-mix(in srgb, var(--accent) 35%, var(--line));
@@ -2744,6 +2798,15 @@ body.marketing-visible .app-shell { display: none; }
 .feature-grid h3 { margin-top: 18px; font-size: 1.2rem; }
 .feature-grid p { color: #63716c; line-height: 1.65; }
 .workflow-section { display: grid; grid-template-columns: minmax(0, .9fr) minmax(420px, 1.1fr); gap: 90px; align-items: center; }
+.tutorial-section { width: 100% !important; max-width: none; display: grid; grid-template-columns: minmax(280px,.7fr) minmax(520px,1.3fr); align-items: center; gap: clamp(40px,7vw,100px); padding-inline: max(24px,calc((100vw - 1180px)/2)); background: #102c25; color: #fff; }
+.tutorial-copy { display: grid; gap: 18px; }
+.tutorial-copy h2 { font-size: clamp(2.2rem,4vw,4rem); line-height: 1.04; }
+.tutorial-copy > p:not(.marketing-kicker) { color: #c4d4cf; font-size: 1.03rem; line-height: 1.7; }
+.tutorial-copy > span { display: inline-flex; align-items: center; gap: 8px; color: #8dd8c5; font-size: .82rem; font-weight: 750; }
+.tutorial-copy svg { width: 17px; height: 17px; }
+.tutorial-section video, .settings-tutorial-panel video { display: block; width: 100%; border: 1px solid rgba(255,255,255,.16); border-radius: 18px; background: #0b1815; box-shadow: 0 28px 70px rgba(0,0,0,.22); }
+.settings-tutorial-panel { grid-column: 1 / -1; }
+.settings-tutorial-panel video { max-width: 760px; margin-inline: auto; border-color: var(--line); border-radius: 12px; box-shadow: var(--shadow-soft); }
 .workflow-copy { display: grid; gap: 20px; }
 .workflow-copy ul, .pricing-includes ul { display: grid; gap: 13px; padding: 0; margin: 6px 0 0; list-style: none; }
 .workflow-copy li, .pricing-includes li { display: flex; align-items: center; gap: 9px; font-weight: 650; }
@@ -3669,6 +3732,7 @@ body.service-portal-signed-in .auth-close, body.customer-portal-mode .auth-close
   .field-notes-art { order: 2; }
   .field-notes-art img { max-height: 360px; }
   .workflow-section { grid-template-columns: 1fr; gap: 48px; }
+  .tutorial-section { grid-template-columns: 1fr; }
   .faq-section { grid-template-columns: 1fr; gap: 12px; }
   .faq-section .marketing-section-heading { margin-bottom: 26px; }
   .plan-overview { grid-template-columns: 1fr; }
@@ -3679,9 +3743,10 @@ body.service-portal-signed-in .auth-close, body.customer-portal-mode .auth-close
 }
 
 @media (max-width: 680px) {
-  .topbar-doodle { width: 58px; height: 52px; flex-basis: 58px; }
-  .section-doodle { width: 46px; height: 46px; flex-basis: 46px; }
-  .job-doodle { width: 44px; height: 44px; flex-basis: 44px; }
+  .topbar-doodle { width: 52px; height: 46px; flex-basis: 52px; }
+  .section-doodle { width: 40px; height: 40px; flex-basis: 40px; }
+  .job-doodle { width: 36px; height: 36px; flex-basis: 36px; }
+  .settings-grid .panel::after, .job-detail .plain-section::after, .job-detail .detail-disclosure::after, .customer-portal .plain-section::after { width: 36px; height: 36px; opacity: .5; }
   .marketing-nav, .marketing-main > section, .marketing-footer { width: min(100% - 32px, 1180px); }
   .marketing-nav { min-height: 70px; }
   .marketing-brand img { width: 34px; height: 34px; }
