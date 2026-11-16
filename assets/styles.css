@@ -394,6 +394,27 @@ main {
   scrollbar-color: var(--line-strong) transparent;
 }
 
+.app-shell > main {
+  position: relative;
+  isolation: isolate;
+}
+
+.app-shell > main::before {
+  position: absolute;
+  z-index: -1;
+  inset: 0;
+  background: url("pocket-planner-topography.png") center top / 1100px auto repeat-y;
+  content: "";
+  filter: grayscale(1) sepia(.08);
+  opacity: .025;
+  pointer-events: none;
+}
+
+html[data-theme="dark"] .app-shell > main::before {
+  filter: grayscale(1) invert(1);
+  opacity: .018;
+}
+
 body.service-portal-signed-in #authPanel {
   display: none !important;
 }
@@ -2582,7 +2603,8 @@ body.marketing-visible .app-shell { display: none; }
 .marketing-nav .primary-button, .marketing-landing .primary-button { min-height: 48px; border-radius: 999px; padding-inline: 22px; background: #176b5b; color: #fff; box-shadow: 0 10px 24px rgba(23, 107, 91, 0.16); }
 .marketing-nav .primary-button:hover, .marketing-landing .primary-button:hover { background: #105648; transform: translateY(-1px); }
 .marketing-main { overflow: visible; padding: 0; }
-.marketing-hero { min-height: min(780px, calc(100dvh - 84px)); display: grid; grid-template-columns: minmax(0, 0.88fr) minmax(480px, 1.12fr); align-items: center; gap: clamp(44px, 7vw, 100px); padding-block: 74px 110px; }
+.marketing-hero { position: relative; min-height: min(780px, calc(100dvh - 84px)); display: grid; grid-template-columns: minmax(0, 0.88fr) minmax(480px, 1.12fr); align-items: center; gap: clamp(44px, 7vw, 100px); padding-block: 74px 110px; isolation: isolate; }
+.marketing-hero::before { position: absolute; z-index: -1; inset: 6px -18vw 10px -18vw; background: url("pocket-planner-topography.png") center / cover no-repeat; content: ""; filter: grayscale(1) sepia(.08); opacity: .055; pointer-events: none; }
 .marketing-hero-copy { display: grid; justify-items: start; gap: 24px; }
 .marketing-kicker { color: #b35e32; font-size: 0.76rem; font-weight: 800; letter-spacing: 0.13em; text-transform: uppercase; }
 .marketing-hero h1 { max-width: 700px; font-size: clamp(3.15rem, 5.5vw, 5.8rem); line-height: 0.96; overflow-wrap: normal; }
@@ -2620,6 +2642,15 @@ body.marketing-visible .app-shell { display: none; }
 .preview-note-file { left: -34px; top: 7px; }
 .marketing-proof-strip { border-block: 1px solid #dbe3df; padding-block: 28px; text-align: center; }
 .marketing-proof-strip p { color: #53635d; font-size: 0.93rem; font-weight: 650; }
+.marketing-field-notes { position: relative; width: 100% !important; max-width: none; display: grid; grid-template-columns: minmax(0,1.08fr) minmax(340px,.92fr); align-items: center; gap: clamp(36px,7vw,96px); overflow: hidden; border-bottom: 1px solid #d7e0dc; padding: 88px max(24px,calc((100vw - 1180px)/2)); background: #edf2ee; }
+.marketing-field-notes::before { position: absolute; z-index: 0; inset: 0 -18vw; background: #edf2ee url("pocket-planner-topography.png") center / cover no-repeat; content: ""; filter: grayscale(1) sepia(.08); opacity: .1; }
+.field-notes-art, .field-notes-copy { position: relative; z-index: 1; }
+.field-notes-art img { display: block; width: 100%; max-height: 430px; object-fit: contain; filter: drop-shadow(0 24px 24px rgba(28,60,51,.1)); }
+.field-notes-copy { display: grid; gap: 18px; }
+.field-notes-copy h2 { max-width: 560px; font-size: clamp(2.2rem,4vw,4rem); line-height: 1.04; }
+.field-notes-copy > p:not(.marketing-kicker) { max-width: 560px; color: #596963; font-size: 1.04rem; line-height: 1.7; }
+.field-note-signoff { position: relative; width: fit-content; margin-top: 8px; color: #176b5b; font-size: .94rem; font-weight: 800; }
+.field-note-signoff::after { position: absolute; left: 0; right: 10%; bottom: -8px; height: 3px; border-radius: 50%; background: #b35e32; content: ""; transform: rotate(-1.5deg); opacity: .72; }
 .marketing-section { padding-block: 120px; }
 .marketing-section-heading { max-width: 690px; display: grid; gap: 16px; margin-bottom: 48px; }
 .marketing-section-heading h2, .workflow-copy h2, .marketing-final-cta h2 { font-size: clamp(2.2rem, 4vw, 4.1rem); line-height: 1.05; }
@@ -2659,7 +2690,8 @@ body.marketing-visible .app-shell { display: none; }
 .faq-list summary::-webkit-details-marker { display: none; }
 .faq-list p { max-width: 650px; padding-top: 13px; color: #61706a; line-height: 1.65; }
 .faq-list details[open] summary svg { transform: rotate(45deg); }
-.marketing-final-cta { display: grid; justify-items: center; gap: 18px; border-radius: 28px; padding: 76px 32px; background: #dff1eb; text-align: center; }
+.marketing-final-cta { position: relative; display: grid; justify-items: center; gap: 18px; overflow: hidden; border-radius: 28px; padding: 76px 32px; background: #dff1eb url("pocket-planner-topography.png") center / cover no-repeat; text-align: center; isolation: isolate; }
+.marketing-final-cta::before { position: absolute; z-index: -1; inset: 0; background: rgba(223,241,235,.91); content: ""; }
 .marketing-final-cta img { width: 58px; height: 58px; border-radius: 17px; }
 .marketing-final-cta > p:not(.marketing-kicker) { max-width: 600px; }
 .marketing-footer { min-height: 160px; display: flex; align-items: center; justify-content: space-between; gap: 24px; color: #65736e; }
@@ -2731,11 +2763,24 @@ body.service-portal-signed-in .auth-close, body.customer-portal-mode .auth-close
 }
 
 .pricing-page-hero {
+  position: relative;
   display: grid;
   justify-items: center;
   gap: 22px;
   padding: 100px 0 90px;
   text-align: center;
+  isolation: isolate;
+}
+
+.pricing-page-hero::before {
+  position: absolute;
+  z-index: -1;
+  inset: 20px -18vw 0;
+  background: url("pocket-planner-topography.png") center / cover no-repeat;
+  content: "";
+  filter: grayscale(1) sepia(.08);
+  opacity: .05;
+  pointer-events: none;
 }
 
 .pricing-page-hero h1 {
@@ -3536,6 +3581,9 @@ body.service-portal-signed-in .auth-close, body.customer-portal-mode .auth-close
 @media (max-width: 900px) {
   .marketing-hero { grid-template-columns: 1fr; min-height: auto; padding-block: 64px 90px; }
   .product-preview { width: min(680px, 100%); margin-inline: auto; }
+  .marketing-field-notes { grid-template-columns: 1fr; gap: 34px; }
+  .field-notes-art { order: 2; }
+  .field-notes-art img { max-height: 360px; }
   .workflow-section { grid-template-columns: 1fr; gap: 48px; }
   .faq-section { grid-template-columns: 1fr; gap: 12px; }
   .faq-section .marketing-section-heading { margin-bottom: 26px; }
