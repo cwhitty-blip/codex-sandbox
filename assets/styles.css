@@ -403,16 +403,18 @@ main {
   position: absolute;
   z-index: -1;
   inset: 0;
-  background: url("pocket-planner-topography.png") center top / 1100px auto repeat-y;
+  background:
+    linear-gradient(rgba(247, 249, 246, .18), rgba(247, 249, 246, .18)),
+    url("pocket-planner-topography.png") center top / 980px auto repeat-y;
   content: "";
   filter: grayscale(1) sepia(.08);
-  opacity: .025;
+  opacity: .085;
   pointer-events: none;
 }
 
 html[data-theme="dark"] .app-shell > main::before {
   filter: grayscale(1) invert(1);
-  opacity: .018;
+  opacity: .045;
 }
 
 body.service-portal-signed-in #authPanel {
