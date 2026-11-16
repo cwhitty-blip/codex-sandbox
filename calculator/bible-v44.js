@@ -17,7 +17,29 @@ function book(){return version()?.books[state.book]}
 function chapter(){return book()?.[1]?.[state.chapter]}
 function show(el){if(el===home)stopSpeech();document.querySelectorAll('.screen').forEach(x=>x.classList.remove('active'));el.classList.add('active')}
 function toast(message){window.CalculatorCore?.toast?.(message)}
-function loadVersion(v){if(DATA[v]?.books?.length)return Promise.resolve(DATA[v]);return new Promise((resolve,reject)=>{document.querySelector(`script[data-bible-version="${v}"]`)?.remove();const s=document.createElement('script'),timer=setTimeout(()=>{s.remove();reject(Error('Bible data took too long to open'))},20000),finish=(ok)=>{clearTimeout(timer);ok?resolve(DATA[v]):reject(Error('Bible data unavailable'))};s.src=`./calculator/bible-${v}-v44.js?v=46`;s.dataset.bibleVersion=v;s.async=true;s.onload=()=>finish(!!DATA[v]?.books?.length);s.onerror=()=>finish(false);document.head.append(s)})}
+/* Bible text is stored in eight same-origin, public-domain parts per translation. */
+const pendingBibleLoads=Object.create(null);
+function loadVersion(v){
+ if(DATA[v]?.books?.length)return Promise.resolve(DATA[v]);
+ if(!VERSIONS[v])return Promise.reject(Error('Unknown Bible translation'));
+ if(pendingBibleLoads[v])return pendingBibleLoads[v];
+ pendingBibleLoads[v]=(async()=>{
+  const chunks=await Promise.all(Array.from({length:8},async(_,index)=>{
+   const part=String(index+1).padStart(2,'0');
+   const url=`./calculator/bible-${v}-v44-part${part}.json?v=47`;
+   const response=await fetch(url);
+   if(!response.ok)throw Error('Bible text unavailable ('+v+' part '+part+')');
+   const data=await response.json();
+   if(!Array.isArray(data)||!data.every(b=>Array.isArray(b)&&typeof b[0]==='string'&&Array.isArray(b[1])))throw Error('Invalid Bible text');
+   return data;
+  }));
+  const books=chunks.flat();
+  if(books.length!==66||books[0][0]!=='Genesis'||books[42][0]!=='John'||books[65][0]!=='Revelation')throw Error('Incomplete Bible text');
+  DATA[v]={books};
+  return DATA[v];
+ })().finally(()=>{delete pendingBibleLoads[v]});
+ return pendingBibleLoads[v];
+}
 function reference(v,b,c,n){return `${DATA[v].books[b][0]} ${c+1}:${n+1} ${VERSIONS[v].short}`}
 function loading(){app.innerHTML='';const p=node('div','bible-loading');p.setAttribute('role','status');p.setAttribute('aria-live','polite');const mark=node('div','bible-opening-mark');mark.append(node('span','bible-mark','✝'));const copy=node('div','bible-opening-copy');copy.append(node('small','','HOLY BIBLE'),node('strong','',`Opening ${VERSIONS[state.version].name}…`),node('span','','Preparing your saved reading place'));const progress=node('div','bible-loading-line');p.append(mark,copy,progress);app.append(p);show(app)}
 function openingError(){app.innerHTML='';const p=node('div','bible-open-error');p.append(node('span','bible-error-mark','✝'),node('h1','','Bible could not open'),node('p','','The reader is still here. Try opening it again.'));const actions=node('div','bible-error-actions');actions.append(button('Try Again','bible-retry',open),button('Back to Home','bible-error-home',()=>show(home)));p.append(actions);app.append(p);show(app)}
