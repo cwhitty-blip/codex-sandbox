@@ -25,7 +25,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet" />
-    <link rel="stylesheet" href="assets/styles.css?v=pocket-planner-field-character-v1" />
+    <link rel="stylesheet" href="assets/styles.css?v=pocket-planner-illustrated-workspace-v1" />
   </head>
   <body>
     <div id="marketingLanding" class="marketing-landing" hidden>
@@ -281,6 +281,7 @@
             <p class="eyebrow" id="viewEyebrow">Today</p>
             <h1 id="viewTitle">Jobs</h1>
           </div>
+          <span class="doodle-crop topbar-doodle" style="--doodle: 3" aria-hidden="true"><img src="assets/pocket-planner-field-doodles.png" alt="" /></span>
           <div class="topbar-actions">
             <button class="icon-button theme-toggle" data-theme-toggle type="button" aria-label="Use dark mode" title="Use dark mode">
               <i class="theme-icon theme-icon-light" data-lucide="moon" aria-hidden="true"></i>
@@ -356,6 +357,7 @@
               </div>
               <section class="job-summary-section" aria-labelledby="jobListHeading">
                 <div class="job-list-heading">
+                  <span class="doodle-crop section-doodle" style="--doodle: 0" aria-hidden="true"><img src="assets/pocket-planner-field-doodles.png" alt="" /></span>
                   <div>
                     <p class="eyebrow">Current work</p>
                     <h2 id="jobListHeading">Current jobs</h2>
@@ -365,14 +367,14 @@
               </section>
               <section class="job-results-section" aria-labelledby="jobResultsHeading">
                 <div class="job-results-heading">
-                  <h3 id="jobResultsHeading">Jobs</h3>
+                  <div><span class="doodle-crop section-doodle" style="--doodle: 3" aria-hidden="true"><img src="assets/pocket-planner-field-doodles.png" alt="" /></span><h3 id="jobResultsHeading">Jobs</h3></div>
                 </div>
                 <div id="jobList" class="job-list"></div>
               </section>
               <section class="job-filter-section" aria-labelledby="jobFilterHeading">
                 <div class="job-filter-heading">
-                  <strong id="jobFilterHeading">Find a job</strong>
-                  <small>Search or change which jobs are shown.</small>
+                  <span class="doodle-crop section-doodle" style="--doodle: 2" aria-hidden="true"><img src="assets/pocket-planner-field-doodles.png" alt="" /></span>
+                  <span><strong id="jobFilterHeading">Find a job</strong><small>Search or change which jobs are shown.</small></span>
                 </div>
                 <div class="job-filter-bar" role="search">
                   <label class="search-control">
@@ -843,6 +845,6 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.110.1"></script>
     <script src="https://unpkg.com/lucide@1.24.0/dist/umd/lucide.js"></script>
     <script src="assets/config.js?v=accounts-v3"></script>
-    <script src="assets/app.js?v=pocket-planner-marketing-preview-v1"></script>
+    <script src="assets/app.js?v=pocket-planner-illustrated-workspace-v1"></script>
   </body>
 </html>

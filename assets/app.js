@@ -2118,9 +2118,19 @@ function renderJobs() {
     .map(
       (job) => {
         const attentionLabel = attentionLabelForJob(job);
+        const doodleIndex = ["Inspection scheduled", "Scheduled"].includes(job.jobStatus)
+          ? 4
+          : ["Claim submitted", "Waiting on insurance", "Estimate sent", "Deposit Received"].includes(job.jobStatus)
+            ? 2
+            : ["Materials ordered", "Complete", "Paid"].includes(job.jobStatus)
+              ? 3
+              : job.jobStatus === "Inspected"
+                ? 1
+                : 0;
         return `
         <button class="job-row" data-job-id="${job.id}" type="button">
-          <span>
+          <span class="doodle-crop job-doodle" style="--doodle: ${doodleIndex}" aria-hidden="true"><img src="assets/pocket-planner-field-doodles.png" alt="" /></span>
+          <span class="job-row-copy">
             <strong>${escapeHtml(job.name)}</strong>
             <small>${escapeHtml(job.customerName)}${multiTradeEnabled() ? ` · ${escapeHtml(tradeForCode(job.industry).label)}` : ""}</small>
             ${attentionLabel ? `<small class="job-attention-label">${escapeHtml(attentionLabel)}</small>` : ""}
