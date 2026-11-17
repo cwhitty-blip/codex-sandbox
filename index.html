@@ -4,24 +4,13 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="referrer" content="no-referrer" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://cdn.jsdelivr.net https://unpkg.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data: blob: https://*.supabase.co; connect-src 'self' https://*.supabase.co wss://*.supabase.co; frame-src 'self' blob: https://*.supabase.co; media-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; upgrade-insecure-requests" />
     <meta name="description" content="Pocket Planner keeps jobs, customers, documents, and updates together in one simple contractor workspace." />
     <title>Pocket Planner | Every job. Right in your pocket.</title>
     <meta name="theme-color" content="#102b25" />
     <link rel="icon" type="image/png" href="assets/pocket-ledger-mark.png" />
     <link rel="apple-touch-icon" href="assets/pocket-ledger-mark.png" />
-    <script>
-      (() => {
-        const storageKey = "servicePortal.theme";
-        let savedTheme = "";
-        try {
-          savedTheme = localStorage.getItem(storageKey) || "";
-        } catch (_) {}
-        const theme = savedTheme === "light" || savedTheme === "dark"
-          ? savedTheme
-          : window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
-        document.documentElement.dataset.theme = theme;
-      })();
-    </script>
+    <script src="assets/theme-init.js"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet" />
@@ -196,6 +185,7 @@
         <span class="marketing-brand"><img src="assets/pocket-ledger-mark.png" alt="" /><strong>Pocket <em>Planner</em></strong></span>
         <p>Every job. Right in your pocket.</p>
         <button data-marketing-sign-in type="button">Contractor sign in</button>
+        <nav class="legal-links" aria-label="Legal and support"><a href="privacy.html">Privacy</a><a href="terms.html">Terms</a><a href="support.html">Support</a></nav>
       </footer>
     </div>
 
@@ -868,8 +858,8 @@
     </dialog>
 
     <input id="documentPicker" class="hidden-file" multiple type="file" accept="application/pdf,image/jpeg,image/png,image/webp,image/heic,image/heif" aria-hidden="true" tabindex="-1" />
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.110.1"></script>
-    <script src="https://unpkg.com/lucide@1.24.0/dist/umd/lucide.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.110.1" integrity="sha384-fx4y4cDx8NYfissnVzdGJY3yVXWY3rn5ab5HTUjpvgT35oDiyAbjjqnLhnRmESNE" crossorigin="anonymous"></script>
+    <script src="https://unpkg.com/lucide@1.24.0/dist/umd/lucide.js" integrity="sha384-pLX3Fl0m52MclHeHyUdLRg9l8/QW5IiesBUs9Sxxm38xj9lNZW7JqqAfp2/4ARQt" crossorigin="anonymous"></script>
     <script src="assets/config.js?v=accounts-v3"></script>
     <script src="assets/app.js?v=pocket-planner-illustrated-workspace-v1"></script>
   </body>

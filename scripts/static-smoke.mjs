@@ -34,6 +34,7 @@ const multiTradeMigration = read("supabase/migrations/20261101110000_multi_trade
 const jobStatusMigration = read("supabase/migrations/20261103120000_job_status_pipeline.sql");
 const billingManagementMigration = read("supabase/migrations/20261113150000_billing_operations_management.sql");
 const waveEdge = read("supabase/functions/wave-webhook/index.ts");
+const launchHardeningMigration = read("supabase/migrations/20261117090000_launch_hardening.sql");
 const supabaseConfig = read("supabase/config.toml");
 
 const ids = [...html.matchAll(/\sid="([^"]+)"/g)].map((match) => match[1]);
@@ -81,7 +82,20 @@ assert(app.includes('let customerViewStage = "list"'), "Customer View must open 
 assert(app.includes('data-action="back-to-customer-list"'), "Customer detail must provide a route back to the list");
 assert(styles.includes("env(safe-area-inset-top)"), "Mobile dialogs must clear the browser and device safe area");
 assert(app.includes('"Deposit Received"') && app.includes('"Paid"'), "Job status choices must include the approved eleven-stage pipeline");
-assert(app.includes('return !["Complete", "Paid"].includes(job.jobStatus)'), "Complete and paid jobs must leave the current queue");
+assert(app.includes('return !job.archivedAt && !["Complete", "Paid"].includes(job.jobStatus)'), "Complete, paid, and archived jobs must leave the current queue");
+assert(config.includes('appBaseUrl: "https://pocketplanner.org"'), "Account and recovery links must return to the branded domain");
+assert(html.includes('Content-Security-Policy'), "The public application must define a content security policy");
+assert(html.includes('integrity="sha384-'), "Third-party browser scripts must use integrity checks");
+assert(html.includes('href="privacy.html"') && html.includes('href="terms.html"') && html.includes('href="support.html"'), "The public site must expose privacy, terms, and support pages");
+assert(app.includes('window.sessionStorage.setItem("pocketPlanner.portalToken"'), "Customer credentials must be removed from the visible URL");
+assert(edge.includes("fileSignatureMatches"), "Customer uploads must verify file signatures");
+assert(edge.includes("recentUploadCount"), "Customer uploads must be rate limited");
+assert(launchHardeningMigration.includes("coalesce(membership.status, 'active') = 'active'"), "Disabled memberships must lose access immediately");
+assert(launchHardeningMigration.includes("company_member_can_access_job"), "Crew access must be assignment scoped");
+assert(launchHardeningMigration.includes("Owners and admins can delete jobs"), "Permanent deletion must be owner/admin only");
+assert(launchHardeningMigration.includes("enforce_company_job_limit_trigger"), "Published active-job limits must be enforced");
+assert(launchHardeningMigration.includes("enforce_company_storage_limit_trigger"), "Published storage limits must be enforced");
+assert(launchHardeningMigration.includes("activate_free_plan_after_trial"), "Expired trials must fall back to the published free plan");
 assert(jobStatusMigration.includes("alter column job_status set default 'Lead'"), "New database jobs must begin as leads");
 assert(jobStatusMigration.includes("when 'Active' then 'Lead'"), "Legacy active jobs must be normalized");
 assert(app.includes("els.settingsAccountPanel.hidden = !backend.live"), "Account controls must appear only for live signed-in workspaces");

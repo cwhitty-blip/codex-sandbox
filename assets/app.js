@@ -279,6 +279,7 @@ const backend = {
   user: null,
   company: null,
   entitlement: null,
+  membership: null,
   live: false,
   loading: false,
   authMode: "signin",
@@ -585,6 +586,10 @@ function publicError(error, fallback = "Could not complete. Please try again.") 
   if (/email.*not.*confirmed|confirm.*email/i.test(message)) return "Confirm your email before signing in.";
   if (/invalid login|credentials/i.test(message)) return "Email or password did not match.";
   if (/rate limit/i.test(message)) return "Too many attempts. Please wait a few minutes and try again.";
+  if (/active job limit/i.test(message)) return "This plan has reached its active-job limit. Complete or archive a job before adding another.";
+  if (/storage limit/i.test(message)) return "This plan has reached its file-storage limit. Remove unneeded files before uploading another.";
+  if (/member limit/i.test(message)) return "This plan has reached its team-member limit.";
+  if (/not assigned|manager access|required to delete/i.test(message)) return "Your account does not have permission for that action.";
   if (/read.?only|billing.*restored|trial.*ended/i.test(message)) return "Your trial has ended. The workspace is read-only until billing is restored.";
   if (/network|fetch|timeout|load failed|offline/i.test(message)) return "Connection issue. Please try again.";
   return fallback;
@@ -709,6 +714,18 @@ function workspaceCanWrite() {
   if (readOnlyPreviewMode()) return false;
   if (!backend.live) return true;
   return backend.entitlement?.can_write ?? state.settings.canWrite ?? true;
+}
+
+function memberRole() {
+  return backend.membership?.role || "owner";
+}
+
+function canManageWorkspace() {
+  return !backend.live || ["owner", "admin", "office_manager"].includes(memberRole());
+}
+
+function canPermanentlyDeleteJobs() {
+  return !backend.live || ["owner", "admin"].includes(memberRole());
 }
 
 function requireWorkspaceWriteAccess() {
@@ -912,6 +929,7 @@ async function initBackend() {
     backend.live = false;
     backend.user = null;
     backend.company = null;
+    backend.membership = null;
     if (previewState === "unconfirmed") {
       backend.authFeedback = {
         title: "Confirm your email",
@@ -986,6 +1004,7 @@ async function initBackend() {
       backend.session = null;
       backend.user = null;
       backend.company = null;
+      backend.membership = null;
       backend.live = false;
       backend.authFeedback = null;
       localStorage.removeItem(STORAGE_KEY);
@@ -1203,6 +1222,7 @@ async function handleSession(session) {
   } catch (error) {
     console.warn("Live workspace setup failed.", error);
     backend.company = null;
+    backend.membership = null;
     backend.live = false;
     backend.authFeedback = {
       title: "Workspace could not open",
@@ -1269,6 +1289,7 @@ function mapDbJob(job) {
     .sort((a, b) => new Date(b.decided_at || b.accepted_at || 0) - new Date(a.decided_at || a.accepted_at || 0))[0];
   return {
     id: job.id,
+    archivedAt: job.archived_at || null,
     customerId: job.customer_id,
     industry: job.industry,
     name: job.name,
@@ -1319,14 +1340,18 @@ async function loadLiveState() {
   const previousSelectedJobId = selectedJobId;
   const previousPortalJobId = state.portalAccess.jobId;
   const companyId = backend.company.id;
+  const { error: freePlanError } = await backend.client.rpc("activate_free_plan_after_trial", { target_company_id: companyId });
+  if (freePlanError && !/function.*does not exist/i.test(String(freePlanError.message || ""))) throw freePlanError;
   const [
     { data: company, error: companyError },
+    { data: membership, error: membershipError },
     { data: fields, error: fieldsError },
     { data: jobs, error: jobsError },
     { data: entitlement, error: entitlementError },
   ] =
     await Promise.all([
       backend.client.from("companies").select("*").eq("id", companyId).single(),
+      backend.client.from("company_members").select("id,role,status,display_name").eq("company_id", companyId).eq("user_id", backend.user.id).single(),
       backend.client.from("custom_fields").select("*").eq("company_id", companyId).order("created_at"),
       backend.client
         .from("jobs")
@@ -1337,11 +1362,14 @@ async function loadLiveState() {
     ]);
 
   if (companyError) throw companyError;
+  if (membershipError) throw membershipError;
+  if (membership.status !== "active") throw new Error("This workspace membership is disabled.");
   if (fieldsError) throw fieldsError;
   if (jobsError) throw jobsError;
   if (entitlementError) throw entitlementError;
 
   backend.company = company;
+  backend.membership = membership;
   backend.entitlement = entitlement || null;
   state.settings = {
     billingProvider: company.billing_provider || "QuickBooks Online",
@@ -1401,7 +1429,16 @@ async function hydrateDocumentUrls() {
 }
 
 function portalTokenFromUrl() {
-  return new URLSearchParams(window.location.search).get("portal") || "";
+  const params = new URLSearchParams(window.location.search);
+  const queryToken = params.get("portal") || "";
+  if (queryToken) {
+    window.sessionStorage.setItem("pocketPlanner.portalToken", queryToken);
+    params.delete("portal");
+    const cleanUrl = `${window.location.pathname}${params.toString() ? `?${params}` : ""}${window.location.hash}`;
+    window.history.replaceState({}, document.title, cleanUrl);
+    return queryToken;
+  }
+  return window.sessionStorage.getItem("pocketPlanner.portalToken") || "";
 }
 
 function activateCustomerPortalView() {
@@ -1456,6 +1493,8 @@ async function loadCustomerPortal(token, actionPayload = { action: "payload" }) 
       activateCustomerPortalView();
       return;
     }
+    window.sessionStorage.removeItem("pocketPlanner.portalToken");
+    portalMode.token = "";
     els.customerPortal.innerHTML = `<div class="empty-state">This customer link is invalid or expired. Please ask the contractor to send a new link.</div>`;
     return;
   }
@@ -1497,7 +1536,7 @@ const attentionDefinitions = [
 ];
 
 function isOpenJob(job) {
-  return !["Complete", "Paid"].includes(job.jobStatus);
+  return !job.archivedAt && !["Complete", "Paid"].includes(job.jobStatus);
 }
 
 function attentionCategoriesForJob(job) {
@@ -1987,7 +2026,15 @@ function render() {
   renderCustomerPortal();
   renderSettings();
   renderWorkspaceAccess();
+  renderMemberAccess();
   refreshIcons();
+}
+
+function renderMemberAccess() {
+  const manager = canManageWorkspace();
+  els.startJob.hidden = !manager;
+  els.settingsGear.hidden = !manager;
+  els.deleteJob.hidden = !canPermanentlyDeleteJobs() || !els.jobId.value;
 }
 
 function companyLogoUrl(company = backend.company) {
@@ -2184,7 +2231,7 @@ function renderJobDetail() {
   els.jobDetail.innerHTML = `
     <div class="detail-actions">
       <button class="primary-button" data-action="edit-job" data-requires-write type="button">${iconMarkup("pencil-line")}<span>Edit job</span></button>
-      <button class="ghost-button" data-action="send-email" data-requires-write type="button">${iconMarkup("send")}<span>Send customer link</span></button>
+      ${canManageWorkspace() ? `<button class="ghost-button" data-action="send-email" data-requires-write type="button">${iconMarkup("send")}<span>Send customer link</span></button>` : ""}
     </div>
     ${job.actionMessage ? `<div class="action-feedback" role="status">${iconMarkup("info")}<span>${escapeHtml(job.actionMessage)}</span></div>` : ""}
     <section class="job-focus">
@@ -2250,10 +2297,11 @@ function renderJobDetail() {
     </details>
     ${state.settings.mileageTrackingEnabled ? `<details class="detail-disclosure"><summary>${iconMarkup("route")}<span><strong>Mileage</strong><small>Track travel for this job</small></span>${iconMarkup("chevron-down")}</summary><div class="disclosure-content">${renderMileageTracker(job)}</div></details>` : ""}
     ${job.timeline.length ? `<details class="detail-disclosure"><summary>${iconMarkup("history")}<span><strong>Activity</strong><small>${job.timeline.length} recorded event${job.timeline.length === 1 ? "" : "s"}</small></span>${iconMarkup("chevron-down")}</summary><div class="disclosure-content"><ol class="timeline">${job.timeline.map((event) => `<li>${escapeHtml(event)}</li>`).join("")}</ol></div></details>` : ""}
-    <div class="job-delete-zone">
-      <span><strong>Remove this job</strong><small>This permanently deletes the job and its records.</small></span>
-      <button class="danger-button" data-action="delete-job" data-job-id="${escapeHtml(job.id)}" data-requires-write type="button">${iconMarkup("trash-2")}<span>Delete job</span></button>
-    </div>
+    ${canManageWorkspace() ? `<div class="job-delete-zone">
+      <span><strong>${job.archivedAt ? "Archived job" : "Archive this job"}</strong><small>${job.archivedAt ? "Restore it to return it to the working list." : "Keeps the complete record while removing it from current work."}</small></span>
+      <button class="ghost-button" data-action="${job.archivedAt ? "restore-job" : "archive-job"}" data-job-id="${escapeHtml(job.id)}" data-requires-write type="button">${iconMarkup(job.archivedAt ? "archive-restore" : "archive")}<span>${job.archivedAt ? "Restore job" : "Archive job"}</span></button>
+      ${canPermanentlyDeleteJobs() ? `<button class="danger-text-button" data-action="delete-job" data-job-id="${escapeHtml(job.id)}" data-requires-write type="button">Permanently delete</button>` : ""}
+    </div>` : ""}
   `;
 }
 
@@ -2846,7 +2894,7 @@ function openJobDialog(job = null) {
   const isEdit = Boolean(job);
   els.jobDialogMode.textContent = isEdit ? "Edit" : "New";
   els.jobDialogTitle.textContent = isEdit ? "Edit job" : "New job";
-  els.deleteJob.hidden = !isEdit;
+  els.deleteJob.hidden = !isEdit || !canPermanentlyDeleteJobs();
   els.jobId.value = job?.id || "";
   els.jobName.value = job?.name || "";
   const enabledTrades = activeTradeCodes();
@@ -2864,6 +2912,9 @@ function openJobDialog(job = null) {
   els.customerEmail.value = job?.customerEmail || "";
   els.customerPhone.value = job?.customerPhone || "";
   els.serviceAddress.value = job?.serviceAddress || "";
+  [els.customerName, els.customerEmail, els.customerPhone, els.serviceAddress].forEach((field) => {
+    field.disabled = backend.live && !canManageWorkspace();
+  });
   els.jobStatus.value = normalizeJobStatus(job?.jobStatus);
   els.materialStatus.value = job?.materialStatus || "Not Ordered";
   els.projectedDate.value = job?.scheduledStart ? dateInputInTimezone(job.scheduledStart) : job?.projectedDate || "";
@@ -3835,6 +3886,14 @@ function bindEvents() {
     if (!actionTarget) return;
     const action = actionTarget.dataset.action;
     if (action === "edit-job") openJobDialog(selectedJob());
+    if (action === "archive-job") setJobArchived(actionTarget.dataset.jobId, true).catch((error) => {
+      console.warn("Job archive failed", error);
+      showToast("Could not archive the job.", "error");
+    });
+    if (action === "restore-job") setJobArchived(actionTarget.dataset.jobId, false).catch((error) => {
+      console.warn("Job restore failed", error);
+      showToast("Could not restore the job.", "error");
+    });
     if (action === "delete-job") deleteJobById(actionTarget.dataset.jobId).catch((error) => {
       console.warn("Job delete failed", error);
       showToast("Could not delete the job.", "error");
@@ -4300,6 +4359,7 @@ function bindEvents() {
 
   els.deleteJob.addEventListener("click", () => {
     if (!requireWorkspaceWriteAccess()) return;
+    if (!canPermanentlyDeleteJobs()) return;
     deleteJobById(els.jobId.value).catch((error) => {
       console.warn("Job delete failed", error);
       showToast("Could not delete the job.", "error");
@@ -4307,8 +4367,30 @@ function bindEvents() {
   });
 }
 
+async function setJobArchived(id, archived) {
+  if (!requireWorkspaceWriteAccess() || !canManageWorkspace()) return;
+  const job = state.jobs.find((item) => item.id === id);
+  if (!job) return;
+  if (backend.live) {
+    const { error } = await backend.client.from("jobs").update({ archived_at: archived ? new Date().toISOString() : null }).eq("id", id);
+    if (error) throw error;
+    await loadLiveState();
+  } else {
+    job.archivedAt = archived ? new Date().toISOString() : null;
+  }
+  selectedJobId = null;
+  dashboardStage = "list";
+  mobileDetailActive = false;
+  showToast(archived ? "Job archived." : "Job restored.", "success");
+  render();
+}
+
 async function deleteJobById(id) {
   if (!requireWorkspaceWriteAccess()) return;
+  if (!canPermanentlyDeleteJobs()) {
+    showToast("Only an owner or administrator can permanently delete a job.", "error");
+    return;
+  }
   const job = state.jobs.find((item) => item.id === id);
   if (!job) return;
   if (!window.confirm(`Delete "${job.name}" and all of its records? This cannot be undone.`)) return;

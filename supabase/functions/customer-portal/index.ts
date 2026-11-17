@@ -92,6 +92,22 @@ function decodeBase64(value: string) {
   return bytes;
 }
 
+function fileSignatureMatches(bytes: Uint8Array, mimeType: string) {
+  const starts = (...values: number[]) => values.every((value, index) => bytes[index] === value);
+  if (mimeType === "application/pdf") return starts(0x25, 0x50, 0x44, 0x46, 0x2d);
+  if (mimeType === "image/jpeg") return starts(0xff, 0xd8, 0xff);
+  if (mimeType === "image/png") return starts(0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a);
+  if (mimeType === "image/webp") {
+    return starts(0x52, 0x49, 0x46, 0x46)
+      && bytes[8] === 0x57 && bytes[9] === 0x45 && bytes[10] === 0x42 && bytes[11] === 0x50;
+  }
+  if (mimeType === "image/heic" || mimeType === "image/heif") {
+    const brand = new TextDecoder().decode(bytes.slice(4, 12));
+    return brand.includes("ftyp");
+  }
+  return false;
+}
+
 async function signedDocuments(supabase: ReturnType<typeof createClient>, documents: Array<Record<string, unknown>>) {
   return Promise.all(documents.map(async (doc) => {
     let previewUrl = "";
@@ -239,6 +255,17 @@ serve(async (req) => {
       return jsonResponse(req, { error: "File could not be read" }, 400);
     }
     if (!bytes.length || bytes.length > maxFileBytes) return jsonResponse(req, { error: "File must be 10 MB or smaller" }, 413);
+    if (!fileSignatureMatches(bytes, mimeType)) return jsonResponse(req, { error: "File contents do not match the selected file type" }, 415);
+
+    const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+    const { count: recentUploadCount, error: countError } = await supabase
+      .from("documents")
+      .select("id", { count: "exact", head: true })
+      .eq("job_id", link.job_id)
+      .eq("uploaded_by", "Customer")
+      .gte("created_at", oneHourAgo);
+    if (countError) return jsonResponse(req, { error: "Could not verify upload allowance" }, 500);
+    if ((recentUploadCount || 0) >= 20) return jsonResponse(req, { error: "Upload limit reached. Please try again later." }, 429);
 
     const documentType = payload.documentType || "Customer Upload";
     const { data: duplicate } = await supabase

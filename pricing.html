@@ -3,6 +3,8 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="referrer" content="no-referrer" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://unpkg.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data:; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; upgrade-insecure-requests" />
     <meta name="description" content="Pocket Planner pricing, available contractor job-management features, and upcoming product roadmap." />
     <title>Pricing & Features | Pocket Planner</title>
     <meta name="theme-color" content="#102b25" />
@@ -66,7 +68,7 @@
             <div class="public-plan-heading">
               <span>Pocket Planner</span>
               <div><strong>$12.99</strong><small>/ month</small></div>
-              <p>For a working contractor managing an active book of business.</p>
+              <p>For a working contractor managing an active book of business. Paid enrollment opens after the beta period.</p>
             </div>
             <ul>
               <li><i data-lucide="check"></i>Up to 50 active jobs</li>
@@ -76,7 +78,7 @@
               <li><i data-lucide="check"></i>Custom fields and multi-trade settings</li>
               <li><i data-lucide="check"></i>Mileage and customer update history</li>
             </ul>
-            <a class="primary-button" href="index.html?signup=1">Start 14 days free</a>
+            <a class="primary-button" href="index.html?signup=1">Join the free beta</a>
           </article>
           <article class="public-plan-card future-plan">
             <div class="public-plan-heading">
@@ -164,7 +166,7 @@
           <article><i data-lucide="user-cog"></i><span><strong>Team roles and assignments</strong><small>Assign owners, control field access, and make responsibility obvious.</small></span><em>In development</em></article>
           <article><i data-lucide="chart-no-axes-combined"></i><span><strong>Business reporting</strong><small>See job volume, stage aging, completion trends, and team workload.</small></span><em>Planned</em></article>
           <article><i data-lucide="route"></i><span><strong>Route-aware scheduling</strong><small>Consider drive time and job location when suggesting the next opening.</small></span><em>Exploring</em></article>
-          <article><i data-lucide="download"></i><span><strong>Data export and backup tools</strong><small>Download job and customer records in practical, portable formats.</small></span><em>Planned</em></article>
+          <article><i data-lucide="download"></i><span><strong>Data export and backup tools</strong><small>Download one job or the complete job list as a portable CSV spreadsheet.</small></span><em>Available</em></article>
           <article><i data-lucide="message-square-text"></i><span><strong>Text message updates</strong><small>Offer customer notifications by SMS alongside email where appropriate.</small></span><em>Exploring</em></article>
           <article><i data-lucide="layout-template"></i><span><strong>Reusable job templates</strong><small>Start common work with the right fields, checklist, duration, and follow-up.</small></span><em>Planned</em></article>
         </div>
@@ -175,6 +177,7 @@
         <div class="faq-list">
           <details><summary>How are job and storage limits measured?<i data-lucide="plus"></i></summary><p>Only current, active jobs count toward the job limit. Completed and archived jobs stay searchable without consuming an active-job slot. Uploaded files count toward the company’s storage allowance.</p></details>
           <details><summary>Will I be charged when I start the trial?<i data-lucide="plus"></i></summary><p>No. A credit card is not required to begin the 14-day trial. Billing terms will be shown before a payment is authorized.</p></details>
+          <details><summary>Can I subscribe during the beta?<i data-lucide="plus"></i></summary><p>Not yet. Beta access is currently free. Paid enrollment at $12.99 per month will be activated only after checkout, receipts, cancellation, and account restoration have completed final testing.</p></details>
           <details><summary>What happens when I reach a limit?<i data-lucide="plus"></i></summary><p>Your existing records remain available. You can archive completed jobs, clean up unneeded files, or upgrade before adding more active work. Pocket Planner will not add surprise usage charges.</p></details>
           <details><summary>Are upcoming features guaranteed?<i data-lucide="plus"></i></summary><p>No. Roadmap items show product direction, not a contractual commitment. We may change the scope or order based on contractor feedback and technical testing.</p></details>
           <details><summary>Will the basics become expensive add-ons?<i data-lucide="plus"></i></summary><p>Our goal is to keep the core job, customer, document, schedule, and communication workflow together rather than create a maze of essential add-ons.</p></details>
@@ -194,8 +197,9 @@
       <a class="marketing-brand" href="index.html"><img src="assets/pocket-ledger-mark.png" alt="" /><strong>Pocket <em>Planner</em></strong></a>
       <p>Every job. Right in your pocket.</p>
       <a href="index.html?signin=1">Contractor sign in</a>
+      <nav class="legal-links" aria-label="Legal and support"><a href="privacy.html">Privacy</a><a href="terms.html">Terms</a><a href="support.html">Support</a></nav>
     </footer>
-    <script src="https://unpkg.com/lucide@1.24.0/dist/umd/lucide.js"></script>
-    <script>window.lucide?.createIcons();</script>
+    <script src="https://unpkg.com/lucide@1.24.0/dist/umd/lucide.js" integrity="sha384-pLX3Fl0m52MclHeHyUdLRg9l8/QW5IiesBUs9Sxxm38xj9lNZW7JqqAfp2/4ARQt" crossorigin="anonymous"></script>
+    <script src="assets/public-page.js"></script>
   </body>
 </html>
