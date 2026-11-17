@@ -2952,11 +2952,17 @@ function customerVisibleJobChanges(existing, nextJob) {
   }
 
   if (changed(existing.name, nextJob.name)) changes.push(`Job name changed to ${text(nextJob.name)}`);
+  if (changed(existing.jobStatus, nextJob.jobStatus)) {
+    changes.push(`Job status changed to ${text(nextJob.jobStatus)}`);
+  }
   if (changed(existing.serviceAddress, nextJob.serviceAddress)) {
     changes.push(text(nextJob.serviceAddress) ? `Service address updated to ${text(nextJob.serviceAddress)}` : "Service address removed");
   }
   if (changed(existing.materialStatus, nextJob.materialStatus)) {
     changes.push(`Material or parts status changed to ${text(nextJob.materialStatus)}`);
+  }
+  if (changed(existing.nextAction, nextJob.nextAction)) {
+    changes.push(text(nextJob.nextAction) ? `Next step: ${text(nextJob.nextAction)}` : "The previous next step was completed");
   }
 
   const previousStart = text(existing.scheduledStart);

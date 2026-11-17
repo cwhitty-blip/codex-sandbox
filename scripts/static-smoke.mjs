@@ -152,6 +152,8 @@ assert(!html.includes('id="sidebarBrandFallback"'), "The mobile company header m
 assert(app.includes('emailType: "job_update"'), "Contractor job changes must request customer update emails");
 assert(app.includes("customerVisibleJobChanges"), "Job saves must describe customer-visible changes");
 assert(app.includes("changes: customerChanges"), "Queued job updates must include their change descriptions");
+assert(app.includes("Job status changed to ${text(nextJob.jobStatus)}"), "Customer update emails must identify job status changes");
+assert(app.includes("Next step: ${text(nextJob.nextAction)}"), "Customer update emails must identify next-step changes");
 assert(emailEdge.includes('.from("job_update_events").insert'), "Contractor updates must be queued instead of sent immediately");
 assert(emailEdge.includes("change_summaries: changeSummaries"), "Queued update events must store customer-safe change descriptions");
 assert(digestEdge.includes("Your job has been updated."), "Digest email must use the approved customer wording");
